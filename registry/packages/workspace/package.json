@@ -1,0 +1,59 @@
+{
+	"name": "workspace",
+	"version": "0.1.0",
+	"type": "registry:package",
+	"description": "Session workspace with research persistence and plan management for AI coding agents",
+	"author": "kdcokenny",
+	"license": "MIT",
+	"runtimes": [
+		"opencode"
+	],
+	"registryDependencies": [],
+	"files": [
+		{
+			"path": "AGENTS.md",
+			"runtimeTarget": null,
+			"type": "other"
+		},
+		{
+			"path": "agents/plan.md",
+			"runtimeTarget": ".opencode/agent/agentcn/plan.md",
+			"type": "agent"
+		},
+		{
+			"path": "agents/build.md",
+			"runtimeTarget": ".opencode/agent/agentcn/build.md",
+			"type": "agent"
+		},
+		{
+			"path": "agents/librarian.md",
+			"runtimeTarget": ".opencode/agent/agentcn/librarian.md",
+			"type": "agent"
+		},
+		{
+			"path": "agents/writer.md",
+			"runtimeTarget": ".opencode/agent/agentcn/writer.md",
+			"type": "agent"
+		},
+		{
+			"path": "plugin/index.ts",
+			"runtimeTarget": ".opencode/plugin/agentcn/workspace.ts",
+			"type": "plugin"
+		},
+		{
+			"path": "skills/plan-protocol/README.md",
+			"runtimeTarget": ".opencode/skill/agentcn/plan-protocol/README.md",
+			"type": "skill"
+		},
+		{
+			"path": "skills/research-protocol/README.md",
+			"runtimeTarget": ".opencode/skill/agentcn/research-protocol/README.md",
+			"type": "skill"
+		},
+		{
+			"path": "commands/plan.md",
+			"runtimeTarget": ".opencode/command/agentcn/plan.md",
+			"type": "command"
+		}
+	]
+}

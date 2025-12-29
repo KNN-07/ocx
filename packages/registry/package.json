@@ -1,0 +1,20 @@
+{
+	"name": "@agentcn/registry",
+	"version": "0.1.0",
+	"type": "module",
+	"description": "AgentCN Registry API - Cloudflare Worker",
+	"main": "./src/index.ts",
+	"scripts": {
+		"dev": "wrangler dev",
+		"deploy": "wrangler deploy --minify",
+		"cf-typegen": "wrangler types --env-interface CloudflareBindings",
+		"typecheck": "bun run cf-typegen && tsc --noEmit"
+	},
+	"dependencies": {
+		"hono": "^4.7.0"
+	},
+	"devDependencies": {
+		"typescript": "^5.8.3",
+		"wrangler": "^4.4.0"
+	}
+}
