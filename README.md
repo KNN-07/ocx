@@ -12,21 +12,37 @@ OCX is a lightweight CLI for installing agents, skills, and plugins into OpenCod
 - **Enterprise Ready**: Support for lockfiles (`ocx.lock`), registry locking, and version pinning.
 - **Single Binary**: Zero dependencies, distributed as a standalone executable.
 
+## Installation
+
+OCX supports macOS (x64, Apple Silicon), Linux (x64, arm64), and Windows (x64).
+
+```bash
+# Install script (macOS and Linux) - recommended
+curl -fsSL https://ocx.kdco.dev/install.sh | sh
+
+# Or install via npm
+npm install -g ocx
+
+# Windows users: Download binaries from GitHub Releases
+# https://github.com/kdcokenny/ocx/releases
+```
+
+The install script handles PATH configuration automatically or prints instructions if manual setup is needed.
+
 ## Quick Start
 
 ```bash
-# 1. Install OCX (MacOS example)
-curl -fsSL https://ocx.kdco.dev/install.sh | bash
-
-# 2. Initialize OCX in your project
+# 1. Initialize OCX in your project
 ocx init
 
-# 3. Add the KDCO registry
+# 2. Add the KDCO registry
 ocx registry add https://registry.kdco.dev --name kdco
 
-# 4. Add the workspace bundle
+# 3. Add the workspace bundle
 ocx add kdco-workspace
 ```
+
+After installation, OCX will manage components in your `.opencode/` directory, where you can freely customize them to match your project's needs.
 
 ## CLI Commands
 
