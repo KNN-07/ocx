@@ -1,8 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach } from "bun:test"
-import { createTempDir, cleanupTempDir, runCLI, stripJsonc } from "./helpers"
-import { startMockRegistry, type MockRegistry } from "./mock-registry"
+import { afterEach, beforeEach, describe, expect, it } from "bun:test"
 import { join } from "node:path"
-import { existsSync } from "node:fs"
+import { cleanupTempDir, createTempDir, runCLI, stripJsonc } from "./helpers"
+import { type MockRegistry, startMockRegistry } from "./mock-registry"
 
 describe("ocx registry", () => {
 	let testDir: string

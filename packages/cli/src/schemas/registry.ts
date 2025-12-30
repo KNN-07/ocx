@@ -76,8 +76,8 @@ export const targetPathSchema = z
 	.refine(
 		(path) => {
 			const parts = path.split("/")
-			if (parts.length < 2) return false
 			const dir = parts[1]
+			if (!dir) return false
 			return ["agent", "skill", "plugin", "command", "tool", "philosophy"].includes(dir)
 		},
 		{

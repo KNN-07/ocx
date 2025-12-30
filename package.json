@@ -19,10 +19,9 @@
 	"scripts": {
 		"build": "turbo run build",
 		"dev": "turbo run dev",
-		"check": "biome check . && turbo run typecheck",
+		"check": "turbo run check",
 		"format": "biome check --write .",
-		"test": "turbo run test",
-		"typecheck": "turbo run typecheck"
+		"test": "turbo run test"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.3.10",

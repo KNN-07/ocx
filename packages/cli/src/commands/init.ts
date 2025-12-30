@@ -6,10 +6,10 @@
 import { existsSync } from "node:fs"
 import { writeFile } from "node:fs/promises"
 import { join } from "node:path"
-import { Command } from "commander"
+import type { Command } from "commander"
 import { OCX_SCHEMA_URL } from "../constants.js"
 import { ocxConfigSchema } from "../schemas/config.js"
-import { logger, createSpinner, handleError } from "../utils/index.js"
+import { createSpinner, handleError, logger } from "../utils/index.js"
 
 interface InitOptions {
 	yes?: boolean

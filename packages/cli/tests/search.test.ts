@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach } from "bun:test"
-import { createTempDir, cleanupTempDir, runCLI } from "./helpers"
-import { startMockRegistry, type MockRegistry } from "./mock-registry"
+import { afterEach, beforeEach, describe, expect, it } from "bun:test"
+import { cleanupTempDir, createTempDir, runCLI } from "./helpers"
+import { type MockRegistry, startMockRegistry } from "./mock-registry"
 
 describe("ocx search", () => {
 	let testDir: string
@@ -11,9 +11,9 @@ describe("ocx search", () => {
 		registry = startMockRegistry()
 		await runCLI(["init", "--yes"], testDir)
 		const addResult = await runCLI(["registry", "add", registry.url, "--name", "test-reg"], testDir)
-    if (addResult.exitCode !== 0) {
-      console.log("Failed to add registry in search test:", addResult.output)
-    }
+		if (addResult.exitCode !== 0) {
+			console.log("Failed to add registry in search test:", addResult.output)
+		}
 	})
 
 	afterEach(async () => {

@@ -3,18 +3,18 @@
  * Install components from registries
  */
 
+import { createHash } from "node:crypto"
 import { existsSync } from "node:fs"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
-import { createHash } from "node:crypto"
 import type { Command } from "commander"
-import { ocxConfigSchema, ocxLockSchema, type OcxLock } from "../schemas/config.js"
-import type { ComponentManifest } from "../schemas/registry.js"
-import { fetchRegistryIndex, fetchFileContent } from "../registry/fetcher.js"
-import { resolveDependencies, type ResolvedDependencies } from "../registry/resolver.js"
+import { fetchFileContent, fetchRegistryIndex } from "../registry/fetcher.js"
 import { updateOpencodeConfig } from "../registry/opencode-config.js"
-import { logger, createSpinner, handleError } from "../utils/index.js"
+import { type ResolvedDependencies, resolveDependencies } from "../registry/resolver.js"
+import { type OcxLock, ocxConfigSchema, ocxLockSchema } from "../schemas/config.js"
+import type { ComponentManifest } from "../schemas/registry.js"
 import { ConfigError, IntegrityError } from "../utils/errors.js"
+import { createSpinner, handleError, logger } from "../utils/index.js"
 
 interface AddOptions {
 	yes?: boolean

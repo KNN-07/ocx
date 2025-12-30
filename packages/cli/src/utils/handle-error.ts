@@ -5,7 +5,7 @@
 
 import { ZodError } from "zod"
 
-import { OCXError, EXIT_CODES } from "./errors"
+import { EXIT_CODES, OCXError } from "./errors"
 import { logger } from "./logger"
 
 export interface HandleErrorOptions {

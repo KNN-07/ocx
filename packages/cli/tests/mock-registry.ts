@@ -1,4 +1,4 @@
-import { type Server } from "bun"
+import type { Server } from "bun"
 
 export interface MockRegistry {
 	server: Server

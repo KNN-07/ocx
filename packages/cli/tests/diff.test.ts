@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from "bun:test"
-import { createTempDir, cleanupTempDir, runCLI } from "./helpers"
-import { startMockRegistry, type MockRegistry } from "./mock-registry"
+import { afterEach, beforeEach, describe, expect, it } from "bun:test"
+import { writeFile } from "node:fs/promises"
 import { join } from "node:path"
-import { writeFile, mkdir } from "node:fs/promises"
+import { cleanupTempDir, createTempDir, runCLI } from "./helpers"
+import { type MockRegistry, startMockRegistry } from "./mock-registry"
 
 describe("ocx diff", () => {
 	let testDir: string
@@ -42,6 +42,6 @@ describe("ocx diff", () => {
 
 		expect(exitCode).toBe(0)
 		expect(output).toContain("Diff for kdco-test-plugin")
-    expect(output).toContain("+console.log('modified')")
+		expect(output).toContain("+console.log('modified')")
 	})
 })

@@ -1,8 +1,8 @@
-import { describe, it, expect, afterEach } from "bun:test"
+import { afterEach, describe, expect, it } from "bun:test"
 import { existsSync } from "node:fs"
 import { readFile } from "node:fs/promises"
 import { join } from "node:path"
-import { createTempDir, cleanupTempDir, runCLI, stripJsonc } from "./helpers"
+import { cleanupTempDir, createTempDir, runCLI, stripJsonc } from "./helpers"
 
 describe("ocx init", () => {
 	let testDir: string

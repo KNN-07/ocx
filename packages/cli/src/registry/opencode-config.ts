@@ -137,7 +137,7 @@ export async function updateOpencodeConfig(
 	mcpAdded: string[]
 	mcpSkipped: string[]
 }> {
-	let existing = await readOpencodeConfig(cwd)
+	const existing = await readOpencodeConfig(cwd)
 	let config: OpencodeConfig
 	let configPath: string
 	let created = false

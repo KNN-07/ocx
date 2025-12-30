@@ -1,6 +1,6 @@
 /**
  * Config & Lockfile Schemas
- * 
+ *
  * Schemas for ocx.jsonc (user config) and ocx.lock (auto-generated lockfile).
  */
 
@@ -17,10 +17,10 @@ import { mcpServerSchema } from "./registry.js"
 export const registryConfigSchema = z.object({
 	/** Registry URL */
 	url: z.string().url("Registry URL must be a valid URL"),
-	
+
 	/** Optional version pin */
 	version: z.string().optional(),
-	
+
 	/** Optional auth headers (supports ${ENV_VAR} expansion) */
 	headers: z.record(z.string()).optional(),
 })
@@ -33,10 +33,10 @@ export type RegistryConfig = z.infer<typeof registryConfigSchema>
 export const ocxConfigSchema = z.object({
 	/** Schema URL for IDE support */
 	$schema: z.string().optional(),
-	
+
 	/** Configured registries */
 	registries: z.record(registryConfigSchema).default({}),
-	
+
 	/** Lock registries - prevent adding/removing (enterprise feature) */
 	lockRegistries: z.boolean().default(false),
 })
@@ -53,16 +53,16 @@ export type OcxConfig = z.infer<typeof ocxConfigSchema>
 export const installedComponentSchema = z.object({
 	/** Registry this was installed from */
 	registry: z.string(),
-	
+
 	/** Version at time of install */
 	version: z.string(),
-	
+
 	/** SHA-256 hash of installed files for integrity */
 	hash: z.string(),
-	
+
 	/** Target path where installed */
 	target: z.string(),
-	
+
 	/** ISO timestamp of installation */
 	installedAt: z.string(),
 })
@@ -75,7 +75,7 @@ export type InstalledComponent = z.infer<typeof installedComponentSchema>
 export const ocxLockSchema = z.object({
 	/** Lockfile format version */
 	lockVersion: z.literal(1),
-	
+
 	/** Installed components */
 	installed: z.record(installedComponentSchema).default({}),
 })
@@ -105,13 +105,13 @@ export const opencodeAgentSchema = z.object({
 export const opencodeConfigPatchSchema = z.object({
 	/** Default agent */
 	default_agent: z.string().optional(),
-	
+
 	/** MCP servers */
 	mcp: opencodeMcpSchema.optional(),
-	
+
 	/** Tool configuration */
 	tools: z.record(z.boolean()).optional(),
-	
+
 	/** Agent configuration */
 	agent: z.record(opencodeAgentSchema).optional(),
 })
@@ -142,12 +142,15 @@ const LOCK_FILE = "ocx.lock"
  * Robust version that respects strings (avoids breaking URLs).
  */
 export function stripJsonComments(content: string): string {
-  // Regex that matches either a string, a block comment, or a line comment
-  // We use this to correctly skip slashes inside strings
-  return content.replace(/("(?:[^"\\]|\\.)*")|(\/\*[\s\S]*?\*\/)|(\/\/.*)$/gm, (match, string, block, line) => {
-    if (string) return string; // Return string as is
-    return ""; // Remove comment
-  });
+	// Regex that matches either a string, a block comment, or a line comment
+	// We use this to correctly skip slashes inside strings
+	return content.replace(
+		/("(?:[^"\\]|\\.)*")|(\/\*[\s\S]*?\*\/)|(\/\/.*)$/gm,
+		(_match, string, _block, _line) => {
+			if (string) return string // Return string as is
+			return "" // Remove comment
+		},
+	)
 }
 
 /**
@@ -156,19 +159,19 @@ export function stripJsonComments(content: string): string {
 export async function readOcxConfig(cwd: string): Promise<OcxConfig | null> {
 	const configPath = `${cwd}/${CONFIG_FILE}`
 	const file = Bun.file(configPath)
-	
+
 	if (!(await file.exists())) {
 		return null
 	}
-	
+
 	const content = await file.text()
 	try {
-	  const json = JSON.parse(stripJsonComments(content))
-	  return ocxConfigSchema.parse(json)
+		const json = JSON.parse(stripJsonComments(content))
+		return ocxConfigSchema.parse(json)
 	} catch (error) {
-	  // If parsing fails, we want to know why
-	  console.error(`Error parsing ${configPath}:`, error)
-	  throw error
+		// If parsing fails, we want to know why
+		console.error(`Error parsing ${configPath}:`, error)
+		throw error
 	}
 }
 
@@ -187,11 +190,11 @@ export async function writeOcxConfig(cwd: string, config: OcxConfig): Promise<vo
 export async function readOcxLock(cwd: string): Promise<OcxLock | null> {
 	const lockPath = `${cwd}/${LOCK_FILE}`
 	const file = Bun.file(lockPath)
-	
+
 	if (!(await file.exists())) {
 		return null
 	}
-	
+
 	const content = await file.text()
 	const json = JSON.parse(stripJsonComments(content))
 	return ocxLockSchema.parse(json)

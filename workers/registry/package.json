@@ -1,19 +1,21 @@
 {
-  "name": "registry-worker",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "cf-typegen": "wrangler types",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "hono": "^4.7.0"
-  },
-  "devDependencies": {
-    "typescript": "^5.8.3",
-    "wrangler": "^4.16.0"
-  }
+	"name": "registry-worker",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"check": "bun check:biome && bun check:types",
+		"check:biome": "biome check .",
+		"check:types": "bun cf-typegen && tsc --noEmit",
+		"cf-typegen": "wrangler types",
+		"deploy": "wrangler deploy",
+		"dev": "wrangler dev"
+	},
+	"dependencies": {
+		"hono": "^4.7.0"
+	},
+	"devDependencies": {
+		"typescript": "^5.8.3",
+		"wrangler": "^4.16.0"
+	}
 }

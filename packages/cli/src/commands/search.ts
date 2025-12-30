@@ -4,12 +4,12 @@
  * Search for components across registries or list installed.
  */
 
-import { Command } from "commander"
-import kleur from "kleur"
+import type { Command } from "commander"
 import fuzzysort from "fuzzysort"
-import { readOcxConfig, readOcxLock } from "../schemas/config.js"
+import kleur from "kleur"
 import { fetchRegistryIndex } from "../registry/fetcher.js"
-import { logger, handleError, outputJson, createSpinner } from "../utils/index.js"
+import { readOcxConfig, readOcxLock } from "../schemas/config.js"
+import { createSpinner, handleError, logger, outputJson } from "../utils/index.js"
 
 interface SearchOptions {
 	cwd: string

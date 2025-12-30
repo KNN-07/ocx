@@ -33,7 +33,7 @@ export function isJsonMode(): boolean {
 /**
  * Output data as JSON
  */
-export function outputJson(data: any): void {
+export function outputJson(data: unknown): void {
 	console.log(JSON.stringify(data, null, 2))
 }
 

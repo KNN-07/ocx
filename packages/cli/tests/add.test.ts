@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeAll, afterAll, afterEach } from "bun:test"
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test"
 import { existsSync } from "node:fs"
 import { readFile, writeFile } from "node:fs/promises"
 import { join } from "node:path"
-import { createTempDir, cleanupTempDir, runCLI, stripJsonc } from "./helpers"
-import { startMockRegistry, type MockRegistry } from "./mock-registry"
+import { cleanupTempDir, createTempDir, runCLI, stripJsonc } from "./helpers"
+import { type MockRegistry, startMockRegistry } from "./mock-registry"
 
 describe("ocx add", () => {
 	let testDir: string

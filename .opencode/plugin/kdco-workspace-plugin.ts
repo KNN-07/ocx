@@ -4,6 +4,21 @@ import * as os from "node:os"
 import * as path from "node:path"
 import { type Plugin, tool } from "@opencode-ai/plugin"
 
+/** Type guard for Node.js filesystem errors */
+function isNodeError(error: unknown): error is NodeJS.ErrnoException {
+	return error instanceof Error && "code" in error
+}
+
+/**
+ * Expected input for experimental.chat.system.transform hook.
+ * Note: The official SDK types this as {}, but runtime provides these properties.
+ * See: https://github.com/sst/opencode/issues/6142
+ */
+interface SystemTransformInput {
+	agent?: string
+	sessionID?: string
+}
+
 /**
  * KDCO Workspace Plugin
  *
@@ -117,7 +132,7 @@ export const WorkspacePlugin: Plugin = async (ctx) => {
 						if (keys.length === 0) return "No research findings found."
 						return `Available research: ${keys.join(", ")}`
 					} catch (error) {
-						if ((error as any).code === "ENOENT") return "No research findings found."
+						if (isNodeError(error) && error.code === "ENOENT") return "No research findings found."
 						throw error
 					}
 				},
@@ -135,7 +150,8 @@ export const WorkspacePlugin: Plugin = async (ctx) => {
 					try {
 						return await fs.readFile(filePath, "utf8")
 					} catch (error) {
-						if ((error as any).code === "ENOENT") throw new Error(`Research not found: ${args.key}`)
+						if (isNodeError(error) && error.code === "ENOENT")
+							throw new Error(`Research not found: ${args.key}`)
 						throw error
 					}
 				},
@@ -187,7 +203,7 @@ export const WorkspacePlugin: Plugin = async (ctx) => {
 					try {
 						return await fs.readFile(planPath, "utf8")
 					} catch (error) {
-						if ((error as any).code === "ENOENT") return "No plan found."
+						if (isNodeError(error) && error.code === "ENOENT") return "No plan found."
 						throw error
 					}
 				},
@@ -195,8 +211,11 @@ export const WorkspacePlugin: Plugin = async (ctx) => {
 		},
 
 		// Targeted Rule Injection
-		"experimental.chat.system.transform": async (input, output) => {
-			const agent = (input as any)?.agent as string | undefined
+		"experimental.chat.system.transform": async (
+			input: SystemTransformInput,
+			output: { system: string[] },
+		) => {
+			const agent = input.agent
 			if (agent === "plan") {
 				output.system.push(PLAN_RULES)
 			} else if (agent === "build") {

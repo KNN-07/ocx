@@ -4,12 +4,12 @@
  * Compare installed components with upstream registry versions.
  */
 
-import { Command } from "commander"
+import type { Command } from "commander"
 import * as Diff from "diff"
 import kleur from "kleur"
-import { readOcxLock, readOcxConfig } from "../schemas/config.js"
 import { fetchComponent, fetchFileContent } from "../registry/fetcher.js"
-import { logger, handleError, outputJson } from "../utils/index.js"
+import { readOcxConfig, readOcxLock } from "../schemas/config.js"
+import { handleError, logger, outputJson } from "../utils/index.js"
 
 interface DiffOptions {
 	cwd: string

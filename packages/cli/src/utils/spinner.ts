@@ -4,7 +4,7 @@
  */
 
 import ora, { type Ora } from "ora"
-import { isCI, isTTY } from "./env"
+import { isTTY } from "./env"
 
 export interface SpinnerOptions {
 	text: string

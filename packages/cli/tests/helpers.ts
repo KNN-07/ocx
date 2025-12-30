@@ -1,6 +1,6 @@
-import { join } from "node:path"
-import { mkdir, rm } from "node:fs/promises"
 import { existsSync } from "node:fs"
+import { mkdir, rm } from "node:fs/promises"
+import { join } from "node:path"
 
 export interface CLIResult {
 	stdout: string

@@ -3,10 +3,10 @@
  * Based on: https://github.com/shadcn-ui/ui/blob/main/packages/shadcn/src/registry/resolver.ts
  */
 
-import type { ComponentManifest, McpServer } from "../schemas/registry.js"
-import { fetchComponent } from "./fetcher.js"
-import { ValidationError, OCXError } from "../utils/errors.js"
 import type { RegistryConfig } from "../schemas/config.js"
+import type { ComponentManifest, McpServer } from "../schemas/registry.js"
+import { OCXError, ValidationError } from "../utils/errors.js"
+import { fetchComponent } from "./fetcher.js"
 
 export interface ResolvedComponent extends ComponentManifest {
 	registryName: string
@@ -53,24 +53,18 @@ export async function resolveDependencies(
 		let foundRegistry: { name: string; url: string } | null = null
 
 		const registryEntries = Object.entries(registries)
-		
+
 		for (const [regName, regConfig] of registryEntries) {
 			try {
 				const manifest = await fetchComponent(regConfig.url, name)
 				component = manifest
 				foundRegistry = { name: regName, url: regConfig.url }
 				break
-			} catch (_err) {
-				// Component not in this registry, try next
-				continue
-			}
+			} catch (_err) {}
 		}
 
 		if (!component || !foundRegistry) {
-			throw new OCXError(
-				`Component '${name}' not found in any configured registry.`,
-				"NOT_FOUND",
-			)
+			throw new OCXError(`Component '${name}' not found in any configured registry.`, "NOT_FOUND")
 		}
 
 		// Resolve dependencies first (depth-first)

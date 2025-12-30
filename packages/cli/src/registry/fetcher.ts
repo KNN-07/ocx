@@ -3,13 +3,13 @@
  * Based on: https://github.com/shadcn-ui/ui/blob/main/packages/shadcn/src/registry/fetcher.ts
  */
 
-import type { ComponentManifest, RegistryIndex, McpServer, Packument } from "../schemas/registry.js"
+import type { ComponentManifest, McpServer, RegistryIndex } from "../schemas/registry.js"
 import {
 	componentManifestSchema,
-	registryIndexSchema,
 	packumentSchema,
+	registryIndexSchema,
 } from "../schemas/registry.js"
-import { NotFoundError, NetworkError, ValidationError } from "../utils/errors.js"
+import { NetworkError, NotFoundError, ValidationError } from "../utils/errors.js"
 
 // In-memory cache for deduplication
 const cache = new Map<string, Promise<unknown>>()
@@ -116,12 +116,12 @@ export async function fetchComponents(
 	const components: ComponentManifest[] = []
 	const errors: string[] = []
 
-	for (let i = 0; i < results.length; i++) {
-		const result = results[i]
+	for (const [i, result] of results.entries()) {
 		if (result.status === "fulfilled") {
 			components.push(result.value)
 		} else {
-			errors.push(`${names[i]}: ${result.reason.message}`)
+			const name = names[i] ?? "unknown"
+			errors.push(`${name}: ${result.reason.message}`)
 		}
 	}
 
