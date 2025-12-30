@@ -1,5 +1,5 @@
 {
-	"name": "@ocx/cli",
+	"name": "ocx",
 	"version": "1.0.0",
 	"description": "OCX CLI - ShadCN-style registry for OpenCode extensions. Install agents, plugins, skills, and MCP servers.",
 	"author": "kdcokenny",
@@ -14,7 +14,6 @@
 		"dist/index.js.map"
 	],
 	"publishConfig": {
-		"name": "ocx",
 		"access": "public"
 	},
 	"repository": {
