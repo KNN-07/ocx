@@ -83,6 +83,10 @@
 				"gh_grep": {
 					"type": "remote",
 					"url": "https://mcp.grep.app"
+				},
+				"exa": {
+					"type": "remote",
+					"url": "https://mcp.exa.ai/mcp"
 				}
 			}
 		},
@@ -121,10 +125,7 @@
 					"target": ".opencode/philosophy/AGENTS.md"
 				}
 			],
-			"dependencies": [
-				"kdco-code-philosophy",
-				"kdco-frontend-philosophy"
-			]
+			"dependencies": ["kdco-code-philosophy", "kdco-frontend-philosophy"]
 		}
 	]
 }
