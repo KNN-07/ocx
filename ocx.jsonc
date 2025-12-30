@@ -1,0 +1,9 @@
+{
+	"$schema": "https://ocx.dev/schema.json",
+	"registries": {
+		"kdco": {
+			"url": "file:///Users/kenny/workspace/kdcokenny/AgentCN/registry/dist/kdco"
+		}
+	},
+	"lockRegistries": false
+}

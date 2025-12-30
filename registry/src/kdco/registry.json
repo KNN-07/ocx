@@ -1,5 +1,5 @@
 {
-	"name": "KDCO Registry",
+	"name": "KDCO",
 	"prefix": "kdco",
 	"version": "0.1.0",
 	"author": "kdcokenny",
@@ -39,6 +39,30 @@
 				}
 			],
 			"dependencies": ["kdco-workspace-plugin"]
+		},
+		{
+			"name": "kdco-code-philosophy",
+			"type": "ocx:skill",
+			"description": "The 5 Laws of Elegant Defense",
+			"files": [
+				{
+					"path": "skill/kdco-code-philosophy/SKILL.md",
+					"target": ".opencode/skill/kdco-code-philosophy/SKILL.md"
+				}
+			],
+			"dependencies": []
+		},
+		{
+			"name": "kdco-frontend-philosophy",
+			"type": "ocx:skill",
+			"description": "The 5 Pillars of Intentional UI",
+			"files": [
+				{
+					"path": "skill/kdco-frontend-philosophy/SKILL.md",
+					"target": ".opencode/skill/kdco-frontend-philosophy/SKILL.md"
+				}
+			],
+			"dependencies": []
 		},
 		{
 			"name": "kdco-librarian",
@@ -85,6 +109,21 @@
 				"kdco-research-protocol",
 				"kdco-librarian",
 				"kdco-writer"
+			]
+		},
+		{
+			"name": "kdco-philosophy",
+			"type": "ocx:bundle",
+			"description": "Full KDCO Philosophy enforcement",
+			"files": [
+				{
+					"path": "philosophy/AGENTS.md",
+					"target": ".opencode/philosophy/AGENTS.md"
+				}
+			],
+			"dependencies": [
+				"kdco-code-philosophy",
+				"kdco-frontend-philosophy"
 			]
 		}
 	]
