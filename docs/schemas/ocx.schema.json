@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OCX Configuration Schema",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "URL to the JSON schema"
+    },
+    "registries": {
+      "type": "object",
+      "description": "Configured component registries",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The base URL of the registry"
+          },
+          "version": {
+            "type": "string",
+            "description": "Optional version pin for this registry"
+          },
+          "headers": {
+            "type": "object",
+            "description": "Optional HTTP headers for authentication",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": ["url"]
+      }
+    },
+    "lockRegistries": {
+      "type": "boolean",
+      "description": "If true, prevents adding or removing registries via the CLI",
+      "default": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,57 +1,42 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
- * AgentCN CLI
- * ShadCN-style registry for AI coding agents
+ * OCX CLI - OpenCode Extensions
+ * 
+ * A ShadCN-style CLI for installing agents, skills, plugins, and commands
+ * into OpenCode projects.
  */
 
-import { program } from "commander"
-import { add } from "./commands/add"
-import { diff } from "./commands/diff"
-import { init } from "./commands/init"
-import { link } from "./commands/link"
-import { list } from "./commands/list"
-import { search } from "./commands/search"
+import { Command } from "commander"
+import { registerInitCommand } from "./commands/init.js"
+import { registerAddCommand } from "./commands/add.js"
+import { registerDiffCommand } from "./commands/diff.js"
+import { registerSearchCommand } from "./commands/search.js"
+import { registerRegistryCommand } from "./commands/registry.js"
+import { registerBuildCommand } from "./commands/build.js"
+import { handleError } from "./utils/index.js"
 
-program.name("agentcn").description("ShadCN-style registry for AI coding agents").version("0.1.0")
+// Version injected at build time
+declare const __VERSION__: string
+const version = typeof __VERSION__ !== "undefined" ? __VERSION__ : "0.0.0-dev"
 
-program
-	.command("init")
-	.description("Initialize AgentCN in your project")
-	.option("-y, --yes", "Skip prompts and use defaults")
-	.option("-r, --registry <url>", "Custom registry URL")
-	.action(init)
+async function main() {
+  const program = new Command()
+    .name("ocx")
+    .description("OpenCode Extensions - Install agents, skills, plugins, and commands")
+    .version(version)
 
-program
-	.command("add")
-	.description("Add a package from the registry")
-	.argument("<packages...>", "Package names to add")
-	.option("-y, --yes", "Skip confirmation prompts")
-	.option("-o, --overwrite", "Overwrite existing files")
-	.option("-r, --registry <url>", "Custom registry URL")
-	.action(add)
+  // Register all commands using the registration pattern
+  registerInitCommand(program)
+  registerAddCommand(program)
+  registerDiffCommand(program)
+  registerSearchCommand(program)
+  registerRegistryCommand(program)
+  registerBuildCommand(program)
 
-program
-	.command("diff")
-	.description("Show differences between local and registry versions")
-	.argument("[packages...]", "Package names to diff (all if omitted)")
-	.action(diff)
+  // Parse and handle errors
+  await program.parseAsync(process.argv)
+}
 
-program
-	.command("list")
-	.description("List installed packages")
-	.option("-a, --all", "Show all available packages from registry")
-	.action(list)
-
-program
-	.command("search")
-	.description("Search the registry")
-	.argument("<query>", "Search query")
-	.action(search)
-
-program
-	.command("link")
-	.description("Recreate symlinks from runtime dirs to .agentcn/")
-	.option("-f, --force", "Overwrite existing symlinks")
-	.action(link)
-
-program.parse()
+main().catch((err) => {
+  handleError(err)
+})

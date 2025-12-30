@@ -1,0 +1,91 @@
+{
+	"name": "KDCO Registry",
+	"prefix": "kdco",
+	"version": "0.1.0",
+	"author": "kdcokenny",
+	"components": [
+		{
+			"name": "kdco-workspace-plugin",
+			"type": "ocx:plugin",
+			"description": "Research persistence, plan management, and rule injection",
+			"files": [
+				{
+					"path": "plugin/kdco-workspace-plugin.ts",
+					"target": ".opencode/plugin/kdco-workspace-plugin.ts"
+				}
+			],
+			"dependencies": []
+		},
+		{
+			"name": "kdco-plan-protocol",
+			"type": "ocx:skill",
+			"description": "Guidelines for using the plan system",
+			"files": [
+				{
+					"path": "skill/kdco-plan-protocol/SKILL.md",
+					"target": ".opencode/skill/kdco-plan-protocol/SKILL.md"
+				}
+			],
+			"dependencies": ["kdco-workspace-plugin"]
+		},
+		{
+			"name": "kdco-research-protocol",
+			"type": "ocx:skill",
+			"description": "Guidelines for persisting research findings",
+			"files": [
+				{
+					"path": "skill/kdco-research-protocol/SKILL.md",
+					"target": ".opencode/skill/kdco-research-protocol/SKILL.md"
+				}
+			],
+			"dependencies": ["kdco-workspace-plugin"]
+		},
+		{
+			"name": "kdco-librarian",
+			"type": "ocx:agent",
+			"description": "Knowledge architect for external research",
+			"files": [
+				{
+					"path": "agent/kdco-librarian.md",
+					"target": ".opencode/agent/kdco-librarian.md"
+				}
+			],
+			"dependencies": ["kdco-research-protocol"],
+			"mcpServers": {
+				"context7": {
+					"type": "remote",
+					"url": "https://mcp.context7.com/mcp"
+				},
+				"gh_grep": {
+					"type": "remote",
+					"url": "https://mcp.grep.app"
+				}
+			}
+		},
+		{
+			"name": "kdco-writer",
+			"type": "ocx:agent",
+			"description": "Human-facing content specialist",
+			"files": [
+				{
+					"path": "agent/kdco-writer.md",
+					"target": ".opencode/agent/kdco-writer.md"
+				}
+			],
+			"dependencies": []
+		},
+		{
+			"name": "kdco-workspace",
+			"type": "ocx:bundle",
+			"description": "Full KDCO Workspace experience",
+			"files": [],
+			"dependencies": [
+				"kdco-workspace-plugin",
+				"kdco-plan-protocol",
+				"kdco-research-protocol",
+				"kdco-librarian",
+				"kdco-writer"
+			]
+		}
+	]
+}

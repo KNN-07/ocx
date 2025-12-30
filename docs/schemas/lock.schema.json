@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OCX Lockfile Schema",
+  "type": "object",
+  "properties": {
+    "lockVersion": {
+      "type": "integer",
+      "enum": [1],
+      "description": "The version of the lockfile format"
+    },
+    "installed": {
+      "type": "object",
+      "description": "Map of installed components",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "registry": {
+            "type": "string",
+            "description": "The name of the registry this component was installed from"
+          },
+          "version": {
+            "type": "string",
+            "description": "The version of the component installed"
+          },
+          "hash": {
+            "type": "string",
+            "description": "SHA-256 hash of the installed files for integrity"
+          },
+          "target": {
+            "type": "string",
+            "description": "The project-relative path where the component was installed"
+          },
+          "installedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The timestamp when the component was installed"
+          }
+        },
+        "required": ["registry", "version", "hash", "target", "installedAt"]
+      }
+    }
+  },
+  "required": ["lockVersion", "installed"],
+  "additionalProperties": false
+}

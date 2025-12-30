@@ -1,131 +1,97 @@
-# Contributing to AgentCN
+# Contributing to OCX
 
-Thank you for your interest in contributing to AgentCN!
+Thank you for your interest in contributing to OCX (OpenCode Extensions)!
 
-## Creating a Package
+## Creating a Registry
 
-### 1. Package Structure
+OCX uses a "copy-and-own" philosophy. Components are built from source into a versioned registry format.
 
-Create a new directory in `registry/packages/`:
+### 1. Registry Structure
+
+Create a directory for your registry source:
 
 ```
-registry/packages/your-package/
-├── package.json       # Required: metadata and file mappings
-├── agents/            # Agent markdown files
-├── plugin/            # Plugin TypeScript files
-├── skills/            # Skill README files
-└── commands/          # Command markdown files
+my-registry/
+├── registry.json       # Required: metadata and component definitions
+└── files/              # Component source files
+    ├── agent/          # .md files
+    ├── skill/          # Directories with SKILL.md
+    └── plugin/         # .ts files
 ```
 
-### 2. Package Metadata
+### 2. Registry Manifest (registry.json)
 
-Your `package.json` must include:
+Your `registry.json` must enforce a prefix for all components:
 
 ```json
 {
-  "name": "your-package",
-  "version": "0.1.0",
-  "type": "registry:package",
-  "description": "What your package does",
+  "name": "My Registry",
+  "prefix": "my",
+  "version": "1.0.0",
   "author": "your-name",
-  "license": "MIT",
-  "runtimes": ["opencode"],
-  "files": [
+  "components": [
     {
-      "path": "agents/my-agent.md",
-      "target": ".opencode/agent/@agentcn/my-agent.md",
-      "type": "agent"
+      "name": "my-component",
+      "type": "ocx:plugin",
+      "description": "What it does",
+      "files": [
+        {
+          "path": "plugin/my-plugin.ts",
+          "target": ".opencode/plugin/my-plugin.ts"
+        }
+      ],
+      "dependencies": []
     }
   ]
 }
 ```
 
-### 3. File Types
+### 3. Building the Registry
 
-| Type | Description | Target Pattern |
-|------|-------------|----------------|
-| `agent` | Agent definition | `.opencode/agent/@agentcn/*.md` |
-| `plugin` | OpenCode plugin | `.opencode/plugin/@agentcn/*.ts` |
-| `skill` | Skill/protocol | `.opencode/skill/@agentcn/*/README.md` |
-| `command` | Slash command | `.opencode/command/@agentcn/*.md` |
-| `prompt` | Reusable prompt | `.opencode/prompt/@agentcn/*.md` |
-
-### 4. Agent Format
-
-Agents use YAML frontmatter:
-
-```markdown
----
-model: anthropic/claude-sonnet-4-20250514
-tools:
-  - tool_name
-mode: primary
----
-
-# Agent Name
-
-Your agent instructions here...
-```
-
-### 5. Testing Locally
+Use the OCX CLI to validate and build your registry:
 
 ```bash
-# Build the CLI
-cd packages/cli
-bun run build
-
-# Test adding your package (from a test project)
-npx /path/to/agentcn add your-package
+ocx build ./my-registry --out ./dist
 ```
 
-### 6. Submit a PR
-
-1. Fork the repository
-2. Create your package in `registry/packages/`
-3. Update `registry/packages/index.json` to include your package
-4. Submit a pull request
+The build command enforces:
+- All component names start with your prefix
+- Valid semver
+- Valid OpenCode target paths
 
 ## Development
-
-### Prerequisites
-
-- [Bun](https://bun.sh/) >= 1.0
-- Node.js >= 18
 
 ### Setup
 
 ```bash
-git clone https://github.com/kdcokenny/agentcn
-cd agentcn
+git clone https://github.com/kdcokenny/ocx
+cd ocx
 bun install
 ```
 
-### Build
-
-```bash
-bun run build
-```
-
-### Test CLI locally
+### Building the CLI
 
 ```bash
 cd packages/cli
-bun run dev init
-bun run dev add workspace
+bun run scripts/build.ts         # Build JS
+bun run scripts/build-binary.ts  # Build standalone binaries
 ```
 
-### Deploy Registry
+### Running Tests
 
 ```bash
-cd packages/registry
-bun run deploy
+cd packages/cli
+bun test
 ```
 
-## Code Style
+## Code Philosophy
 
-- TypeScript strict mode
-- Biome for formatting (tabs, double quotes)
-- No `any` types
+OCX follows the **5 Laws of Elegant Defense**:
+1. **Early Exit**: Guard clauses at the top.
+2. **Parse, Don't Validate**: Use Zod at boundaries.
+3. **Atomic Predictability**: Pure functions, immutable returns.
+4. **Fail Fast, Fail Loud**: Throw clear errors immediately.
+5. **Intentional Naming**: Logic should read like a sentence.
 
 ## Questions?
 

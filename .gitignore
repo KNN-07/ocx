@@ -6,9 +6,5 @@ dist/
 .env
 .env.local
 
-# AgentCN local setup
-.agentcn/
-.opencode/
-
 # Build artifacts
 .turbo/

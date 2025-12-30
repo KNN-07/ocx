@@ -1,88 +1,139 @@
 /**
- * Diff command - Show differences between local and registry versions
+ * Diff Command
+ *
+ * Compare installed components with upstream registry versions.
  */
 
-import { readFile } from "node:fs/promises"
-import { join } from "node:path"
-import { AGENTCN_DIR } from "@agentcn/shared"
-import chalk from "chalk"
-import ora from "ora"
-import { getProjectRoot, readManifest } from "../utils/config"
-import { hashContent } from "../utils/files"
-import { fetchPackage } from "../utils/registry"
+import { Command } from "commander"
+import * as Diff from "diff"
+import kleur from "kleur"
+import { readOcxLock, readOcxConfig } from "../schemas/config.js"
+import { fetchComponent, fetchFileContent } from "../registry/fetcher.js"
+import { logger, handleError, outputJson } from "../utils/index.js"
 
-export async function diff(packages: string[]): Promise<void> {
-	const spinner = ora()
+interface DiffOptions {
+	cwd: string
+	json: boolean
+	quiet: boolean
+}
 
-	// Read manifest
-	const manifest = await readManifest()
-	if (!manifest || Object.keys(manifest.packages).length === 0) {
-		console.log(chalk.yellow("No packages installed."))
-		return
-	}
-
-	// If no packages specified, diff all
-	const pkgNames = packages.length > 0 ? packages : Object.keys(manifest.packages)
-
-	console.log(chalk.bold("\n📋 Checking for differences\n"))
-
-	for (const pkgName of pkgNames) {
-		const installedPkg = manifest.packages[pkgName]
-		if (!installedPkg) {
-			console.log(chalk.yellow(`Package not installed: ${pkgName}`))
-			continue
-		}
-
-		spinner.start(`Checking ${pkgName}...`)
-
-		try {
-			// Fetch latest from registry
-			const registryPkg = await fetchPackage(pkgName)
-			spinner.stop()
-
-			console.log(chalk.bold(`\n${pkgName}:`))
-
-			// Compare each file (from .agentcn/ source, not symlinks)
-			let hasChanges = false
-			for (const file of registryPkg.files) {
-				const sourcePath = join(AGENTCN_DIR, pkgName, file.path)
-				const localPath = join(getProjectRoot(), sourcePath)
-				const manifestEntry = installedPkg.files[sourcePath]
-
-				if (!manifestEntry) {
-					console.log(chalk.green(`  + ${file.path} (new file)`))
-					hasChanges = true
-					continue
-				}
-
-				try {
-					const localContent = await readFile(localPath, "utf-8")
-					const localHash = hashContent(localContent)
-					const registryHash = hashContent(file.content ?? "")
-
-					if (localHash !== registryHash) {
-						const isModified = localHash !== manifestEntry.hash
-						if (isModified) {
-							console.log(chalk.yellow(`  ~ ${file.path} (locally modified, registry changed)`))
-						} else {
-							console.log(chalk.cyan(`  ↑ ${file.path} (update available)`))
-						}
-						hasChanges = true
+export function registerDiffCommand(program: Command): void {
+	program
+		.command("diff")
+		.description("Compare installed components with upstream")
+		.argument("[component]", "Component to diff (optional, diffs all if omitted)")
+		.option("--cwd <path>", "Working directory", process.cwd())
+		.option("--json", "Output as JSON", false)
+		.option("-q, --quiet", "Suppress output", false)
+		.action(async (component: string | undefined, options: DiffOptions) => {
+			try {
+				const lock = await readOcxLock(options.cwd)
+				if (!lock) {
+					if (options.json) {
+						outputJson({
+							success: false,
+							error: { code: "NOT_FOUND", message: "No ocx.lock found" },
+						})
+					} else {
+						logger.warn("No ocx.lock found. Run 'ocx add' first.")
 					}
-				} catch {
-					console.log(chalk.red(`  ! ${file.path} (file missing)`))
-					hasChanges = true
+					return
 				}
-			}
 
-			if (!hasChanges) {
-				console.log(chalk.dim("  No changes"))
-			}
-		} catch (error) {
-			spinner.fail(chalk.red(`Failed to check ${pkgName}`))
-			console.error(error instanceof Error ? error.message : error)
-		}
-	}
+				const config = await readOcxConfig(options.cwd)
+				if (!config) {
+					if (options.json) {
+						outputJson({
+							success: false,
+							error: { code: "NOT_FOUND", message: "No ocx.jsonc found" },
+						})
+					} else {
+						logger.warn("No ocx.jsonc found. Run 'ocx init' first.")
+					}
+					return
+				}
 
-	console.log()
+				const componentNames = component ? [component] : Object.keys(lock.installed)
+
+				if (componentNames.length === 0) {
+					if (options.json) {
+						outputJson({ success: true, data: { diffs: [] } })
+					} else {
+						logger.info("No components installed.")
+					}
+					return
+				}
+
+				const results: Array<{ name: string; hasChanges: boolean; diff?: string }> = []
+
+				for (const name of componentNames) {
+					const installed = lock.installed[name]
+					if (!installed) {
+						if (component) {
+							logger.warn(`Component '${name}' not found in lockfile.`)
+						}
+						continue
+					}
+
+					// Read local file
+					const localPath = `${options.cwd}/${installed.target}`
+					const localFile = Bun.file(localPath)
+					if (!(await localFile.exists())) {
+						results.push({ name, hasChanges: true, diff: "Local file missing" })
+						continue
+					}
+					const localContent = await localFile.text()
+
+					// Fetch upstream
+					const registryConfig = config.registries[installed.registry]
+					if (!registryConfig) {
+						logger.warn(`Registry '${installed.registry}' not configured for component '${name}'.`)
+						continue
+					}
+
+					try {
+						const upstream = await fetchComponent(registryConfig.url, name)
+
+						// Assume first file for simplicity in this MVP
+						// In a full implementation we'd diff all files in the component
+						const upstreamFile = upstream.files[0]
+						if (!upstreamFile) {
+							results.push({ name, hasChanges: false })
+							continue
+						}
+
+						// Fetch actual content from registry
+						const upstreamContent = await fetchFileContent(
+							registryConfig.url,
+							name,
+							upstreamFile.path,
+						)
+
+						if (localContent === upstreamContent) {
+							results.push({ name, hasChanges: false })
+						} else {
+							const patch = Diff.createPatch(name, upstreamContent, localContent)
+							results.push({ name, hasChanges: true, diff: patch })
+						}
+					} catch (err) {
+						logger.warn(`Could not fetch upstream for ${name}: ${String(err)}`)
+					}
+				}
+
+				if (options.json) {
+					outputJson({ success: true, data: { diffs: results } })
+				} else {
+					for (const res of results) {
+						if (res.hasChanges) {
+							console.log(kleur.yellow(`\nDiff for ${res.name}:`))
+							console.log(res.diff || "Changes detected (no diff available)")
+						} else if (!options.quiet) {
+							logger.success(`${res.name}: No changes`)
+						}
+					}
+				}
+			} catch (error) {
+				handleError(error, { json: options.json })
+			}
+		})
 }

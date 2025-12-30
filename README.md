@@ -1,226 +1,94 @@
-# AgentCN
+# OCX (OpenCode Extensions)
 
-> ShadCN-style registry for AI coding agents. Copy. Paste. Own.
+> ShadCN-style registry for OpenCode extensions. Copy. Paste. Own.
 
-AgentCN is a registry and CLI for scaffolding AI coding agent configurations into your project. Like ShadCN for UI components, you **own the code** - it's copied into your repo, fully customizable, and version-controlled with your project.
+OCX is a lightweight CLI for installing agents, skills, and plugins into OpenCode projects. Following the "copy-and-own" philosophy, OCX scaffolds components directly into your project so you can customize them freely.
+
+## Key Features
+
+- **Lighter Architecture**: Injects targeted rules into built-in agents using plugin hooks instead of replacing them entirely.
+- **Persistent Context**: Workspace components provide research and plan persistence across sessions.
+- **Fail-Fast Validation**: Strict Zod schemas ensure registries and configurations are always valid.
+- **Enterprise Ready**: Support for lockfiles (`ocx.lock`), registry locking, and version pinning.
+- **Single Binary**: Zero dependencies, distributed as a standalone executable.
 
 ## Quick Start
 
 ```bash
-# Initialize AgentCN in your project
-npx agentcn init
+# 1. Install OCX (MacOS example)
+curl -fsSL https://ocx.dev/install.sh | bash
 
-# Add the workspace package (agents, plugin, skills)
-npx agentcn add workspace
-```
+# 2. Initialize OCX in your project
+ocx init
 
-That's it! Your project now has:
-- **4 specialized agents** (plan, build, librarian, writer)
-- **Session workspace plugin** with research persistence
-- **Protocol skills** for plan and research management
-- **`/plan` command** for viewing current plans
+# 3. Add the KDCO registry
+ocx registry add https://registry.ocx.dev/kdco --name kdco
 
-## Why AgentCN?
-
-### The Problem
-AI coding tools (OpenCode, Cursor, Claude Code) lack a standard way to share and reuse agent configurations, prompts, and tools.
-
-### The Solution
-AgentCN provides:
-- **Registry of packages** - agents, plugins, skills, prompts
-- **Copy-paste ownership** - scaffold into your project, customize freely
-- **Version tracking** - see what changed upstream with `agentcn diff`
-- **Multi-runtime support** - OpenCode today, Cursor/Claude Code tomorrow
-
-## Installation
-
-### From npm (recommended)
-```bash
-npx agentcn init
-```
-
-### From source
-```bash
-git clone https://github.com/kdcokenny/agentcn
-cd agentcn
-bun install
-bun run build
+# 4. Add the workspace bundle
+ocx add kdco-workspace
 ```
 
 ## CLI Commands
 
-### `agentcn init`
-Initialize AgentCN in your project. Creates `agentcn.json` config and detects your runtime.
+### `ocx init`
+Initialize OCX configuration. Creates `ocx.jsonc` in your project root.
 
-```bash
-npx agentcn init
-```
+### `ocx registry add <url>`
+Add a component registry source. Registries are version-controlled and prefix-enforced.
 
-### `agentcn add <package>`
-Add a package to your project. Files are copied to `.agentcn/<package>/` with symlinks to your runtime directory.
+### `ocx add <component>`
+Install components into `.opencode/`. Dependencies are resolved automatically.
+Supports: `prefix-name`, `@registry/name`, local paths, or direct URLs.
 
-```bash
-npx agentcn add workspace
-npx agentcn add workspace --overwrite  # Overwrite existing files
-```
+### `ocx search <query>`
+Search for components across all configured registries. Aliased as `ocx list`.
 
-### `agentcn link`
-Recreate symlinks from runtime directories to `.agentcn/`. Useful after `git clone` or if symlinks break.
+### `ocx diff [component]`
+Compare your local project files against the upstream registry version.
 
-```bash
-npx agentcn link
-npx agentcn link workspace  # Link specific package only
-```
+### `ocx build [path]`
+A tool for registry authors to validate component source files and generate registry indexes and packuments.
 
-### `agentcn diff <package>`
-Show differences between your local files and the registry.
+## Project structure
 
-```bash
-npx agentcn diff workspace
-```
-
-### `agentcn list`
-List installed packages and their status.
-
-```bash
-npx agentcn list
-```
-
-### `agentcn search <query>`
-Search the registry for packages.
-
-```bash
-npx agentcn search agent
-```
-
-## Project Structure
-
-After running `agentcn add workspace`, your project will have:
+OCX manages components within the `.opencode/` directory of your project:
 
 ```
-.agentcn/                        # Universal home (source of truth)
-├── AGENTS.md                   # Index pointing to package docs
-├── agentcn.lock                # Manifest tracking installed packages
-└── workspace/                  # Package source files
-    ├── AGENTS.md               # Package-specific instructions
-    ├── agents/
-    │   ├── plan.md
-    │   ├── build.md
-    │   ├── librarian.md
-    │   └── writer.md
-    ├── plugin/
-    │   └── index.ts
-    ├── skills/
-    │   ├── plan-protocol/
-    │   └── research-protocol/
-    └── commands/
-        └── plan.md
-
-.opencode/                       # Runtime-specific (symlinks)
-├── agent/@agentcn/ → .agentcn/workspace/agents/
-├── plugin/@agentcn/ → .agentcn/workspace/plugin/
-├── skill/@agentcn/ → .agentcn/workspace/skills/
-└── command/@agentcn/ → .agentcn/workspace/commands/
+.opencode/
+├── agent/            # Subagents (librarian, writer)
+├── plugin/           # Project plugins (workspace tools, rule injection)
+├── skill/            # Reusable instructions (protocols, philosophies)
+├── command/          # Custom TUI commands
+└── philosophy/       # Mandatory project rules
 ```
-
-**Why this structure?**
-- `.agentcn/` is **universal** - works with any AI coding tool
-- `.opencode/` contains **symlinks** to the universal source
-- Future: `.cursor/`, `.claude/` can also symlink to `.agentcn/`
-- The `@agentcn/` prefix provides clear visual separation from your own agents
 
 ## Configuration
 
-### `agentcn.json`
-Created in your project root during `init`:
+### `ocx.jsonc`
+The user-editable configuration file.
 
-```json
+```jsonc
 {
-  "$schema": "https://agentcn.dev/schema/config.json",
-  "registry": "https://agentcn.dev/r",
-  "runtime": "opencode"
+  "$schema": "https://ocx.dev/schema.json",
+  "registries": {
+    "kdco": {
+      "url": "https://registry.ocx.dev/kdco"
+    }
+  },
+  "lockRegistries": false
 }
 ```
 
-### Customizing Agents
-Since you own the code, just edit the files in `.agentcn/` directly (the symlinks will reflect your changes):
-
-```markdown
-<!-- .agentcn/workspace/agents/build.md -->
----
-model: google/gemini-2.5-pro  # Change the model
-tools:
-  - plan_read
-  - research_read
----
-
-Your custom instructions here...
-```
-
-## Available Packages
-
-### workspace
-The flagship package. Provides a complete agent team with session-scoped workspace:
-
-| Agent | Purpose | Default Model |
-|-------|---------|---------------|
-| `@agentcn/plan` | Architecture & planning | claude-sonnet-4-20250514 |
-| `@agentcn/build` | Implementation & coding | gemini-2.5-flash |
-| `@agentcn/librarian` | Research & documentation | claude-sonnet-4-20250514 |
-| `@agentcn/writer` | Content & commits | kimi-k2-0711-preview |
-
-**Includes:**
-- Session workspace plugin with `research_save`, `research_read`, `plan_save`, `plan_read` tools
-- Research persistence at project level (shared across agents)
-- Plan persistence at session level (per-conversation)
-
-## Creating Packages
-
-Want to contribute a package? See [CONTRIBUTING.md](./CONTRIBUTING.md).
-
-Package structure:
-```
-registry/packages/my-package/
-├── package.json       # Metadata and file mappings
-├── agents/            # Agent .md files
-├── plugin/            # Plugin .ts files
-├── skills/            # Skill README.md files
-└── commands/          # Command .md files
-```
-
-## Architecture
-
-```
-agentcn/
-├── packages/
-│   ├── cli/           # The npx agentcn command
-│   ├── registry/      # Cloudflare Worker API
-│   └── shared/        # Shared types and schemas
-└── registry/
-    └── packages/      # Package source files
-        └── workspace/ # The flagship package
-```
-
-### Registry API
-The registry is a simple Cloudflare Worker that serves package metadata and files from GitHub.
-
-**Endpoints:**
-- `GET /r/index.json` - List all packages
-- `GET /r/:name.json` - Package metadata with file contents
-- `POST /r/webhook` - GitHub webhook for cache invalidation
+### `ocx.lock`
+Auto-generated lockfile tracking installed versions, hashes, and targets.
 
 ## Roadmap
 
-- [x] OpenCode support
-- [x] Universal `.agentcn/` home with symlinks
-- [x] Cross-platform symlink support (Windows junctions)
-- [ ] Cursor support (`.cursor/` adapter)
-- [ ] Claude Code support (`CLAUDE.md` + MCP adapter)
-- [ ] Windsurf support
-- [ ] Zed support
-- [ ] Interactive multi-target selection
-- [ ] Web UI for browsing packages
-- [ ] Community package submissions
+- [x] Lighter-weight rule injection architecture
+- [x] Recursive AGENTS.md discovery
+- [x] Multi-platform binary distribution
+- [ ] Cursor / Claude Code adapter support
+- [ ] Centralized component discovery portal
 
 ## License
 
