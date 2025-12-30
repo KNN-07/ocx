@@ -29,10 +29,17 @@ app.get("/registry.json", async (c) => {
 	return c.json(content)
 })
 
-app.get("/files/*", async (c) => {
+app.get("/files/:registry/:path{.+}", async (c) => {
+	const registry = c.req.param("registry")
+	const filePath = c.req.param("path")
+
+	// Guard: only serve files for this registry's prefix
+	if (registry !== c.env.REGISTRY_PREFIX) {
+		return c.json({ error: "Registry not found", registry }, 404)
+	}
+
 	const githubRawBase = `https://raw.githubusercontent.com/${c.env.GITHUB_REPO}/${c.env.GITHUB_BRANCH}`
-	const path = c.req.path.replace("/files/", "")
-	const response = await fetch(`${githubRawBase}/registry/src/kdco/files/${path}`)
+	const response = await fetch(`${githubRawBase}/registry/src/${registry}/files/${filePath}`)
 
 	if (!response.ok) {
 		return c.json({ error: "File not found", path: c.req.path }, 404)
@@ -42,9 +49,9 @@ app.get("/files/*", async (c) => {
 
 	// Set appropriate content type based on extension
 	let contentType = "text/plain; charset=utf-8"
-	if (path.endsWith(".ts")) contentType = "text/typescript; charset=utf-8"
-	if (path.endsWith(".md")) contentType = "text/markdown; charset=utf-8"
-	if (path.endsWith(".json")) contentType = "application/json; charset=utf-8"
+	if (filePath.endsWith(".ts")) contentType = "text/typescript; charset=utf-8"
+	if (filePath.endsWith(".md")) contentType = "text/markdown; charset=utf-8"
+	if (filePath.endsWith(".json")) contentType = "application/json; charset=utf-8"
 
 	c.header("Cache-Control", "public, max-age=0, must-revalidate")
 	c.header("Vary", "Accept-Encoding, Origin")

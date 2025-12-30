@@ -13,7 +13,8 @@
 	],
 	"vars": {
 		"GITHUB_REPO": "kdcokenny/ocx",
-		"GITHUB_BRANCH": "main"
+		"GITHUB_BRANCH": "main",
+		"REGISTRY_PREFIX": "kdco"
 	},
 	"placement": {
 		"mode": "smart"
