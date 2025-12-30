@@ -40,6 +40,16 @@ OCX automatically generates an `ocx.lock` file. This file acts as an audit log a
 
 ## Integrity Verification
 
+OCX provides both proactive and reactive integrity verification to protect against supply-chain attacks and accidental tampering.
+
+### Install-Time Verification (Proactive)
+
+When you run `ocx add`, OCX automatically verifies the integrity of the component before writing any files to your project. If a component is already present in your `ocx.lock` file, OCX computes the SHA-256 hash of the incoming content and compares it against the locked hash.
+
+If the hashes do not match, the installation fails immediately with an `INTEGRITY_ERROR`. This prevents malicious or unauthorized updates from silently entering your codebase even if a registry is compromised.
+
+### Security Audit with `ocx diff` (Reactive)
+
 Running `ocx diff` compares your local files against the upstream registry and uses the hash in `ocx.lock` to identify changes. This allows teams to audit exactly what modifications have been made to distributed agents or plugins.
 
 ## Air-Gapped Environments

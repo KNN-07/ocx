@@ -6,14 +6,15 @@
 import { existsSync } from "node:fs"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
-import { Command } from "commander"
+import { createHash } from "node:crypto"
+import type { Command } from "commander"
 import { ocxConfigSchema, ocxLockSchema, type OcxLock } from "../schemas/config.js"
 import type { ComponentManifest } from "../schemas/registry.js"
 import { fetchRegistryIndex, fetchFileContent } from "../registry/fetcher.js"
-import { resolveDependencies, type ResolvedDependencies, type ResolvedComponent } from "../registry/resolver.js"
+import { resolveDependencies, type ResolvedDependencies } from "../registry/resolver.js"
 import { updateOpencodeConfig } from "../registry/opencode-config.js"
 import { logger, createSpinner, handleError } from "../utils/index.js"
-import { ConfigError } from "../utils/errors.js"
+import { ConfigError, IntegrityError } from "../utils/errors.js"
 
 interface AddOptions {
 	yes?: boolean
@@ -92,8 +93,24 @@ async function runAdd(componentNames: string[], options: AddOptions): Promise<vo
 		installSpin?.start()
 
 		for (const component of resolved.components) {
-			await installComponent(component, component.baseUrl, cwd)
-			
+			// Fetch component files and compute bundle hash
+			const files: { path: string; content: Buffer }[] = []
+			for (const file of component.files) {
+				const content = await fetchFileContent(component.baseUrl, component.name, file.path)
+				files.push({ path: file.path, content: Buffer.from(content) })
+			}
+
+			const computedHash = await hashBundle(files)
+
+			// Verify integrity if already in lock
+			const existingEntry = lock.installed[component.name]
+			if (existingEntry && existingEntry.hash !== computedHash) {
+				throw new IntegrityError(component.name, existingEntry.hash, computedHash)
+			}
+
+			// Install components
+			await installComponent(component, files, cwd)
+
 			// Fetch registry index to get version for lockfile
 			const index = await fetchRegistryIndex(component.baseUrl)
 
@@ -101,7 +118,7 @@ async function runAdd(componentNames: string[], options: AddOptions): Promise<vo
 			lock.installed[component.name] = {
 				registry: component.registryName,
 				version: index.version,
-				hash: await hashContent(JSON.stringify(component)),
+				hash: computedHash,
 				target: getTargetPath(component),
 				installedAt: new Date().toISOString(),
 			}
@@ -114,13 +131,13 @@ async function runAdd(componentNames: string[], options: AddOptions): Promise<vo
 			const result = await updateOpencodeConfig(cwd, {
 				mcpServers: resolved.mcpServers,
 			})
-			
+
 			if (result.mcpSkipped.length > 0 && !options.quiet) {
 				for (const name of result.mcpSkipped) {
 					logger.warn(`MCP server "${name}" already configured, skipped`)
 				}
 			}
-			
+
 			if (!options.quiet && result.mcpAdded.length > 0) {
 				logger.info(`Configured ${result.mcpAdded.length} MCP servers`)
 			}
@@ -153,11 +170,14 @@ async function runAdd(componentNames: string[], options: AddOptions): Promise<vo
 
 async function installComponent(
 	component: ComponentManifest,
-	baseUrl: string,
+	files: { path: string; content: Buffer }[],
 	cwd: string,
 ): Promise<void> {
-	for (const file of component.files) {
-		const targetPath = join(cwd, file.target)
+	for (const file of files) {
+		const componentFile = component.files.find((f) => f.path === file.path)
+		if (!componentFile) continue
+
+		const targetPath = join(cwd, componentFile.target)
 		const targetDir = dirname(targetPath)
 
 		// Create directory if needed
@@ -165,9 +185,7 @@ async function installComponent(
 			await mkdir(targetDir, { recursive: true })
 		}
 
-		// Fetch actual file content
-		const content = await fetchFileContent(baseUrl, component.name, file.path)
-		await writeFile(targetPath, content, "utf-8")
+		await writeFile(targetPath, file.content)
 	}
 }
 
@@ -175,12 +193,23 @@ function getTargetPath(component: ComponentManifest): string {
 	return component.files[0]?.target ?? `.opencode/${component.type}/${component.name}`
 }
 
-async function hashContent(content: string): Promise<string> {
-	const encoder = new TextEncoder()
-	const data = encoder.encode(content)
-	const hashBuffer = await crypto.subtle.digest("SHA-256", data)
-	const hashArray = Array.from(new Uint8Array(hashBuffer))
-	return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("")
+async function hashContent(content: string | Buffer): Promise<string> {
+	return createHash("sha256").update(content).digest("hex")
+}
+
+async function hashBundle(files: { path: string; content: Buffer }[]): Promise<string> {
+	// Sort files for deterministic hashing
+	const sorted = [...files].sort((a, b) => a.path.localeCompare(b.path))
+
+	// Create a manifest of file hashes
+	const manifestParts: string[] = []
+	for (const file of sorted) {
+		const hash = await hashContent(file.content)
+		manifestParts.push(`${file.path}:${hash}`)
+	}
+
+	// Hash the manifest itself
+	return hashContent(manifestParts.join("\n"))
 }
 
 function logResolved(resolved: ResolvedDependencies): void {
@@ -189,7 +218,7 @@ function logResolved(resolved: ResolvedDependencies): void {
 	for (const component of resolved.components) {
 		logger.info(`  ${component.name} (${component.type}) from ${component.registryName}`)
 	}
-	
+
 	if (Object.keys(resolved.mcpServers).length > 0) {
 		logger.info("")
 		logger.info("Would configure MCP servers:")

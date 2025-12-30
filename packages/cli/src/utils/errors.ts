@@ -10,6 +10,7 @@ export type ErrorCode =
 	| "VALIDATION_ERROR"
 	| "CONFLICT"
 	| "PERMISSION_ERROR"
+	| "INTEGRITY_ERROR"
 
 export const EXIT_CODES = {
 	SUCCESS: 0,
@@ -17,6 +18,7 @@ export const EXIT_CODES = {
 	NOT_FOUND: 66,
 	NETWORK: 69,
 	CONFIG: 78,
+	INTEGRITY: 1, // Exit code for integrity failures
 } as const
 
 export class OCXError extends Error {
@@ -62,5 +64,18 @@ export class ConflictError extends OCXError {
 	constructor(message: string) {
 		super(message, "CONFLICT", EXIT_CODES.GENERAL)
 		this.name = "ConflictError"
+	}
+}
+
+export class IntegrityError extends OCXError {
+	constructor(component: string, expected: string, found: string) {
+		const message =
+			`Integrity verification failed for "${component}"\n` +
+			`  Expected: ${expected}\n` +
+			`  Found:    ${found}\n\n` +
+			`The registry content has changed since this component was locked.\n` +
+			`This could indicate tampering or an unauthorized update.`
+		super(message, "INTEGRITY_ERROR", EXIT_CODES.INTEGRITY)
+		this.name = "IntegrityError"
 	}
 }

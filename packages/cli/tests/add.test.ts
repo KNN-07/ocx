@@ -72,4 +72,31 @@ describe("ocx add", () => {
 		expect(opencode.mcp["test-mcp"]).toBeDefined()
 		expect(opencode.mcp["test-mcp"].url).toBe("https://mcp.test.com")
 	})
+
+	it("should fail if integrity check fails", async () => {
+		testDir = await createTempDir("add-integrity-fail")
+
+		// Init and add registry
+		await runCLI(["init", "--yes"], testDir)
+
+		const configPath = join(testDir, "ocx.jsonc")
+		const config = JSON.parse(stripJsonc(await readFile(configPath, "utf-8")))
+		config.registries = {
+			test: { url: registry.url },
+		}
+		await writeFile(configPath, JSON.stringify(config, null, 2))
+
+		// 1. Install normally to create lock entry
+		await runCLI(["add", "kdco-test-plugin", "--yes"], testDir)
+
+		// 2. Tamper with the registry content
+		registry.setFileContent("kdco-test-plugin", "index.ts", "TAMPERED CONTENT")
+
+		// 3. Try to add again (should fail integrity check)
+		const { exitCode, output } = await runCLI(["add", "kdco-test-plugin", "--yes"], testDir)
+
+		expect(exitCode).not.toBe(0)
+		expect(output).toContain("Integrity verification failed")
+		expect(output).toContain("The registry content has changed since this component was locked")
+	})
 })

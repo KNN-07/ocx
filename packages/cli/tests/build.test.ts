@@ -45,6 +45,12 @@ describe("ocx build", () => {
 
 		await writeFile(join(sourceDir, "registry.json"), JSON.stringify(registryJson, null, 2))
 
+		// Create the files directory and source files
+		const filesDir = join(sourceDir, "files")
+		await mkdir(filesDir, { recursive: true })
+		await writeFile(join(filesDir, "index.ts"), "// Test plugin content")
+		await writeFile(join(filesDir, "agent.md"), "# Test agent content")
+
 		// Run build
 		const outDir = "dist"
 		const { exitCode, output } = await runCLI(["build", "registry", "--out", outDir], testDir)
@@ -58,8 +64,8 @@ describe("ocx build", () => {
 		// Verify output files
 		const fullOutDir = join(testDir, outDir)
 		expect(existsSync(join(fullOutDir, "index.json"))).toBe(true)
-		expect(existsSync(join(fullOutDir, "kdco-comp-1.json"))).toBe(true)
-		expect(existsSync(join(fullOutDir, "kdco-comp-2.json"))).toBe(true)
+		expect(existsSync(join(fullOutDir, "components", "kdco-comp-1.json"))).toBe(true)
+		expect(existsSync(join(fullOutDir, "components", "kdco-comp-2.json"))).toBe(true)
 
 		// Verify index.json content
 		const index = JSON.parse(await readFile(join(fullOutDir, "index.json"), "utf-8"))
@@ -123,6 +129,8 @@ describe("ocx build", () => {
 
 		expect(exitCode).not.toBe(0)
 		// Match the actual Zod error message
-		expect(output).toContain("All dependencies must reference components that exist in the registry")
+		expect(output).toContain(
+			"All dependencies must reference components that exist in the registry",
+		)
 	})
 })

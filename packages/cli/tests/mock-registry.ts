@@ -4,12 +4,15 @@ export interface MockRegistry {
 	server: Server
 	url: string
 	stop: () => void
+	setFileContent: (componentName: string, fileName: string, content: string) => void
 }
 
 /**
  * Start a mock HTTP registry server for testing
  */
 export function startMockRegistry(): MockRegistry {
+	const customFiles = new Map<string, string>()
+
 	const components = {
 		"kdco-test-plugin": {
 			name: "kdco-test-plugin",
@@ -65,13 +68,25 @@ export function startMockRegistry(): MockRegistry {
 				const name = componentMatch[1]
 				const component = components[name as keyof typeof components]
 				if (component) {
-					return Response.json(component)
+					return Response.json({
+						name: component.name,
+						"dist-tags": {
+							latest: "1.0.0",
+						},
+						versions: {
+							"1.0.0": component,
+						},
+					})
 				}
 			}
 
 			const fileMatch = path.match(/^\/components\/(.+)\/(.+)$/)
 			if (fileMatch) {
 				const [, name, filePath] = fileMatch
+				const customKey = `${name}:${filePath}`
+				if (customFiles.has(customKey)) {
+					return new Response(customFiles.get(customKey))
+				}
 				return new Response(`Content of ${filePath} for ${name}`)
 			}
 
@@ -83,5 +98,8 @@ export function startMockRegistry(): MockRegistry {
 		server,
 		url: `http://localhost:${server.port}`,
 		stop: () => server.stop(),
+		setFileContent: (componentName: string, fileName: string, content: string) => {
+			customFiles.set(`${componentName}:${fileName}`, content)
+		},
 	}
 }
