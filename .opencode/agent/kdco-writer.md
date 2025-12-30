@@ -1,6 +1,7 @@
 ---
 name: kdco-writer
 description: Human-facing content specialist for documentation and commits
+model: deepinfra/moonshotai/Kimi-K2-Thinking
 mode: subagent
 tools:
   read: true

@@ -6,7 +6,8 @@ on:
       - "v*"
 
 permissions:
-  contents: write
+  id-token: write    # Required for npm OIDC publishing
+  contents: write    # Required for GitHub releases
 
 jobs:
   release:
@@ -14,22 +15,72 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Node 24+ required for tokenless npm OIDC publishing
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
       - name: Install dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
+
+      - name: Build CLI
+        run: bun run build
+        working-directory: packages/cli
 
       - name: Build binaries
+        run: bun run scripts/build-binary.ts --all
+        working-directory: packages/cli
+
+      - name: Generate checksums
         run: |
-          cd packages/cli
-          bun run scripts/build-binary.ts --all
+          cd packages/cli/dist/bin
+          # Generate individual .sha256 files
+          for file in ocx-*; do
+            if [ -f "$file" ]; then
+              sha256sum "$file" > "$file.sha256"
+            fi
+          done
+          # Generate consolidated SHA256SUMS.txt
+          sha256sum ocx-* | grep -v '\.sha256' > SHA256SUMS.txt
 
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: packages/cli/dist/bin/*
+          files: |
+            packages/cli/dist/bin/ocx-*
+            packages/cli/dist/bin/SHA256SUMS.txt
           generate_release_notes: true
+          body: |
+            ## Installation
+
+            **Via curl (macOS/Linux):**
+            ```bash
+            curl -fsSL https://ocx.kdco.dev/install.sh | bash
+            ```
+
+            **Via npm (all platforms including Windows):**
+            ```bash
+            npm install -g ocx
+            ```
+
+            **Manual download:**
+            Download the appropriate binary for your platform from the assets below.
+
+            ## Checksums
+            SHA256 checksums are provided for each binary. Verify with:
+            ```bash
+            sha256sum -c SHA256SUMS.txt
+            ```
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Tokenless npm publish using OIDC
+      # Requires trusted publisher configured at npmjs.com/package/ocx/access
+      - name: Publish to npm
+        run: npm publish --access public
+        working-directory: packages/cli

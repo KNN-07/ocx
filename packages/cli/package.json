@@ -1,26 +1,58 @@
 {
   "name": "@ocx/cli",
-  "version": "0.1.0",
-  "description": "OCX CLI - Install OpenCode extensions",
+  "version": "0.2.0",
+  "description": "OCX CLI - ShadCN-style registry for OpenCode extensions. Install agents, plugins, skills, and MCP servers.",
+  "author": "kdcokenny",
+  "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
   "bin": {
     "ocx": "./dist/index.js"
   },
+  "files": [
+    "dist/index.js",
+    "dist/index.js.map"
+  ],
+  "publishConfig": {
+    "name": "ocx",
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kdcokenny/ocx.git"
+  },
+  "homepage": "https://github.com/kdcokenny/ocx#readme",
+  "bugs": {
+    "url": "https://github.com/kdcokenny/ocx/issues"
+  },
+  "keywords": [
+    "opencode",
+    "cli",
+    "extensions",
+    "agents",
+    "plugins",
+    "mcp",
+    "shadcn",
+    "registry"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "build": "bun run scripts/build.ts",
     "build:binary": "bun run scripts/build-binary.ts",
     "dev": "bun run src/index.ts",
-    "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "prepublishOnly": "bun run build",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "commander": "^14.0.0",
-    "zod": "^3.24.0",
+    "diff": "^8.0.0",
+    "fuzzysort": "^3.1.0",
     "kleur": "^4.1.5",
     "ora": "^8.2.0",
-    "diff": "^8.0.0",
-    "fuzzysort": "^3.1.0"
+    "zod": "^3.24.0"
   },
   "devDependencies": {
     "@types/bun": "latest",

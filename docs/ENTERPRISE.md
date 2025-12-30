@@ -22,7 +22,7 @@ When `lockRegistries` is `true`, `ocx registry add` and `ocx registry remove` wi
 You can pin a registry to a specific version to ensure reproducible environments:
 
 ```bash
-ocx registry add https://registry.ocx.dev/kdco --version 0.1.0
+ocx registry add https://registry.kdco.dev --version 0.1.0
 ```
 
 This ensures that `ocx add` and updates will only pull components compatible with version `0.1.0` of that registry.

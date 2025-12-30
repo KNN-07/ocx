@@ -16,13 +16,13 @@ OCX is a lightweight CLI for installing agents, skills, and plugins into OpenCod
 
 ```bash
 # 1. Install OCX (MacOS example)
-curl -fsSL https://ocx.dev/install.sh | bash
+curl -fsSL https://ocx.kdco.dev/install.sh | bash
 
 # 2. Initialize OCX in your project
 ocx init
 
 # 3. Add the KDCO registry
-ocx registry add https://registry.ocx.dev/kdco --name kdco
+ocx registry add https://registry.kdco.dev --name kdco
 
 # 4. Add the workspace bundle
 ocx add kdco-workspace
@@ -69,10 +69,10 @@ The user-editable configuration file.
 
 ```jsonc
 {
-  "$schema": "https://ocx.dev/schema.json",
+  "$schema": "https://ocx.kdco.dev/schema.json",
   "registries": {
     "kdco": {
-      "url": "https://registry.ocx.dev/kdco"
+      "url": "https://registry.kdco.dev"
     }
   },
   "lockRegistries": false

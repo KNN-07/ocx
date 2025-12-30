@@ -1,0 +1,25 @@
+# Source files
+src/
+tests/
+scripts/
+
+# Build artifacts (binaries)
+dist/bin/
+
+# Config files
+tsconfig.json
+biome.json
+
+# TypeScript source (keep declaration files)
+*.ts
+!*.d.ts
+
+# Test and coverage
+*.test.ts
+*.spec.ts
+coverage/
+.nyc_output/
+
+# Dev files
+.env*
+*.log

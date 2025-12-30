@@ -7,6 +7,7 @@ import { existsSync } from "node:fs"
 import { writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { Command } from "commander"
+import { OCX_SCHEMA_URL } from "../constants.js"
 import { ocxConfigSchema } from "../schemas/config.js"
 import { logger, createSpinner, handleError } from "../utils/index.js"
 
@@ -56,7 +57,7 @@ async function runInit(options: InitOptions): Promise<void> {
 	try {
 		// Create minimal config - schema will apply defaults
 		const rawConfig = {
-			$schema: "https://ocx.dev/schema.json",
+			$schema: OCX_SCHEMA_URL,
 			registries: {},
 		}
 

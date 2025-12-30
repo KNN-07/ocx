@@ -9,13 +9,26 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
 const pkg = JSON.parse(readFileSync("./package.json", "utf-8"))
-const version = pkg.version
+const _version = pkg.version // Available for future use (e.g., versioned binaries)
 
+// Target matrix matching OpenCode's platform support
+// - baseline: for CPUs without AVX2 support
+// - musl: for Alpine Linux / musl libc
 const targets = [
+	// macOS
 	"bun-darwin-arm64",
 	"bun-darwin-x64",
-	"bun-linux-x64",
+	"bun-darwin-x64-baseline",
+	// Linux (glibc)
 	"bun-linux-arm64",
+	"bun-linux-x64",
+	"bun-linux-x64-baseline",
+	// Linux (musl/Alpine)
+	"bun-linux-arm64-musl",
+	"bun-linux-x64-musl",
+	"bun-linux-x64-baseline-musl",
+	// Windows
+	"bun-windows-x64",
 	"bun-windows-x64-baseline",
 ] as const
 

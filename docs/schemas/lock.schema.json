@@ -1,5 +1,6 @@
 {
 	"$schema": "http://json-schema.org/draft-07/schema#",
+	"$id": "https://ocx.kdco.dev/lock.schema.json",
 	"title": "OCX Lockfile Schema",
 	"type": "object",
 	"properties": {
