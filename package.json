@@ -1,6 +1,6 @@
 {
 	"name": "ocx",
-	"version": "0.1.0",
+	"version": "1.0.0",
 	"description": "ShadCN-style CLI for OpenCode extensions - agents, skills, plugins, commands",
 	"author": "kdcokenny",
 	"license": "MIT",
