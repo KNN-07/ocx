@@ -11,8 +11,8 @@ export interface CLIResult {
 
 export async function createTempDir(prefix: string): Promise<string> {
 	const path = join(
-		process.cwd(),
-		"tests/fixtures",
+		import.meta.dir,
+		"fixtures",
 		`tmp-${prefix}-${Math.random().toString(36).slice(2)}`,
 	)
 	await mkdir(path, { recursive: true })
@@ -43,7 +43,7 @@ export function stripJsonc(content: string): string {
 }
 
 export async function runCLI(args: string[], cwd: string): Promise<CLIResult> {
-	const indexPath = join(process.cwd(), "packages/cli/src/index.ts")
+	const indexPath = join(import.meta.dir, "..", "src/index.ts")
 
 	const proc = Bun.spawn(["bun", "run", indexPath, ...args], {
 		cwd,

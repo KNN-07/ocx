@@ -3,7 +3,9 @@
  * Compiles TypeScript to JavaScript
  */
 
-export {}
+import { readFileSync } from "node:fs"
+
+const pkg = JSON.parse(readFileSync("./package.json", "utf-8"))
 
 await Bun.build({
 	entrypoints: ["./src/index.ts"],
@@ -12,6 +14,9 @@ await Bun.build({
 	format: "esm",
 	minify: false,
 	sourcemap: "external",
+	define: {
+		__VERSION__: JSON.stringify(pkg.version),
+	},
 })
 
-console.log("✓ Build complete: ./dist/index.js")
+console.log(`✓ Build complete: ./dist/index.js (v${pkg.version})`)

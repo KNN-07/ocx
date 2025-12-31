@@ -5,13 +5,13 @@
 
 import { createHash } from "node:crypto"
 import { existsSync } from "node:fs"
-import { mkdir, readFile, writeFile } from "node:fs/promises"
+import { mkdir, writeFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import type { Command } from "commander"
 import { fetchFileContent, fetchRegistryIndex } from "../registry/fetcher.js"
 import { updateOpencodeConfig } from "../registry/opencode-config.js"
 import { type ResolvedDependencies, resolveDependencies } from "../registry/resolver.js"
-import { type OcxLock, ocxConfigSchema, ocxLockSchema } from "../schemas/config.js"
+import { type OcxLock, readOcxConfig, readOcxLock } from "../schemas/config.js"
 import type { ComponentManifest } from "../schemas/registry.js"
 import { ConfigError, IntegrityError } from "../utils/errors.js"
 import { createSpinner, handleError, logger } from "../utils/index.js"
@@ -47,22 +47,19 @@ export function registerAddCommand(program: Command): void {
 
 async function runAdd(componentNames: string[], options: AddOptions): Promise<void> {
 	const cwd = options.cwd ?? process.cwd()
-	const configPath = join(cwd, "ocx.jsonc")
 	const lockPath = join(cwd, "ocx.lock")
 
 	// Load config
-	if (!existsSync(configPath)) {
+	const config = await readOcxConfig(cwd)
+	if (!config) {
 		throw new ConfigError("No ocx.jsonc found. Run 'ocx init' first.")
 	}
 
-	const configContent = await readFile(configPath, "utf-8")
-	const config = ocxConfigSchema.parse(JSON.parse(configContent))
-
 	// Load or create lock
 	let lock: OcxLock = { lockVersion: 1, installed: {} }
-	if (existsSync(lockPath)) {
-		const lockContent = await readFile(lockPath, "utf-8")
-		lock = ocxLockSchema.parse(JSON.parse(lockContent))
+	const existingLock = await readOcxLock(cwd)
+	if (existingLock) {
+		lock = existingLock
 	}
 
 	const spin = options.quiet ? null : createSpinner({ text: "Resolving dependencies..." })
