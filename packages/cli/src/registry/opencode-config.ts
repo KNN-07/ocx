@@ -7,6 +7,7 @@
  * - Deep merge without clobbering user config
  */
 
+import stripJsonComments from "strip-json-comments"
 import type { McpServer } from "../schemas/registry.js"
 
 export interface OpencodeConfig {
@@ -109,17 +110,6 @@ export function applyMcpServers(
 	}
 
 	return { config, added, skipped }
-}
-
-/**
- * Strip JSON comments (simple implementation)
- */
-function stripJsonComments(content: string): string {
-	// Remove single-line comments
-	let result = content.replace(/\/\/.*$/gm, "")
-	// Remove multi-line comments
-	result = result.replace(/\/\*[\s\S]*?\*\//g, "")
-	return result
 }
 
 /**
