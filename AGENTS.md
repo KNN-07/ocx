@@ -1,0 +1,244 @@
+# AGENTS.md
+
+Guidelines for AI agents working in the OCX codebase.
+
+## Project Overview
+
+OCX is a monorepo for the OpenCode extension CLI tool. It manages component registries,
+configuration files, and provides commands for adding/building/searching components.
+
+- **Runtime:** Bun (v1.3.5+)
+- **Build System:** Turbo
+- **Language:** TypeScript (strict mode, ESNext)
+
+## Build/Lint/Test Commands
+
+### Root Commands (via Turbo)
+
+```bash
+bun run build          # Build all packages
+bun run test           # Run all tests
+bun run check          # Lint (Biome) + type check (tsc)
+bun run format         # Auto-fix formatting with Biome
+```
+
+### Running a Single Test
+
+```bash
+# Run a specific test file
+bun test packages/cli/tests/add.test.ts
+
+# Run tests matching a pattern
+bun test --grep "should resolve"
+
+# Run tests in watch mode
+bun test --watch
+```
+
+### Package-Specific Commands
+
+From `packages/cli/`:
+```bash
+bun test               # Run CLI tests only
+bun run check:biome    # Biome lint only
+bun run check:types    # TypeScript type check only
+bun run build          # Build CLI package
+```
+
+## Code Style Guidelines
+
+### Formatting (Biome)
+
+- **Indentation:** Tabs (width 2)
+- **Line width:** 100 characters max
+- **Quotes:** Double quotes for strings
+- **Semicolons:** As needed (omit when possible)
+- **Trailing commas:** All (including multi-line)
+
+### Imports
+
+```typescript
+// Use `import type` for type-only imports
+import type { Config } from "./types"
+import { parseConfig } from "./parser"
+
+// Imports are auto-organized - don't manually sort
+// Order: external packages, then internal modules
+```
+
+### TypeScript
+
+- **Strict mode:** Always enabled
+- **No unused variables:** Error (prefix with `_` if intentional)
+- **No unused imports:** Error (auto-removed by Biome)
+- **Explicit return types:** Recommended for public APIs
+- **Use `z.infer<typeof Schema>`** for Zod schema types
+
+### Naming Conventions
+
+| Element | Convention | Example |
+|---------|------------|---------|
+| Functions/variables | camelCase | `fetchRegistry`, `configPath` |
+| Types/interfaces | PascalCase | `RegistryConfig`, `ComponentMeta` |
+| Classes | PascalCase | `OCXError`, `NetworkError` |
+| Constants | SCREAMING_SNAKE | `EXIT_CODES`, `DEFAULT_TIMEOUT` |
+| Files | kebab-case | `handle-error.ts`, `json-output.ts` |
+
+### Functions
+
+```typescript
+/**
+ * Brief description of what the function does.
+ * @param name - Description of parameter
+ * @returns Description of return value
+ */
+export async function fetchComponent(name: string): Promise<Component> {
+  // Implementation
+}
+```
+
+- Use JSDoc comments for public APIs
+- Prefer `async/await` over `.then()` chains
+- Use early returns to reduce nesting
+- Keep functions focused and single-purpose
+
+## Error Handling
+
+### Custom Error Classes
+
+All errors extend `OCXError` base class in `packages/cli/src/utils/errors.ts`:
+
+```typescript
+import { NotFoundError, NetworkError, ConfigError } from "./utils/errors"
+
+// Throw specific error types
+throw new NotFoundError("Component not found", "my-component")
+throw new NetworkError("Failed to fetch", url, originalError)
+throw new ConfigError("Invalid configuration", "missing 'name' field")
+```
+
+### Available Error Types
+
+| Error Class | Use Case |
+|-------------|----------|
+| `NotFoundError` | Resource doesn't exist |
+| `NetworkError` | HTTP/fetch failures |
+| `ConfigError` | Invalid configuration |
+| `ValidationError` | Schema/input validation failures |
+| `ConflictError` | Resource already exists |
+| `IntegrityError` | Checksum/hash mismatches |
+
+### Exit Codes
+
+Use `EXIT_CODES` constant for consistent exit behavior:
+```typescript
+import { EXIT_CODES } from "./utils/errors"
+process.exit(EXIT_CODES.VALIDATION_ERROR)
+```
+
+### CLI Error Wrapper
+
+Wrap command handlers with `handleError()`:
+```typescript
+import { handleError } from "./utils/handle-error"
+
+program
+  .command("add")
+  .action(handleError(async (options) => {
+    // Command implementation
+  }))
+```
+
+## Patterns & Conventions
+
+### Schemas (Zod)
+
+```typescript
+import { z } from "zod"
+
+// Define schema with JSDoc
+/** Configuration for a component */
+export const ComponentSchema = z.object({
+  name: z.string(),
+  version: z.string().optional(),
+})
+
+// Export inferred type
+export type Component = z.infer<typeof ComponentSchema>
+```
+
+### CLI Commands (Commander)
+
+```typescript
+import { Command } from "commander"
+
+export function registerAddCommand(program: Command) {
+  program
+    .command("add <component>")
+    .description("Add a component to your project")
+    .option("-r, --registry <url>", "Registry URL")
+    .action(handleError(addCommand))
+}
+```
+
+### File I/O
+
+```typescript
+// Use Bun.file() API
+const file = Bun.file(path)
+const content = await file.text()
+
+// JSONC for config files (supports comments)
+import { parse } from "jsonc-parser"
+const config = parse(content)
+```
+
+### Testing (bun:test)
+
+```typescript
+import { describe, it, expect, beforeAll, afterAll } from "bun:test"
+
+describe("add command", () => {
+  beforeAll(async () => {
+    // Setup
+  })
+
+  it("should add component to project", async () => {
+    const result = await addComponent("button")
+    expect(result.success).toBe(true)
+  })
+})
+```
+
+## Project Structure
+
+```
+packages/cli/          # Main CLI tool (@ocx/cli)
+  src/
+    commands/          # CLI command implementations
+    registry/          # Registry fetching/resolution
+    schemas/           # Zod schemas and config parsing
+    utils/             # Shared utilities, errors, logging
+  tests/               # Test files (*.test.ts)
+
+registry/              # Component registry source files
+  src/kdco/            # KDCO registry components
+
+workers/               # Cloudflare Workers
+  ocx/                 # Main OCX worker
+  registry/            # Registry API worker
+```
+
+## Quick Reference
+
+```bash
+# Development workflow
+bun install            # Install dependencies
+bun run build          # Build all
+bun run check          # Verify code quality
+bun run test           # Run tests
+bun run format         # Fix formatting
+
+# Single test
+bun test packages/cli/tests/add.test.ts
+```
