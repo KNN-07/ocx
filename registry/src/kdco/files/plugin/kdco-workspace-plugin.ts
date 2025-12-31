@@ -35,6 +35,22 @@ interface SystemTransformInput {
 // ==========================================
 
 const PLAN_RULES = `
+## ⚠️ ABSOLUTE CONSTRAINT: No Polling Delegations
+
+❌ **NEVER** call \`delegation_list\` to check if delegations are complete
+❌ **NEVER** poll, "check again", or "let me see the status" - this is FORBIDDEN
+❌ **NEVER** wait idle - always have productive work while delegations run
+
+**WHY THIS IS ABSOLUTE:** You WILL be notified via \`<system-reminder>\` when ALL delegations complete.
+Polling CANNOT speed up completion. It ONLY wastes context tokens and demonstrates poor judgment.
+
+**WHAT TO DO INSTEAD:**
+✅ Launch delegations → Tell user "Research underway, I'll present findings when complete"
+✅ Continue with productive work (planning, organizing, communicating with user)
+✅ When \`<system-reminder>\` notification arrives → THEN call \`delegation_read\`
+
+---
+
 ## CRITICAL: Delegation-First Planning
 
 You are in PLAN MODE. You MUST delegate all research - do NOT research directly.
@@ -46,23 +62,20 @@ You are in PLAN MODE. You MUST delegate all research - do NOT research directly.
 - **NEVER** use the \`task\` tool - use \`delegate\` for ALL agent work
 
 ### Async Delegation Behavior
-Delegations are **ASYNC** - you will be **NOTIFIED** via \`<system-reminder>\` when complete.
+Delegations are **ASYNC** - you will be **NOTIFIED** via \`<system-reminder>\` when ALL complete.
 
-**CRITICAL:** Do NOT call \`delegation_read\` until you receive the \`<system-reminder>\` notification, UNLESS there is genuinely no productive work you can do while waiting.
-
-**Preferred Flow:**
+**Flow:**
 1. Launch ALL independent delegations in a **SINGLE message**
-2. Do productive work while waiting (plan, organize, communicate with user)
-3. Receive \`<system-reminder>\` notification(s)
-4. THEN call \`delegation_read\` to retrieve results
-
-**Blocking is acceptable** ONLY when there is genuinely NO productive work until the result arrives.
+2. Tell user: "Research underway, I'll present findings when complete"
+3. Do productive work while waiting (plan, organize, communicate with user)
+4. Receive \`<system-reminder>\` notification when ALL complete
+5. THEN call \`delegation_read\` to retrieve results
 
 **How It Works:**
-- \`delegate\` → launches async, returns immediately
-- You receive \`<system-reminder>\` when delegation completes
-- THEN call \`delegation_read\` to get the result
-- Calling \`delegation_read\` before notification BLOCKS (only do this if no other work)
+- \`delegate\` → launches async, returns immediately with count of active delegations
+- Individual completions add to context silently
+- When ALL complete → you receive \`<system-reminder>\` that triggers your response
+- THEN call \`delegation_read\` to get each result
 
 ### Philosophy-Informed Planning
 
@@ -95,13 +108,28 @@ When planning implementation that involves **UI**, apply these principles:
 `
 
 const BUILD_RULES = `
+## ⚠️ ABSOLUTE CONSTRAINT: No Polling Delegations
+
+❌ **NEVER** call \`delegation_list\` to check if delegations are complete
+❌ **NEVER** poll, "check again", or "let me see the status" - this is FORBIDDEN
+❌ **NEVER** wait idle - always have productive work while delegations run
+
+**WHY THIS IS ABSOLUTE:** You WILL be notified via \`<system-reminder>\` when ALL delegations complete.
+Polling CANNOT speed up completion. It ONLY wastes context tokens and demonstrates poor judgment.
+
+**WHAT TO DO INSTEAD:**
+✅ Launch delegations → Continue implementing other parts of the plan
+✅ When \`<system-reminder>\` notification arrives → THEN call \`delegation_read\`
+
+---
+
 ## CRITICAL: Implementation from Plan
 
 You are in BUILD MODE. Execute the plan created in planning phase.
 
 ### Before Writing ANY Code
 1. Call \`plan_read\` to get the current plan
-2. Call \`delegation_list\` to see available research
+2. Call \`delegation_list\` ONCE to see available research from planning phase
 3. Call \`delegation_read\` for each relevant delegation to get findings
 4. **REUSE code snippets from librarian research** - they are production-ready foundations
 
