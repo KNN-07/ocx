@@ -1,6 +1,6 @@
 # KDCO Registry
 
-> The ShadCN for AI coding agents. Copy-paste components for OpenCode.
+> The ShadCN for OpenCode. Copy-paste plugins, agents, and skills.
 
 KDCO is a collection of plugins, agents, and skills for [OpenCode](https://github.com/sst/opencode). Following the ShadCN philosophy, components are copied directly into your project so you can customize them freely.
 
