@@ -1,5 +1,4 @@
 ---
-name: kdco-writer
 description: Human-facing content specialist for documentation and commits
 mode: subagent
 tools:

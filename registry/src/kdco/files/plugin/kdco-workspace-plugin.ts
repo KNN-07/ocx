@@ -25,7 +25,8 @@ interface SystemTransformInput {
 /**
  * KDCO Workspace Plugin
  *
- * Provides research persistence, plan management, and targeted rule injection.
+ * Provides plan management and targeted rule injection.
+ * Research functionality has been moved to the delegation system (kdco-background-agents).
  * Follows "Elegant Defense" philosophy: Flat, Safe, and Fast.
  */
 
@@ -57,7 +58,7 @@ const BUILD_RULES = `
 ## Implementation Workflow
 
 1. **Orient**: Call \`plan_read\` to get the current plan
-2. **Check Research**: Call \`research_list\` and \`research_read\` to use existing findings
+2. **Check Delegations**: Call \`delegation_list\` and \`delegation_read\` to use existing findings
 3. **Load Philosophy**: Call \`skill\` to load \`kdco-code-philosophy\` before writing code
 4. **Execute**: Implement the plan phase by phase
 5. **Update Progress**: Mark phases complete with \`plan_save\`
@@ -66,7 +67,7 @@ const BUILD_RULES = `
 ## Important
 
 - Follow the plan - don't deviate without justification
-- Rely on existing research from planning phase
+- Rely on existing delegations from planning phase
 - Use **@writer** for commits and documentation
 - Use **@explore** if you get stuck finding code
 `
@@ -106,60 +107,6 @@ export const WorkspacePlugin: Plugin = async (ctx) => {
 
 	return {
 		tool: {
-			research_save: tool({
-				description: "Save a research finding to the project workspace.",
-				args: {
-					key: tool.schema.string().describe("A unique slug for this research (e.g., 'auth-flow')"),
-					content: tool.schema.string().describe("The distilled knowledge to persist"),
-				},
-				async execute(args, toolCtx) {
-					if (!toolCtx?.sessionID) throw new Error("research_save requires sessionID")
-					const rootID = await getRootSessionID(toolCtx.sessionID)
-					const researchDir = path.join(baseDir, rootID, "research")
-					await fs.mkdir(researchDir, { recursive: true })
-					await fs.writeFile(path.join(researchDir, `${args.key}.md`), args.content, "utf8")
-					return `Research saved to ${args.key}`
-				},
-			}),
-
-			research_list: tool({
-				description: "List all research findings available in this project.",
-				args: {},
-				async execute(_args, toolCtx) {
-					if (!toolCtx?.sessionID) throw new Error("research_list requires sessionID")
-					const rootID = await getRootSessionID(toolCtx.sessionID)
-					const researchDir = path.join(baseDir, rootID, "research")
-					try {
-						const files = await fs.readdir(researchDir)
-						const keys = files.filter((f) => f.endsWith(".md")).map((f) => f.replace(".md", ""))
-						if (keys.length === 0) return "No research findings found."
-						return `Available research: ${keys.join(", ")}`
-					} catch (error) {
-						if (isNodeError(error) && error.code === "ENOENT") return "No research findings found."
-						throw error
-					}
-				},
-			}),
-
-			research_read: tool({
-				description: "Read a specific research finding from the project workspace.",
-				args: {
-					key: tool.schema.string().describe("The key of the research to read"),
-				},
-				async execute(args, toolCtx) {
-					if (!toolCtx?.sessionID) throw new Error("research_read requires sessionID")
-					const rootID = await getRootSessionID(toolCtx.sessionID)
-					const filePath = path.join(baseDir, rootID, "research", `${args.key}.md`)
-					try {
-						return await fs.readFile(filePath, "utf8")
-					} catch (error) {
-						if (isNodeError(error) && error.code === "ENOENT")
-							throw new Error(`Research not found: ${args.key}`)
-						throw error
-					}
-				},
-			}),
-
 			plan_save: tool({
 				description: "Save the current implementation plan for this session.",
 				args: {

@@ -7,14 +7,14 @@
 		{
 			"name": "kdco-workspace-plugin",
 			"type": "ocx:plugin",
-			"description": "Research persistence, plan management, and rule injection",
+			"description": "Plan management and rule injection for workspace workflows",
 			"files": [
 				{
 					"path": "plugin/kdco-workspace-plugin.ts",
 					"target": ".opencode/plugin/kdco-workspace-plugin.ts"
 				}
 			],
-			"dependencies": []
+			"dependencies": ["kdco-background-agents"]
 		},
 		{
 			"name": "kdco-plan-protocol",
@@ -31,14 +31,14 @@
 		{
 			"name": "kdco-research-protocol",
 			"type": "ocx:skill",
-			"description": "Guidelines for persisting research findings",
+			"description": "Guidelines for delegating research tasks",
 			"files": [
 				{
 					"path": "skill/kdco-research-protocol/SKILL.md",
 					"target": ".opencode/skill/kdco-research-protocol/SKILL.md"
 				}
 			],
-			"dependencies": ["kdco-workspace-plugin"]
+			"dependencies": ["kdco-background-agents"]
 		},
 		{
 			"name": "kdco-code-philosophy",
@@ -74,7 +74,7 @@
 					"target": ".opencode/agent/kdco-librarian.md"
 				}
 			],
-			"dependencies": ["kdco-research-protocol"],
+			"dependencies": ["kdco-background-agents"],
 			"mcpServers": {
 				"context7": {
 					"type": "remote",
@@ -98,6 +98,22 @@
 				{
 					"path": "agent/kdco-writer.md",
 					"target": ".opencode/agent/kdco-writer.md"
+				}
+			],
+			"dependencies": []
+		},
+		{
+			"name": "kdco-background-agents",
+			"type": "ocx:plugin",
+			"description": "Background agent execution - run async tasks while you work",
+			"files": [
+				{
+					"path": "plugin/kdco-background-agents.ts",
+					"target": ".opencode/plugin/kdco-background-agents.ts"
+				},
+				{
+					"path": "skill/kdco-background-protocol/SKILL.md",
+					"target": ".opencode/skill/kdco-background-protocol/SKILL.md"
 				}
 			],
 			"dependencies": []

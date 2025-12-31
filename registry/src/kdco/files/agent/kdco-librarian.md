@@ -1,5 +1,4 @@
 ---
-name: kdco-librarian
 description: Knowledge architect for external research and documentation
 mode: subagent
 tools:

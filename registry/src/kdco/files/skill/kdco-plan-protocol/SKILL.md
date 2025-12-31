@@ -19,8 +19,8 @@ Load this skill when:
 ### 1. Plans are Session-Scoped
 Each conversation gets its own plan. Starting a new chat means a fresh plan.
 
-### 2. Research is Project-Scoped
-Research findings persist across sessions and are shared by all agents. Use `research_save` liberally for external knowledge.
+### 2. Findings are Project-Scoped
+Findings from delegations persist across sessions and are shared by all agents. Use `delegate` for gathering external knowledge.
 
 ### 3. Phases Should Be Atomic
 Each phase should represent a complete unit of work that can be validated independently.
@@ -61,7 +61,7 @@ Each phase should represent a complete unit of work that can be validated indepe
 1. **Update status as you work** - Don't batch status updates
 2. **Keep steps specific** - Vague steps lead to missed requirements
 3. **Document blockers** - If blocked, note why in the phase
-4. **Reference research** - Link to research keys when relevant
+4. **Reference findings** - Link to delegation keys when relevant
 
 ## Example Usage
 

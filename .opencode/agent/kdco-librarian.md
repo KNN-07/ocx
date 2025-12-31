@@ -1,8 +1,8 @@
 ---
-name: kdco-librarian
 description: Knowledge architect for external research and documentation
-model: google/claude-opus-4-5-thinking-high
 mode: subagent
+model: google/antigravity-claude-opus-4-5-thinking-high
+temperature: 0.1
 tools:
   research_save: true
   research_list: true
