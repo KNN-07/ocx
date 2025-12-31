@@ -7,7 +7,6 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
 const pkg = JSON.parse(readFileSync("./package.json", "utf-8"))
-const _version = pkg.version // Available for future use (e.g., versioned binaries)
 
 // Target matrix matching OpenCode's platform support
 // - baseline: for CPUs without AVX2 support
@@ -40,21 +39,21 @@ async function buildBinary(target: Target) {
 
 	console.log(`Building ${target}...`)
 
-	// Use bun's compile for the actual binary
-	const proc = Bun.spawn([
-		"bun",
-		"build",
-		"--compile",
-		`--target=${target}`,
-		"--minify",
-		`--outfile=${outfile}`,
-		"./src/index.ts",
-	])
+	const result = await Bun.build({
+		entrypoints: ["./src/index.ts"],
+		compile: {
+			target: target as any,
+			outfile: outfile,
+		},
+		minify: true,
+		define: {
+			__VERSION__: JSON.stringify(pkg.version),
+		},
+	})
 
-	await proc.exited
-
-	if (proc.exitCode !== 0) {
+	if (!result.success) {
 		console.error(`Failed to compile binary for ${target}`)
+		console.error(result.logs)
 		process.exit(1)
 	}
 
