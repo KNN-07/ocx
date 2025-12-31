@@ -1,8 +1,8 @@
 # KDCO Registry
 
-> The ShadCN for OpenCode. Copy-paste plugins, agents, and skills.
+> A collection of plugins, agents, and skills for OpenCode.
 
-KDCO is a collection of plugins, agents, and skills for [OpenCode](https://github.com/sst/opencode). Following the ShadCN philosophy, components are copied directly into your project so you can customize them freely.
+KDCO is a component registry for [OpenCode](https://github.com/sst/opencode), installed via [OCX](https://github.com/kdcokenny/ocx). Components are copied directly into your project so you can customize them freely.
 
 ## Installation
 
