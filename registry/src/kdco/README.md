@@ -36,6 +36,7 @@ ocx add kdco-librarian
 | Component | Description |
 |-----------|-------------|
 | `kdco-workspace` | Full KDCO experience: background agents, planning, specialist agents, research protocols |
+| `kdco-philosophy` | Full KDCO philosophy enforcement: code philosophy, frontend philosophy, and AGENTS.md |
 
 ### Plugins
 
