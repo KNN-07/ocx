@@ -1,64 +1,20 @@
 {
-	"$schema": "https://opencode.ai/config.json",
-	"mcp": {
-		"context7": {
-			"type": "remote",
-			"enabled": true,
-			"url": "https://mcp.context7.com/mcp"
-		},
-		"gh_grep": {
-			"type": "remote",
-			"enabled": true,
-			"url": "https://mcp.grep.app"
-		},
-		"exa": {
-			"type": "remote",
-			"enabled": true,
-			"url": "https://mcp.exa.ai/mcp"
-		}
-	},
-	"tools": {
-		"context7*": false,
-		"exa*": false,
-		"gh_grep*": false
-	},
-	"permission": {
-		"bash": {
-			"curl *": "deny",
-			"wget *": "deny",
-			"*": "allow"
-		},
-		"skill": {
-			"*": "deny"
-		},
-		"webfetch": "deny"
-	},
-	"agent": {
-		"kdco-librarian": {
-			"tools": {
-				"context7*": true,
-				"exa*": true,
-				"gh_grep*": true
-			}
-		},
-		"plan": {
-			"permission": {
-				"skill": {
-					"kdco-plan-*": "allow",
-					"kdco-research-*": "allow",
-					"kdco-background-*": "allow"
-				}
-			}
-		},
-		"build": {
-			"permission": {
-				"skill": {
-					"kdco-code-*": "allow",
-					"kdco-frontend-*": "allow",
-					"kdco-build-*": "allow",
-					"kdco-background-*": "allow"
-				}
-			}
-		}
-	}
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "context7": {
+      "type": "remote",
+      "enabled": true,
+      "url": "https://mcp.context7.com/mcp"
+    },
+    "gh_grep": {
+      "type": "remote",
+      "enabled": true,
+      "url": "https://mcp.grep.app"
+    },
+    "exa": {
+      "type": "remote",
+      "enabled": true,
+      "url": "https://mcp.exa.ai/mcp"
+    }
+  }
 }

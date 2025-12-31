@@ -20,6 +20,10 @@ export interface ResolvedDependencies {
 	installOrder: string[]
 	/** Aggregated MCP servers from all components */
 	mcpServers: Record<string, McpServer>
+	/** Aggregated npm dependencies from all components */
+	npmDependencies: string[]
+	/** Aggregated npm dev dependencies from all components */
+	npmDevDependencies: string[]
 }
 
 /**
@@ -33,6 +37,8 @@ export async function resolveDependencies(
 	const resolved = new Map<string, ResolvedComponent>()
 	const visiting = new Set<string>()
 	const mcpServers: Record<string, McpServer> = {}
+	const npmDeps = new Set<string>()
+	const npmDevDeps = new Set<string>()
 
 	async function resolve(name: string, path: string[] = []): Promise<void> {
 		// Already resolved
@@ -86,6 +92,18 @@ export async function resolveDependencies(
 				mcpServers[serverName] = config as McpServer
 			}
 		}
+
+		// Collect npm dependencies
+		if (component.npmDependencies) {
+			for (const dep of component.npmDependencies) {
+				npmDeps.add(dep)
+			}
+		}
+		if (component.npmDevDependencies) {
+			for (const dep of component.npmDevDependencies) {
+				npmDevDeps.add(dep)
+			}
+		}
 	}
 
 	// Resolve all requested components
@@ -101,6 +119,8 @@ export async function resolveDependencies(
 		components,
 		installOrder,
 		mcpServers,
+		npmDependencies: Array.from(npmDeps),
+		npmDevDependencies: Array.from(npmDevDeps),
 	}
 }
 

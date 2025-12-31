@@ -26,9 +26,9 @@ import { uniqueNamesGenerator, adjectives, colors, animals } from "unique-names-
 function generateReadableId(): string {
 	return uniqueNamesGenerator({
 		dictionaries: [adjectives, colors, animals],
-		separator: '-',
+		separator: "-",
 		length: 3,
-		style: 'lowerCase'
+		style: "lowerCase",
 	})
 }
 
@@ -336,15 +336,17 @@ class DelegationManager {
 
 		await this.debugLog(`Created delegation ${delegation.id}`)
 		this.delegations.set(delegation.id, delegation)
-		
+
 		// Track this delegation for batched notification
 		const parentId = input.parentSessionID
 		if (!this.pendingByParent.has(parentId)) {
 			this.pendingByParent.set(parentId, new Set())
 		}
 		this.pendingByParent.get(parentId)!.add(delegation.id)
-		await this.debugLog(`Tracking delegation ${delegation.id} for parent ${parentId}. Pending count: ${this.pendingByParent.get(parentId)!.size}`)
-		
+		await this.debugLog(
+			`Tracking delegation ${delegation.id} for parent ${parentId}. Pending count: ${this.pendingByParent.get(parentId)!.size}`,
+		)
+
 		await this.debugLog(
 			`Delegation added to map. Current delegations: ${Array.from(this.delegations.keys()).join(", ")}`,
 		)
@@ -579,19 +581,22 @@ ${description}
 				this.pendingByParent.delete(delegation.parentSessionID)
 			}
 
-		const remainingCount = pendingSet?.size || 0
+			const remainingCount = pendingSet?.size || 0
 
-		// Build notification based on whether all are complete or some remain
-		let notification: string
-		if (allComplete) {
-			// All delegations complete - list all that completed for this parent
-			const completedDelegations = Array.from(this.delegations.values())
-				.filter(d => d.parentSessionID === delegation.parentSessionID && 
-				            (d.status === "complete" || d.status === "timeout" || d.status === "error"))
-				.map(d => `- \`${d.id}\`: ${d.title || d.id}`)
-				.join("\n")
+			// Build notification based on whether all are complete or some remain
+			let notification: string
+			if (allComplete) {
+				// All delegations complete - list all that completed for this parent
+				const completedDelegations = Array.from(this.delegations.values())
+					.filter(
+						(d) =>
+							d.parentSessionID === delegation.parentSessionID &&
+							(d.status === "complete" || d.status === "timeout" || d.status === "error"),
+					)
+					.map((d) => `- \`${d.id}\`: ${d.title || d.id}`)
+					.join("\n")
 
-			notification = `<system-reminder>
+				notification = `<system-reminder>
 All delegations complete.
 
 **Completed:**
@@ -599,9 +604,9 @@ ${completedDelegations || `- \`${delegation.id}\`: ${title}`}
 
 Use \`delegation_read(id)\` to retrieve each result.
 </system-reminder>`
-		} else {
-			// Individual completion - show remaining count with anti-polling reinforcement
-			notification = `<system-reminder>
+			} else {
+				// Individual completion - show remaining count with anti-polling reinforcement
+				notification = `<system-reminder>
 Delegation ${statusText}.
 
 **ID:** \`${delegation.id}\`
@@ -614,11 +619,11 @@ Delegation ${statusText}.
 
 Use \`delegation_read("${delegation.id}")\` to retrieve this result when ready.
 </system-reminder>`
-		}
+			}
 
-		// If all delegations complete, trigger a response (noReply: false)
-		// Otherwise, add notification silently (noReply: true)
-		const shouldTriggerResponse = allComplete
+			// If all delegations complete, trigger a response (noReply: false)
+			// Otherwise, add notification silently (noReply: true)
+			const shouldTriggerResponse = allComplete
 
 			await this.client.session.prompt({
 				path: { id: delegation.parentSessionID },
@@ -888,7 +893,7 @@ Use \`delegation_read\` with the ID to retrieve the full result.`,
 			if (totalActive > 1) {
 				response += `\n\n${totalActive} delegations now active.`
 			}
-			response += `\nYou WILL be notified when ${totalActive > 1 ? 'ALL complete' : 'complete'}. Do NOT poll.`
+			response += `\nYou WILL be notified when ${totalActive > 1 ? "ALL complete" : "complete"}. Do NOT poll.`
 
 			return response
 		},
@@ -940,8 +945,55 @@ Shows both running and completed delegations.`,
 }
 
 // ==========================================
+// DELEGATION RULES (injected into system prompt)
+// ==========================================
+
+const DELEGATION_RULES = `
+## Delegation System
+
+You have access to async delegation tools for parallel agent work.
+
+### Available Tools
+- \`delegate(prompt, agent)\` - Launch async task, returns immediately with readable ID
+- \`delegation_read(id)\` - Retrieve completed delegation result
+- \`delegation_list()\` - List all delegations (use sparingly)
+
+### Agent Routing
+| Agent | Use For |
+|-------|---------|
+| \`explore\` | Codebase exploration (files, patterns, structure) |
+| \`general\` | Research, multi-step tasks, complex operations |
+
+### Async Behavior
+Delegations run in the background. When complete, you receive a \`<system-reminder>\` notification.
+
+**Flow:**
+1. Launch delegations with \`delegate\` (can launch multiple in one message)
+2. Continue productive work while they run
+3. Receive \`<system-reminder>\` when ALL complete
+4. Call \`delegation_read(id)\` to retrieve each result
+
+### Critical Constraints
+
+**NEVER poll \`delegation_list\` to check if delegations are complete.**
+- You WILL be notified via \`<system-reminder>\` when ALL delegations complete
+- Polling wastes tokens and cannot speed up completion
+- If delegations are running, continue with other productive work
+
+**NEVER wait idle.** Always have productive work while delegations run.
+`
+
+// ==========================================
 // PLUGIN EXPORT
 // ==========================================
+
+/**
+ * Expected input for experimental.chat.system.transform hook.
+ */
+interface SystemTransformInput {
+	agent?: string
+	sessionID?: string
+}
 
 export const BackgroundAgentsPlugin: Plugin = async (ctx) => {
 	const { client, directory } = ctx
@@ -970,6 +1022,11 @@ export const BackgroundAgentsPlugin: Plugin = async (ctx) => {
 			delegation_read: createDelegationRead(manager),
 			delegation_list: createDelegationList(manager),
 		},
+		// Inject delegation rules into system prompt
+		"experimental.chat.system.transform": async (_input: SystemTransformInput, output) => {
+			output.system.push(DELEGATION_RULES)
+		},
+
 		// Event hook
 		event: async ({ event }: { event: Event }): Promise<void> => {
 			if (event.type === "session.idle") {

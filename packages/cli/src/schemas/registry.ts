@@ -159,6 +159,12 @@ export const componentManifestSchema = z.object({
 	/** Dependencies on other components */
 	dependencies: z.array(openCodeNameSchema).default([]),
 
+	/** NPM dependencies to install (supports pkg@version syntax) */
+	npmDependencies: z.array(z.string()).optional(),
+
+	/** NPM dev dependencies to install (supports pkg@version syntax) */
+	npmDevDependencies: z.array(z.string()).optional(),
+
 	/** MCP servers this component needs */
 	mcpServers: z.record(mcpServerSchema).optional(),
 

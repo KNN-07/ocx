@@ -8,6 +8,7 @@ import { existsSync } from "node:fs"
 import { mkdir, writeFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import type { Command } from "commander"
+import { parseNi, run } from "@antfu/ni"
 import { fetchFileContent, fetchRegistryIndex } from "../registry/fetcher.js"
 import { updateOpencodeConfig } from "../registry/opencode-config.js"
 import { type ResolvedDependencies, resolveDependencies } from "../registry/resolver.js"
@@ -140,6 +141,31 @@ async function runAdd(componentNames: string[], options: AddOptions): Promise<vo
 			}
 		}
 
+		// Install npm dependencies
+		const hasNpmDeps = resolved.npmDependencies.length > 0
+		const hasNpmDevDeps = resolved.npmDevDependencies.length > 0
+
+		if (hasNpmDeps || hasNpmDevDeps) {
+			const npmSpin = options.quiet
+				? null
+				: createSpinner({ text: "Installing npm dependencies..." })
+			npmSpin?.start()
+
+			try {
+				await installNpmDependencies(
+					resolved.npmDependencies,
+					resolved.npmDevDependencies,
+					cwd,
+					options,
+				)
+				const totalDeps = resolved.npmDependencies.length + resolved.npmDevDependencies.length
+				npmSpin?.succeed(`Installed ${totalDeps} npm dependencies`)
+			} catch (error) {
+				npmSpin?.fail("Failed to install npm dependencies")
+				throw error
+			}
+		}
+
 		// Save lock file
 		await writeFile(lockPath, JSON.stringify(lock, null, 2), "utf-8")
 
@@ -222,5 +248,44 @@ function logResolved(resolved: ResolvedDependencies): void {
 		for (const name of Object.keys(resolved.mcpServers)) {
 			logger.info(`  ${name}`)
 		}
+	}
+
+	if (resolved.npmDependencies.length > 0) {
+		logger.info("")
+		logger.info("Would install npm dependencies:")
+		for (const dep of resolved.npmDependencies) {
+			logger.info(`  ${dep}`)
+		}
+	}
+
+	if (resolved.npmDevDependencies.length > 0) {
+		logger.info("")
+		logger.info("Would install npm dev dependencies:")
+		for (const dep of resolved.npmDevDependencies) {
+			logger.info(`  ${dep}`)
+		}
+	}
+}
+
+async function installNpmDependencies(
+	dependencies: string[],
+	devDependencies: string[],
+	cwd: string,
+	options: AddOptions,
+): Promise<void> {
+	// Install regular dependencies
+	if (dependencies.length > 0) {
+		if (options.verbose) {
+			logger.info(`Installing: ${dependencies.join(", ")}`)
+		}
+		await run(parseNi, dependencies, { cwd })
+	}
+
+	// Install dev dependencies
+	if (devDependencies.length > 0) {
+		if (options.verbose) {
+			logger.info(`Installing dev: ${devDependencies.join(", ")}`)
+		}
+		await run(parseNi, [...devDependencies, "-D"], { cwd })
 	}
 }

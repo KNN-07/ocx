@@ -35,58 +35,25 @@ interface SystemTransformInput {
 // ==========================================
 
 const PLAN_RULES = `
-## ⚠️ ABSOLUTE CONSTRAINT: No Polling Delegations
+## Plan Mode
 
-❌ **NEVER** call \`delegation_list\` to check if delegations are complete
-❌ **NEVER** poll, "check again", or "let me see the status" - this is FORBIDDEN
-❌ **NEVER** wait idle - always have productive work while delegations run
+You are in PLAN MODE. Delegate all research - do NOT research directly.
 
-**WHY THIS IS ABSOLUTE:** You WILL be notified via \`<system-reminder>\` when ALL delegations complete.
-Polling CANNOT speed up completion. It ONLY wastes context tokens and demonstrates poor judgment.
-
-**WHAT TO DO INSTEAD:**
-✅ Launch delegations → Tell user "Research underway, I'll present findings when complete"
-✅ Continue with productive work (planning, organizing, communicating with user)
-✅ When \`<system-reminder>\` notification arrives → THEN call \`delegation_read\`
-
----
-
-## CRITICAL: Delegation-First Planning
-
-You are in PLAN MODE. You MUST delegate all research - do NOT research directly.
-
-### Agent Routing (ALL via \`delegate\` tool)
-- **External research** (docs, APIs, best practices) → \`delegate\` to \`@kdco-librarian\`
-- **Internal codebase** (files, patterns, structure) → \`delegate\` to \`@explore\`
-- **NEVER** use MCP tools (Context7, Exa, GH Grep) directly - they are disabled for you
-- **NEVER** use the \`task\` tool - use \`delegate\` for ALL agent work
-
-### Async Delegation Behavior
-Delegations are **ASYNC** - you will be **NOTIFIED** via \`<system-reminder>\` when ALL complete.
-
-**Flow:**
-1. Launch ALL independent delegations in a **SINGLE message**
-2. Tell user: "Research underway, I'll present findings when complete"
-3. Do productive work while waiting (plan, organize, communicate with user)
-4. Receive \`<system-reminder>\` notification when ALL complete
-5. THEN call \`delegation_read\` to retrieve results
-
-**How It Works:**
-- \`delegate\` → launches async, returns immediately with count of active delegations
-- Individual completions add to context silently
-- When ALL complete → you receive \`<system-reminder>\` that triggers your response
-- THEN call \`delegation_read\` to get each result
+### Research Delegation
+- **External research** (docs, APIs, best practices) → \`delegate\` to \`kdco-librarian\`
+- **Internal codebase** (files, patterns, structure) → \`delegate\` to \`explore\`
+- **NEVER** use MCP tools directly - they are disabled for you in plan mode
 
 ### Philosophy-Informed Planning
 
-When planning implementation that involves **CODE**, apply these principles:
+When planning **CODE** implementation:
 - **Law 1 (Early Exit)**: Plan for guard clauses and boundary validation first
 - **Law 2 (Parse Don't Validate)**: Design types that make illegal states unrepresentable
 - **Law 3 (Atomic Predictability)**: Prefer pure functions with explicit I/O boundaries
 - **Law 4 (Fail Fast)**: Plan explicit error handling at system boundaries
 - **Law 5 (Intentional Naming)**: Names should reveal intent and enforce contracts
 
-When planning implementation that involves **UI**, apply these principles:
+When planning **UI** implementation:
 - **Pillar 1 (Typography)**: Plan for fonts with character, not generic system fonts
 - **Pillar 2 (Color)**: Commit to bold, intentional color choices
 - **Pillar 3 (Motion)**: One good animation beats many mediocre ones
@@ -100,30 +67,15 @@ When planning implementation that involves **UI**, apply these principles:
 
 ### Workflow
 1. Determine what research is needed (external vs internal)
-2. Launch parallel delegations for ALL research in one message (\`@kdco-librarian\` for external, \`@explore\` for internal)
+2. Launch parallel delegations for ALL research in one message
 3. Do productive work while waiting (organize thoughts, communicate with user)
-4. When \`<system-reminder>\` notifications arrive, call \`delegation_read\` to retrieve results
-5. Synthesize findings and apply philosophy principles to inform decisions
+4. When \`<system-reminder>\` arrives, call \`delegation_read\` to retrieve results
+5. Synthesize findings and apply philosophy principles
 6. Save plan with \`plan_save\` for build mode
 `
 
 const BUILD_RULES = `
-## ⚠️ ABSOLUTE CONSTRAINT: No Polling Delegations
-
-❌ **NEVER** call \`delegation_list\` to check if delegations are complete
-❌ **NEVER** poll, "check again", or "let me see the status" - this is FORBIDDEN
-❌ **NEVER** wait idle - always have productive work while delegations run
-
-**WHY THIS IS ABSOLUTE:** You WILL be notified via \`<system-reminder>\` when ALL delegations complete.
-Polling CANNOT speed up completion. It ONLY wastes context tokens and demonstrates poor judgment.
-
-**WHAT TO DO INSTEAD:**
-✅ Launch delegations → Continue implementing other parts of the plan
-✅ When \`<system-reminder>\` notification arrives → THEN call \`delegation_read\`
-
----
-
-## CRITICAL: Implementation from Plan
+## Build Mode
 
 You are in BUILD MODE. Execute the plan created in planning phase.
 
@@ -139,17 +91,17 @@ Load the relevant philosophy skill BEFORE implementation:
 - **Backend work** (.ts, api/, lib/, services/, utils/) → \`skill\` load \`kdco-code-philosophy\`
 - **Both** → Load both skills
 
-### Async Delegation (If Needed)
-Delegations are **ASYNC by default** - launch and get notified on completion.
+### Additional Delegations (If Needed)
+Prefer using existing delegations from planning phase over launching new ones.
 
-**PREFER Async** when you have **productive work** to do while waiting:
+**PREFER async delegation** when you have **productive work** to do while waiting:
 - Implementing other parts of the plan
 - Writing tests
 - Refactoring existing code
 
-**USE Blocking** (\`delegation_read\` immediately) when there is **genuinely NO productive work** you can do until the result arrives.
-
-Prefer using existing delegations from planning phase over launching new ones.
+### Agent Routing
+- **\`kdco-writer\`**: For commits, documentation, PRs
+- **\`explore\`**: If stuck finding code in the codebase
 
 ### Workflow
 1. Orient: Read plan and delegation findings
@@ -157,10 +109,6 @@ Prefer using existing delegations from planning phase over launching new ones.
 3. Execute: Implement phase by phase, copying code from research where applicable
 4. Update: Mark phases complete with \`plan_save\`
 5. Verify: Run \`bun check\` before finishing
-
-### Agent Routing (via \`delegate\` tool)
-- **\`@kdco-writer\`**: For commits, documentation, PRs
-- **\`@explore\`**: If stuck finding code in the codebase
 `
 
 export const WorkspacePlugin: Plugin = async (ctx) => {

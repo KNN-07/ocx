@@ -116,7 +116,8 @@
 					"target": ".opencode/skill/kdco-background-protocol/SKILL.md"
 				}
 			],
-			"dependencies": []
+			"dependencies": [],
+			"npmDependencies": ["unique-names-generator"]
 		},
 		{
 			"name": "kdco-workspace",
