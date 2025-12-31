@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test"
 import { join } from "node:path"
-import { cleanupTempDir, createTempDir, runCLI, stripJsonc } from "./helpers"
+import { cleanupTempDir, createTempDir, parseJsonc, runCLI } from "./helpers"
 import { type MockRegistry, startMockRegistry } from "./mock-registry"
 
 describe("ocx registry", () => {
@@ -32,7 +32,7 @@ describe("ocx registry", () => {
 
 		const configPath = join(testDir, "ocx.jsonc")
 		const configContent = await Bun.file(configPath).text()
-		const config = JSON.parse(stripJsonc(configContent))
+		const config = parseJsonc(configContent)
 		expect(config.registries["test-reg"]).toBeDefined()
 		expect(config.registries["test-reg"].url).toBe(registry.url)
 	})
@@ -57,7 +57,7 @@ describe("ocx registry", () => {
 
 		const configPath = join(testDir, "ocx.jsonc")
 		const configContent = await Bun.file(configPath).text()
-		const config = JSON.parse(stripJsonc(configContent))
+		const config = parseJsonc(configContent)
 		expect(config.registries["test-reg"]).toBeUndefined()
 	})
 
@@ -65,7 +65,7 @@ describe("ocx registry", () => {
 		// Manually lock registries
 		const configPath = join(testDir, "ocx.jsonc")
 		const configContent = await Bun.file(configPath).text()
-		const config = JSON.parse(stripJsonc(configContent))
+		const config = parseJsonc(configContent)
 		config.lockRegistries = true
 		await Bun.write(configPath, JSON.stringify(config, null, 2))
 

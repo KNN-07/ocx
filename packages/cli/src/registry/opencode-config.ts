@@ -7,7 +7,7 @@
  * - Deep merge without clobbering user config
  */
 
-import stripJsonComments from "strip-json-comments"
+import { parse as parseJsonc } from "jsonc-parser"
 import type { McpServer } from "../schemas/registry.js"
 
 export interface OpencodeConfig {
@@ -48,10 +48,8 @@ export async function readOpencodeConfig(cwd: string): Promise<{
 		const file = Bun.file(configPath)
 		if (await file.exists()) {
 			const content = await file.text()
-			// Strip comments for JSONC
-			const stripped = configPath.endsWith(".jsonc") ? stripJsonComments(content) : content
 			return {
-				config: JSON.parse(stripped) as OpencodeConfig,
+				config: parseJsonc(content, [], { allowTrailingComma: true }) as OpencodeConfig,
 				path: configPath,
 			}
 		}

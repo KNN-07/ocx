@@ -4,6 +4,7 @@
  * Schemas for ocx.jsonc (user config) and ocx.lock (auto-generated lockfile).
  */
 
+import { parse as parseJsonc } from "jsonc-parser"
 import { z } from "zod"
 import { mcpServerSchema } from "./registry.js"
 
@@ -138,22 +139,6 @@ const CONFIG_FILE = "ocx.jsonc"
 const LOCK_FILE = "ocx.lock"
 
 /**
- * Strip JSONC comments for parsing.
- * Robust version that respects strings (avoids breaking URLs).
- */
-export function stripJsonComments(content: string): string {
-	// Regex that matches either a string, a block comment, or a line comment
-	// We use this to correctly skip slashes inside strings
-	return content.replace(
-		/("(?:[^"\\]|\\.)*")|(\/\*[\s\S]*?\*\/)|(\/\/.*)$/gm,
-		(_match, string, _block, _line) => {
-			if (string) return string // Return string as is
-			return "" // Remove comment
-		},
-	)
-}
-
-/**
  * Read ocx.jsonc config file
  */
 export async function readOcxConfig(cwd: string): Promise<OcxConfig | null> {
@@ -166,7 +151,7 @@ export async function readOcxConfig(cwd: string): Promise<OcxConfig | null> {
 
 	const content = await file.text()
 	try {
-		const json = JSON.parse(stripJsonComments(content))
+		const json = parseJsonc(content, [], { allowTrailingComma: true })
 		return ocxConfigSchema.parse(json)
 	} catch (error) {
 		// If parsing fails, we want to know why
@@ -196,7 +181,7 @@ export async function readOcxLock(cwd: string): Promise<OcxLock | null> {
 	}
 
 	const content = await file.text()
-	const json = JSON.parse(stripJsonComments(content))
+	const json = parseJsonc(content, [], { allowTrailingComma: true })
 	return ocxLockSchema.parse(json)
 }
 

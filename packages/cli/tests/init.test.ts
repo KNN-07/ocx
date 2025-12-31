@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test"
 import { existsSync } from "node:fs"
 import { readFile } from "node:fs/promises"
 import { join } from "node:path"
-import { cleanupTempDir, createTempDir, runCLI, stripJsonc } from "./helpers"
+import { cleanupTempDir, createTempDir, parseJsonc, runCLI } from "./helpers"
 
 describe("ocx init", () => {
 	let testDir: string
@@ -25,7 +25,7 @@ describe("ocx init", () => {
 		expect(existsSync(configPath)).toBe(true)
 
 		const content = await readFile(configPath, "utf-8")
-		const config = JSON.parse(stripJsonc(content))
+		const config = parseJsonc(content)
 		expect(config.registries).toBeDefined()
 		expect(config.lockRegistries).toBe(false)
 	})

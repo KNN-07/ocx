@@ -1,6 +1,9 @@
 import { existsSync } from "node:fs"
 import { mkdir, rm } from "node:fs/promises"
 import { join } from "node:path"
+import { parse as parseJsonc } from "jsonc-parser"
+
+export { parseJsonc }
 
 export interface CLIResult {
 	stdout: string
@@ -23,23 +26,6 @@ export async function cleanupTempDir(path: string): Promise<void> {
 	if (existsSync(path)) {
 		await rm(path, { recursive: true, force: true })
 	}
-}
-
-/**
- * Strips JSONC comments for parsing in tests
- * Minimal version that avoids breaking URLs
- */
-export function stripJsonc(content: string): string {
-	return content
-		.split("\n")
-		.map((line) => {
-			const trimmed = line.trim()
-			if (trimmed.startsWith("//")) return ""
-			// This is still naive but better for our tests which don't use complex JSONC
-			return line
-		})
-		.join("\n")
-		.replace(/\/\*[\s\S]*?\*\//g, "")
 }
 
 export async function runCLI(args: string[], cwd: string): Promise<CLIResult> {

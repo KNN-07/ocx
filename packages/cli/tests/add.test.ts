@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test"
 import { existsSync } from "node:fs"
 import { readFile, writeFile } from "node:fs/promises"
 import { join } from "node:path"
-import { cleanupTempDir, createTempDir, runCLI, stripJsonc } from "./helpers"
+import { cleanupTempDir, createTempDir, parseJsonc, runCLI } from "./helpers"
 import { type MockRegistry, startMockRegistry } from "./mock-registry"
 
 describe("ocx add", () => {
@@ -38,7 +38,7 @@ describe("ocx add", () => {
 
 		// Manually add registry to config since 'ocx registry add' might be flaky in parallel tests
 		const configPath = join(testDir, "ocx.jsonc")
-		const config = JSON.parse(stripJsonc(await readFile(configPath, "utf-8")))
+		const config = parseJsonc(await readFile(configPath, "utf-8"))
 		config.registries = {
 			test: { url: registry.url },
 		}
@@ -60,7 +60,7 @@ describe("ocx add", () => {
 		// Verify lock file
 		const lockPath = join(testDir, "ocx.lock")
 		expect(existsSync(lockPath)).toBe(true)
-		const lock = JSON.parse(stripJsonc(await readFile(lockPath, "utf-8")))
+		const lock = parseJsonc(await readFile(lockPath, "utf-8"))
 		expect(lock.installed["kdco-test-agent"]).toBeDefined()
 		expect(lock.installed["kdco-test-skill"]).toBeDefined()
 		expect(lock.installed["kdco-test-plugin"]).toBeDefined()
@@ -80,7 +80,7 @@ describe("ocx add", () => {
 		await runCLI(["init", "--yes"], testDir)
 
 		const configPath = join(testDir, "ocx.jsonc")
-		const config = JSON.parse(stripJsonc(await readFile(configPath, "utf-8")))
+		const config = parseJsonc(await readFile(configPath, "utf-8"))
 		config.registries = {
 			test: { url: registry.url },
 		}
