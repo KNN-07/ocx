@@ -55,12 +55,44 @@ class RegistryError extends Error {
 }
 
 // =============================================================================
+// URL Construction (Exported for testing)
+// =============================================================================
+
+export function buildGitHubRawUrl(
+	repo: string,
+	branch: string,
+	prefix: string,
+	path: string,
+): string {
+	return `https://raw.githubusercontent.com/${repo}/${branch}/registry/src/${prefix}/${path}`
+}
+
+export function buildRegistryUrl(env: {
+	GITHUB_REPO: string
+	GITHUB_BRANCH: string
+	REGISTRY_PREFIX: string
+}): string {
+	return buildGitHubRawUrl(env.GITHUB_REPO, env.GITHUB_BRANCH, env.REGISTRY_PREFIX, "registry.json")
+}
+
+export function buildFileUrl(
+	env: { GITHUB_REPO: string; GITHUB_BRANCH: string; REGISTRY_PREFIX: string },
+	filePath: string,
+): string {
+	return buildGitHubRawUrl(
+		env.GITHUB_REPO,
+		env.GITHUB_BRANCH,
+		env.REGISTRY_PREFIX,
+		`files/${filePath}`,
+	)
+}
+
+// =============================================================================
 // Data Fetching (Law 2: Parse at Boundary, Then Trust)
 // =============================================================================
 
 async function fetchRegistryData(env: Env): Promise<RegistryData> {
-	const githubRawBase = `https://raw.githubusercontent.com/${env.GITHUB_REPO}/${env.GITHUB_BRANCH}`
-	const url = `${githubRawBase}/registry/src/${env.REGISTRY_PREFIX}/registry.json`
+	const url = buildRegistryUrl(env)
 
 	const response = await fetch(url)
 	if (!response.ok) {
@@ -193,18 +225,8 @@ app.get("/components/:name/:path{.+}", async (c) => {
 		)
 	}
 
-	// Determine the file's location based on component type
-	const typeToDir: Record<string, string> = {
-		"ocx:plugin": "plugin",
-		"ocx:skill": "skill",
-		"ocx:agent": "agent",
-		"ocx:philosophy": "philosophy",
-	}
-	const typeDir = typeToDir[component.type] || component.type.replace("ocx:", "")
-
-	// Build the GitHub raw URL
-	const githubRawBase = `https://raw.githubusercontent.com/${c.env.GITHUB_REPO}/${c.env.GITHUB_BRANCH}`
-	const fullPath = `${githubRawBase}/registry/src/${c.env.REGISTRY_PREFIX}/files/${typeDir}/${filePath}`
+	// Build the GitHub raw URL - filePath already contains full path from files/
+	const fullPath = buildFileUrl(c.env, filePath)
 
 	const response = await fetch(fullPath)
 	if (!response.ok) {
