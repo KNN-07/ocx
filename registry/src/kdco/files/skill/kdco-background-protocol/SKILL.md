@@ -2,6 +2,56 @@
 
 Guidelines for delegating work to background agents while you continue working.
 
+## Delegation Behavior
+
+Delegations are **ASYNC by default** - launch and get notified on completion.
+
+### PREFER Async When:
+
+You have **productive work** to do while waiting:
+- Exploring the codebase
+- Organizing/planning other aspects
+- Launching additional independent research
+- Communicating with the user
+
+### USE Blocking When:
+
+There is **genuinely NO productive work** you can do until the result arrives:
+- You need the research output to answer the user's question
+- You're completely blocked on next steps without this information
+- Continuing without the result would be pure speculation
+
+### How It Works
+
+- `delegate` → launches async, returns immediately, you get notified via `<system-reminder>`
+- `delegation_read` on completed → returns result immediately
+- `delegation_read` on in-progress → BLOCKS until complete (use only when no productive work)
+
+### Golden Rule
+
+Launch ALL independent delegations in a **SINGLE message**. Then continue with productive work until notified.
+
+### Anti-Patterns (NEVER do these)
+
+- "Let me check if the delegations have completed" - You WILL be notified automatically
+- Launching delegations one at a time sequentially - launch ALL in parallel
+- Waiting idle when there IS productive work to do
+
+### Correct Pattern
+
+```
+// Launch ALL independent research in a SINGLE message
+delegate(description: "Research A", prompt: "...", agent: "kdco-librarian")
+delegate(description: "Research B", prompt: "...", agent: "kdco-librarian")
+delegate(description: "Research C", prompt: "...", agent: "kdco-librarian")
+
+// Continue with other productive work (planning, exploration, etc.)
+// You WILL receive <system-reminder> notifications as each completes
+
+// Only read results AFTER notification arrives
+delegation_read(key: "research-a")
+```
+
 ## When to Use Delegation
 
 - **Parallel research** - Launch multiple librarian queries simultaneously
@@ -19,24 +69,24 @@ Guidelines for delegating work to background agents while you continue working.
 
 ### delegate
 
-Spawns an agent. All delegations are async.
+Spawns an agent asynchronously. Returns immediately with a key.
 
 ```
 delegate(
   description: "Short task description",
   prompt: "Full detailed prompt for the agent",
-  agent: "coder" | "explore" | "general" | "kdco-librarian" | etc.,
+  agent: "kdco-librarian" | "explore" | "coder" | "general",
   key: "optional-custom-key"  // Auto-generated from description if omitted
 )
 ```
 
 **Returns:** Key for retrieving results
 
-**Behavior:** Returns immediately, system notifies when complete. If you need to wait for the result, call `delegation_read(key)` and it will wait for completion.
+**Behavior:** Returns IMMEDIATELY. The agent runs in the background. You will receive a `<system-reminder>` notification when complete. Do NOT wait or poll.
 
 ### delegation_read
 
-Retrieves the output from a completed delegation.
+Retrieves output from a delegation. **BLOCKS if still running.**
 
 ```
 delegation_read(
@@ -44,7 +94,11 @@ delegation_read(
 )
 ```
 
-**Behavior:** If the delegation is still running, this tool will block and wait for it to complete before returning the result. Use this when you need to "await" a delegation.
+**Behavior:** 
+- If delegation is **complete**: Returns result immediately
+- If delegation is **still running**: BLOCKS until complete (await behavior)
+
+Use this for sequential dependencies where you MUST have the result before proceeding. For parallel work, wait for the `<system-reminder>` notification instead.
 
 ### delegation_list
 
@@ -101,20 +155,24 @@ delegation_delete(
 ## Example Workflow
 
 ```
-1. Launch parallel research:
+1. Launch ALL parallel research in a SINGLE message:
    delegate(description: "Research auth patterns", prompt: "Find best practices for...", agent: "kdco-librarian")
    delegate(description: "Research database schema", prompt: "Find patterns for...", agent: "kdco-librarian")
    
-2. Continue with other work while they run
+2. Continue with other productive work while they run in background
+   - Plan next steps
+   - Explore internal codebase with @explore
+   - Update todos
+   - Do NOT sit idle waiting
 
-3. System notifies via <system-reminder>:
-   "Delegation complete. Key: research-auth-patterns"
+3. System notifies via <system-reminder> as each completes:
+   "Delegation complete. Key: research-auth-patterns. Status: complete"
 
-4. Retrieve results:
+4. AFTER notification, retrieve results:
    delegation_read(key: "research-auth-patterns")
    delegation_read(key: "research-database-schema")
 
-5. Synthesize findings and continue
+5. Synthesize findings and continue implementation
 ```
 
 ## How It Works

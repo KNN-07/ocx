@@ -35,41 +35,104 @@ interface SystemTransformInput {
 // ==========================================
 
 const PLAN_RULES = `
-## Planning Workflow
+## CRITICAL: Delegation-First Planning
 
-1. **Delegate Research**: Use \`@librarian\` for external documentation and best practices
-2. **Use @explore**: For codebase-specific questions
-3. **Create Plan**: Structure with goal, phases, dependencies, and status
-4. **Persist**: Save with \`plan_save\` for build mode to execute
+You are in PLAN MODE. You MUST delegate all research - do NOT research directly.
 
-## Plan Format
+### Agent Routing (ALL via \`delegate\` tool)
+- **External research** (docs, APIs, best practices) → \`delegate\` to \`@kdco-librarian\`
+- **Internal codebase** (files, patterns, structure) → \`delegate\` to \`@explore\`
+- **NEVER** use MCP tools (Context7, Exa, GH Grep) directly - they are disabled for you
+- **NEVER** use the \`task\` tool - use \`delegate\` for ALL agent work
 
+### Async Delegation Behavior
+Delegations are **ASYNC** - you will be **NOTIFIED** via \`<system-reminder>\` when complete.
+
+**CRITICAL:** Do NOT call \`delegation_read\` until you receive the \`<system-reminder>\` notification, UNLESS there is genuinely no productive work you can do while waiting.
+
+**Preferred Flow:**
+1. Launch ALL independent delegations in a **SINGLE message**
+2. Do productive work while waiting (plan, organize, communicate with user)
+3. Receive \`<system-reminder>\` notification(s)
+4. THEN call \`delegation_read\` to retrieve results
+
+**Blocking is acceptable** ONLY when there is genuinely NO productive work until the result arrives.
+
+**How It Works:**
+- \`delegate\` → launches async, returns immediately
+- You receive \`<system-reminder>\` when delegation completes
+- THEN call \`delegation_read\` to get the result
+- Calling \`delegation_read\` before notification BLOCKS (only do this if no other work)
+
+### Philosophy-Informed Planning
+
+When planning implementation that involves **CODE**, apply these principles:
+- **Law 1 (Early Exit)**: Plan for guard clauses and boundary validation first
+- **Law 2 (Parse Don't Validate)**: Design types that make illegal states unrepresentable
+- **Law 3 (Atomic Predictability)**: Prefer pure functions with explicit I/O boundaries
+- **Law 4 (Fail Fast)**: Plan explicit error handling at system boundaries
+- **Law 5 (Intentional Naming)**: Names should reveal intent and enforce contracts
+
+When planning implementation that involves **UI**, apply these principles:
+- **Pillar 1 (Typography)**: Plan for fonts with character, not generic system fonts
+- **Pillar 2 (Color)**: Commit to bold, intentional color choices
+- **Pillar 3 (Motion)**: One good animation beats many mediocre ones
+- **Pillar 4 (Composition)**: Consider asymmetry and purposeful negative space
+- **Pillar 5 (Atmosphere)**: Plan for depth, texture, and environmental feel
+
+### Plan Format
 - **Goal**: What we're building
-- **Phases**: Sequential steps with dependencies  
+- **Phases**: Sequential steps with dependencies
 - **Status**: pending | in_progress | complete | blocked
 
-## Delegation
-
-- **@librarian**: External docs, API research, best practices (saves findings automatically)
-- **@explore**: Codebase search, file patterns
+### Workflow
+1. Determine what research is needed (external vs internal)
+2. Launch parallel delegations for ALL research in one message (\`@kdco-librarian\` for external, \`@explore\` for internal)
+3. Do productive work while waiting (organize thoughts, communicate with user)
+4. When \`<system-reminder>\` notifications arrive, call \`delegation_read\` to retrieve results
+5. Synthesize findings and apply philosophy principles to inform decisions
+6. Save plan with \`plan_save\` for build mode
 `
 
 const BUILD_RULES = `
-## Implementation Workflow
+## CRITICAL: Implementation from Plan
 
-1. **Orient**: Call \`plan_read\` to get the current plan
-2. **Check Delegations**: Call \`delegation_list\` and \`delegation_read\` to use existing findings
-3. **Load Philosophy**: Call \`skill\` to load \`kdco-code-philosophy\` before writing code
-4. **Execute**: Implement the plan phase by phase
-5. **Update Progress**: Mark phases complete with \`plan_save\`
-6. **Verify**: Run \`bun check\` before finishing
+You are in BUILD MODE. Execute the plan created in planning phase.
 
-## Important
+### Before Writing ANY Code
+1. Call \`plan_read\` to get the current plan
+2. Call \`delegation_list\` to see available research
+3. Call \`delegation_read\` for each relevant delegation to get findings
+4. **REUSE code snippets from librarian research** - they are production-ready foundations
 
-- Follow the plan - don't deviate without justification
-- Rely on existing delegations from planning phase
-- Use **@writer** for commits and documentation
-- Use **@explore** if you get stuck finding code
+### Philosophy Loading (Context-Aware)
+Load the relevant philosophy skill BEFORE implementation:
+- **Frontend work** (.tsx, .jsx, .css, components/, pages/) → \`skill\` load \`kdco-frontend-philosophy\`
+- **Backend work** (.ts, api/, lib/, services/, utils/) → \`skill\` load \`kdco-code-philosophy\`
+- **Both** → Load both skills
+
+### Async Delegation (If Needed)
+Delegations are **ASYNC by default** - launch and get notified on completion.
+
+**PREFER Async** when you have **productive work** to do while waiting:
+- Implementing other parts of the plan
+- Writing tests
+- Refactoring existing code
+
+**USE Blocking** (\`delegation_read\` immediately) when there is **genuinely NO productive work** you can do until the result arrives.
+
+Prefer using existing delegations from planning phase over launching new ones.
+
+### Workflow
+1. Orient: Read plan and delegation findings
+2. Load: Load relevant philosophy skill(s)
+3. Execute: Implement phase by phase, copying code from research where applicable
+4. Update: Mark phases complete with \`plan_save\`
+5. Verify: Run \`bun check\` before finishing
+
+### Agent Routing (via \`delegate\` tool)
+- **\`@kdco-writer\`**: For commits, documentation, PRs
+- **\`@explore\`**: If stuck finding code in the codebase
 `
 
 export const WorkspacePlugin: Plugin = async (ctx) => {
