@@ -7,13 +7,13 @@ import { createHash } from "node:crypto"
 import { existsSync } from "node:fs"
 import { mkdir, writeFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
-import type { Command } from "commander"
 import { parseNi, run } from "@antfu/ni"
+import type { Command } from "commander"
 import { fetchFileContent, fetchRegistryIndex } from "../registry/fetcher.js"
-import { updateOpencodeConfig } from "../registry/opencode-config.js"
 import { type ResolvedDependencies, resolveDependencies } from "../registry/resolver.js"
 import { type OcxLock, readOcxConfig, readOcxLock } from "../schemas/config.js"
 import type { ComponentManifest } from "../schemas/registry.js"
+import { updateOpencodeConfig } from "../updaters/update-opencode-config.js"
 import { ConfigError, IntegrityError } from "../utils/errors.js"
 import { createSpinner, handleError, logger } from "../utils/index.js"
 
@@ -124,10 +124,16 @@ async function runAdd(componentNames: string[], options: AddOptions): Promise<vo
 
 		installSpin?.succeed(`Installed ${resolved.components.length} components`)
 
-		// Apply opencode.json changes
-		if (Object.keys(resolved.mcpServers).length > 0) {
+		// Apply opencode.json changes (MCP servers with agent-scoped tools, disabled tools)
+		const hasMcpChanges =
+			Object.keys(resolved.mcpServers).length > 0 || resolved.agentMcpBindings.length > 0
+		const hasDisabledTools = resolved.disabledTools.length > 0
+
+		if (hasMcpChanges || hasDisabledTools) {
 			const result = await updateOpencodeConfig(cwd, {
 				mcpServers: resolved.mcpServers,
+				agentMcpBindings: resolved.agentMcpBindings,
+				disabledTools: resolved.disabledTools,
 			})
 
 			if (result.mcpSkipped.length > 0 && !options.quiet) {
@@ -138,6 +144,17 @@ async function runAdd(componentNames: string[], options: AddOptions): Promise<vo
 
 			if (!options.quiet && result.mcpAdded.length > 0) {
 				logger.info(`Configured ${result.mcpAdded.length} MCP servers`)
+
+				// Log agent-scoped bindings
+				for (const binding of resolved.agentMcpBindings) {
+					logger.info(`  Scoped to agent "${binding.agentName}": ${binding.serverNames.join(", ")}`)
+				}
+			}
+
+			if (!options.quiet && result.toolsDisabled.length > 0) {
+				logger.info(
+					`Disabled ${result.toolsDisabled.length} tools: ${result.toolsDisabled.join(", ")}`,
+				)
 			}
 		}
 

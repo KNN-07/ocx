@@ -84,6 +84,65 @@ cd packages/cli
 bun test
 ```
 
+### Local Testing (End-to-End)
+
+Before pushing changes, test the full CLI flow using local registry sources.
+
+**Important notes:**
+- The registry must be **built** before testing (source `registry.json` → built `index.json`)
+- Use **absolute paths** with `file://` URLs (use `$(pwd)` to expand)
+
+```bash
+# 1. Clean slate - wipe all generated files
+rm -rf .opencode opencode.json ocx.lock ocx.jsonc
+
+# 2. Rebuild the CLI
+cd packages/cli && bun run build && cd ../..
+
+# 3. Build the local registry
+./packages/cli/dist/index.js build registry/src/kdco --out registry/src/kdco/dist
+
+# 4. Initialize fresh project
+./packages/cli/dist/index.js init
+
+# 5. Add local registry (MUST use absolute path with file://)
+./packages/cli/dist/index.js registry add "file://$(pwd)/registry/src/kdco/dist" --name kdco
+
+# 6. Install components
+./packages/cli/dist/index.js add kdco-philosophy kdco-workspace --yes
+
+# 7. Verify the result
+cat opencode.json
+```
+
+#### Expected Output
+
+After installation, `opencode.json` should contain:
+- `mcp` section with MCP server definitions
+- `tools` section with globally disabled MCP tools (`"context7_*": false`, etc.)
+- `agent` section with per-agent tool overrides (`"context7_*": true`, etc.)
+
+Example structure:
+```json
+{
+  "mcp": { "context7": { ... }, "gh_grep": { ... }, "exa": { ... } },
+  "tools": { "context7_*": false, "gh_grep_*": false, "exa_*": false },
+  "agent": { "kdco-librarian": { "tools": { "context7_*": true, ... } } }
+}
+```
+
+#### Quick Reset Script
+
+For repeated testing (assumes registry is already built):
+
+```bash
+rm -rf .opencode opencode.json ocx.lock ocx.jsonc && \
+./packages/cli/dist/index.js init && \
+./packages/cli/dist/index.js registry add "file://$(pwd)/registry/src/kdco/dist" --name kdco && \
+./packages/cli/dist/index.js add kdco-workspace --yes && \
+cat opencode.json
+```
+
 ## Code Philosophy
 
 OCX follows the **5 Laws of Elegant Defense**:

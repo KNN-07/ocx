@@ -1,14 +1,12 @@
 /**
- * OpenCode.json Modifier
- * Handles reading, merging, and writing opencode.json configuration
+ * OpenCode.json Utilities
+ * Base utilities for reading/writing opencode.json configuration
  *
- * Key responsibilities:
- * - Add MCP server definitions
- * - Deep merge without clobbering user config
+ * NOTE: For updating opencode.json with MCP servers and agent config,
+ * use the updater in ../updaters/update-opencode-config.ts
  */
 
 import { parse as parseJsonc } from "jsonc-parser"
-import type { McpServer } from "../schemas/registry.js"
 
 export interface OpencodeConfig {
 	$schema?: string
@@ -64,107 +62,4 @@ export async function readOpencodeConfig(cwd: string): Promise<{
 export async function writeOpencodeConfig(path: string, config: OpencodeConfig): Promise<void> {
 	const content = JSON.stringify(config, null, 2)
 	await Bun.write(path, content)
-}
-
-/**
- * Apply MCP servers to opencode config
- * Non-destructive: only adds new servers, doesn't overwrite existing
- */
-export function applyMcpServers(
-	config: OpencodeConfig,
-	mcpServers: Record<string, McpServer>,
-): { config: OpencodeConfig; added: string[]; skipped: string[] } {
-	const added: string[] = []
-	const skipped: string[] = []
-
-	if (!config.mcp) {
-		config.mcp = {}
-	}
-
-	for (const [name, server] of Object.entries(mcpServers)) {
-		if (config.mcp[name]) {
-			// Already exists, skip
-			skipped.push(name)
-		} else {
-			// Add new server
-			const serverConfig: McpServerConfig = {
-				type: server.type,
-				enabled: server.enabled,
-			}
-
-			if (server.type === "remote" && server.url) {
-				serverConfig.url = server.url
-			}
-			if (server.type === "local" && server.command) {
-				serverConfig.command = server.command
-			}
-			if (server.headers) {
-				serverConfig.headers = server.headers
-			}
-
-			config.mcp[name] = serverConfig
-			added.push(name)
-		}
-	}
-
-	return { config, added, skipped }
-}
-
-/**
- * Create or update opencode.json with required configuration
- */
-export async function updateOpencodeConfig(
-	cwd: string,
-	options: {
-		mcpServers?: Record<string, McpServer>
-		defaultAgent?: string
-	},
-): Promise<{
-	path: string
-	created: boolean
-	mcpAdded: string[]
-	mcpSkipped: string[]
-}> {
-	const existing = await readOpencodeConfig(cwd)
-	let config: OpencodeConfig
-	let configPath: string
-	let created = false
-
-	if (existing) {
-		config = existing.config
-		configPath = existing.path
-	} else {
-		// Create new config
-		config = {
-			$schema: "https://opencode.ai/config.json",
-		}
-		configPath = `${cwd}/opencode.json`
-		created = true
-	}
-
-	let mcpAdded: string[] = []
-	let mcpSkipped: string[] = []
-
-	// Apply MCP servers
-	if (options.mcpServers && Object.keys(options.mcpServers).length > 0) {
-		const result = applyMcpServers(config, options.mcpServers)
-		config = result.config
-		mcpAdded = result.added
-		mcpSkipped = result.skipped
-	}
-
-	// Set default agent if provided and not already set
-	if (options.defaultAgent && !config.default_agent) {
-		config.default_agent = options.defaultAgent
-	}
-
-	// Write config
-	await writeOpencodeConfig(configPath, config)
-
-	return {
-		path: configPath,
-		created,
-		mcpAdded,
-		mcpSkipped,
-	}
 }

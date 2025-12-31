@@ -1,7 +1,7 @@
 import type { Server } from "bun"
 
 export interface MockRegistry {
-	server: Server
+	server: Server<unknown>
 	url: string
 	stop: () => void
 	setFileContent: (componentName: string, fileName: string, content: string) => void

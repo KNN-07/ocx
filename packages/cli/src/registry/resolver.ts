@@ -13,6 +13,14 @@ export interface ResolvedComponent extends ComponentManifest {
 	baseUrl: string
 }
 
+/** Binding between an agent and its scoped MCP servers */
+export interface AgentMcpBinding {
+	/** Agent component name (e.g., "kdco-librarian") */
+	agentName: string
+	/** MCP server names scoped to this agent */
+	serverNames: string[]
+}
+
 export interface ResolvedDependencies {
 	/** All components in dependency order (dependencies first) */
 	components: ResolvedComponent[]
@@ -20,10 +28,14 @@ export interface ResolvedDependencies {
 	installOrder: string[]
 	/** Aggregated MCP servers from all components */
 	mcpServers: Record<string, McpServer>
+	/** Agent-to-MCP bindings for agent-scoped servers */
+	agentMcpBindings: AgentMcpBinding[]
 	/** Aggregated npm dependencies from all components */
 	npmDependencies: string[]
 	/** Aggregated npm dev dependencies from all components */
 	npmDevDependencies: string[]
+	/** Tools to disable globally */
+	disabledTools: string[]
 }
 
 /**
@@ -37,8 +49,10 @@ export async function resolveDependencies(
 	const resolved = new Map<string, ResolvedComponent>()
 	const visiting = new Set<string>()
 	const mcpServers: Record<string, McpServer> = {}
+	const agentMcpBindings: AgentMcpBinding[] = []
 	const npmDeps = new Set<string>()
 	const npmDevDeps = new Set<string>()
+	const disabledTools = new Set<string>()
 
 	async function resolve(name: string, path: string[] = []): Promise<void> {
 		// Already resolved
@@ -86,10 +100,21 @@ export async function resolveDependencies(
 		})
 		visiting.delete(name)
 
-		// Collect MCP servers
+		// Collect MCP servers and track agent bindings
 		if (component.mcpServers) {
+			const serverNames: string[] = []
 			for (const [serverName, config] of Object.entries(component.mcpServers)) {
 				mcpServers[serverName] = config as McpServer
+				serverNames.push(serverName)
+			}
+
+			// Track agent-scoped MCP bindings (default scope is "agent")
+			const scope = component.mcpScope ?? "agent"
+			if (component.type === "ocx:agent" && scope === "agent" && serverNames.length > 0) {
+				agentMcpBindings.push({
+					agentName: component.name,
+					serverNames,
+				})
 			}
 		}
 
@@ -102,6 +127,13 @@ export async function resolveDependencies(
 		if (component.npmDevDependencies) {
 			for (const dep of component.npmDevDependencies) {
 				npmDevDeps.add(dep)
+			}
+		}
+
+		// Collect disabled tools
+		if (component.disabledTools) {
+			for (const tool of component.disabledTools) {
+				disabledTools.add(tool)
 			}
 		}
 	}
@@ -119,8 +151,10 @@ export async function resolveDependencies(
 		components,
 		installOrder,
 		mcpServers,
+		agentMcpBindings,
 		npmDependencies: Array.from(npmDeps),
 		npmDevDependencies: Array.from(npmDevDeps),
+		disabledTools: Array.from(disabledTools),
 	}
 }
 

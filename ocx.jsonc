@@ -2,7 +2,7 @@
   "$schema": "https://ocx.kdco.dev/schema.json",
   "registries": {
     "kdco": {
-      "url": "https://registry.kdco.dev"
+      "url": "file:///Users/kenny/workspace/kdcokenny/ocx/registry/src/kdco/dist"
     }
   },
   "lockRegistries": false

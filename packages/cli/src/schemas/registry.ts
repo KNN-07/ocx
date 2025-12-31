@@ -170,6 +170,9 @@ export const componentManifestSchema = z.object({
 
 	/** Scope MCP servers to this agent only? Default: "agent" */
 	mcpScope: z.enum(["agent", "global"]).default("agent"),
+
+	/** Tools to disable globally when this component is installed */
+	disabledTools: z.array(z.string()).optional(),
 })
 
 export type ComponentManifest = z.infer<typeof componentManifestSchema>

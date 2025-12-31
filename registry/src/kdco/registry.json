@@ -130,7 +130,8 @@
 				"kdco-research-protocol",
 				"kdco-librarian",
 				"kdco-writer"
-			]
+			],
+			"disabledTools": ["webfetch"]
 		},
 		{
 			"name": "kdco-philosophy",
