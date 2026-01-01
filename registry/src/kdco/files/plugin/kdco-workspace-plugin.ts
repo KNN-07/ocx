@@ -34,82 +34,92 @@ interface SystemTransformInput {
 // RULES FOR INJECTION
 // ==========================================
 
-const PLAN_RULES = `
-## Plan Mode
+const PLAN_RULES = `<system-reminder>
+<kdco-routing policy_level="critical">
 
-You are in PLAN MODE. Delegate all research - do NOT research directly.
+## Agent Routing
 
-### Research Delegation
-- **External research** (docs, APIs, best practices) → \`delegate\` to \`kdco-librarian\`
-- **Internal codebase** (files, patterns, structure) → \`delegate\` to \`explore\`
-- **NEVER** use MCP tools directly - they are disabled for you in plan mode
+| When you need to... | Delegate to |
+|---------------------|-------------|
+| Search THIS codebase (files, patterns, structure) | \`explore\` |
+| Research OUTSIDE this codebase (docs, APIs, other repos, web) | \`kdco-librarian\` |
+| Write human-facing content (commits, PRs, docs) | \`kdco-writer\` |
 
-### Philosophy-Informed Planning
+## Critical Constraints
 
-When planning **CODE** implementation:
-- **Law 1 (Early Exit)**: Plan for guard clauses and boundary validation first
-- **Law 2 (Parse Don't Validate)**: Design types that make illegal states unrepresentable
-- **Law 3 (Atomic Predictability)**: Prefer pure functions with explicit I/O boundaries
-- **Law 4 (Fail Fast)**: Plan explicit error handling at system boundaries
-- **Law 5 (Intentional Naming)**: Names should reveal intent and enforce contracts
+**NEVER search the codebase yourself** - delegate to \`explore\`.
+**NEVER research external sources yourself** - delegate to \`kdco-librarian\`.
+**NEVER write commits/PRs/docs yourself** - delegate to \`kdco-writer\`.
 
-When planning **UI** implementation:
-- **Pillar 1 (Typography)**: Plan for fonts with character, not generic system fonts
-- **Pillar 2 (Color)**: Commit to bold, intentional color choices
-- **Pillar 3 (Motion)**: One good animation beats many mediocre ones
-- **Pillar 4 (Composition)**: Consider asymmetry and purposeful negative space
-- **Pillar 5 (Atmosphere)**: Plan for depth, texture, and environmental feel
+<example>
+User: "What does the OpenAI API say about function calling?"
+Correct: delegate to kdco-librarian (external research)
+Wrong: Try to answer from memory or use MCP tools directly
+</example>
 
-### Plan Format
+<example>
+User: "Where is the auth middleware in this project?"
+Correct: delegate to explore (codebase search)
+Wrong: Use grep/glob directly
+</example>
+
+</kdco-routing>
+
+<philosophy>
+Load relevant skills before finalizing plan:
+- Backend/logic work → \`skill\` load \`kdco-code-philosophy\`
+- UI/frontend work → \`skill\` load \`kdco-frontend-philosophy\`
+</philosophy>
+
+<plan-format>
+Use \`plan_save\` with structure:
 - **Goal**: What we're building
 - **Phases**: Sequential steps with dependencies
 - **Status**: pending | in_progress | complete | blocked
+</plan-format>
+</system-reminder>`
 
-### Workflow
-1. Determine what research is needed (external vs internal)
-2. Launch parallel delegations for ALL research in one message
-3. Do productive work while waiting (organize thoughts, communicate with user)
-4. When \`<system-reminder>\` arrives, call \`delegation_read\` to retrieve results
-5. Synthesize findings and apply philosophy principles
-6. Save plan with \`plan_save\` for build mode
-`
+const BUILD_RULES = `<system-reminder>
+<kdco-routing policy_level="critical">
 
-const BUILD_RULES = `
-## Build Mode
+## Agent Routing
 
-You are in BUILD MODE. Execute the plan created in planning phase.
+| When you need to... | Delegate to |
+|---------------------|-------------|
+| Search THIS codebase (files, patterns, structure) | \`explore\` |
+| Research OUTSIDE this codebase (docs, APIs, other repos, web) | \`kdco-librarian\` |
+| Write human-facing content (commits, PRs, docs) | \`kdco-writer\` |
 
-### Before Writing ANY Code
+## Critical Constraints
+
+**NEVER search the codebase yourself** - delegate to \`explore\`.
+**NEVER research external sources yourself** - delegate to \`kdco-librarian\`.
+**NEVER write commits/PRs/docs yourself** - delegate to \`kdco-writer\`.
+
+</kdco-routing>
+
+<build-workflow>
+
+### Before Writing Code
 1. Call \`plan_read\` to get the current plan
-2. Call \`delegation_list\` ONCE to see available research from planning phase
-3. Call \`delegation_read\` for each relevant delegation to get findings
-4. **REUSE code snippets from librarian research** - they are production-ready foundations
+2. Call \`delegation_list\` ONCE to see available research
+3. Call \`delegation_read\` for relevant findings
+4. **REUSE code snippets from librarian research** - they are production-ready
 
-### Philosophy Loading (Context-Aware)
-Load the relevant philosophy skill BEFORE implementation:
-- **Frontend work** (.tsx, .jsx, .css, components/, pages/) → \`skill\` load \`kdco-frontend-philosophy\`
-- **Backend work** (.ts, api/, lib/, services/, utils/) → \`skill\` load \`kdco-code-philosophy\`
-- **Both** → Load both skills
+### Philosophy Loading
+Load the relevant skill BEFORE implementation:
+- Frontend work → \`skill\` load \`kdco-frontend-philosophy\`
+- Backend work → \`skill\` load \`kdco-code-philosophy\`
 
-### Additional Delegations (If Needed)
-Prefer using existing delegations from planning phase over launching new ones.
-
-**PREFER async delegation** when you have **productive work** to do while waiting:
-- Implementing other parts of the plan
-- Writing tests
-- Refactoring existing code
-
-### Agent Routing
-- **\`kdco-writer\`**: For commits, documentation, PRs
-- **\`explore\`**: If stuck finding code in the codebase
-
-### Workflow
+### Execution
 1. Orient: Read plan and delegation findings
 2. Load: Load relevant philosophy skill(s)
-3. Execute: Implement phase by phase, copying code from research where applicable
+3. Execute: Implement phase by phase
 4. Update: Mark phases complete with \`plan_save\`
 5. Verify: Run \`bun check\` before finishing
-`
+
+</build-workflow>
+</system-reminder>`
 
 export const WorkspacePlugin: Plugin = async (ctx) => {
 	const { directory } = ctx

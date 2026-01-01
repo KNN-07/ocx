@@ -57,9 +57,7 @@ ocx add kdco-librarian
 
 | Component | Description |
 |-----------|-------------|
-| `kdco-background-protocol` | Guidelines for the waiter model delegation pattern |
 | `kdco-plan-protocol` | Guidelines for using the plan system to track implementation phases |
-| `kdco-research-protocol` | Guidelines for persisting and retrieving research findings |
 | `kdco-code-philosophy` | The 5 Laws of Elegant Defense |
 | `kdco-frontend-philosophy` | The 5 Pillars of Intentional UI |
 
@@ -76,7 +74,7 @@ This installs:
 - Librarian agent (external research)
 - Writer agent (commits, docs, PRs)
 - Plan management tools
-- Research and planning protocols
+- Planning protocol
 
 Components are installed to `.opencode/` where you can freely customize them.
 
@@ -91,10 +89,11 @@ All components are copied to your project. Edit them directly:
 │   └── kdco-writer.md        # Customize writing style
 ├── plugin/
 │   ├── kdco-background-agents.ts
+│   ├── kdco-workspace-plugin.ts
 │   └── kdco-notify.ts        # Customize notification behavior
 └── skill/
-    └── kdco-background-protocol/
-        └── SKILL.md          # Adjust delegation guidelines
+    └── kdco-plan-protocol/
+        └── SKILL.md          # Planning guidelines
 ```
 
 ## License

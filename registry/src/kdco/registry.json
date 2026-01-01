@@ -29,18 +29,6 @@
 			"dependencies": ["kdco-workspace-plugin"]
 		},
 		{
-			"name": "kdco-research-protocol",
-			"type": "ocx:skill",
-			"description": "Guidelines for delegating research tasks",
-			"files": [
-				{
-					"path": "skill/kdco-research-protocol/SKILL.md",
-					"target": ".opencode/skill/kdco-research-protocol/SKILL.md"
-				}
-			],
-			"dependencies": ["kdco-background-agents"]
-		},
-		{
 			"name": "kdco-code-philosophy",
 			"type": "ocx:skill",
 			"description": "The 5 Laws of Elegant Defense",
@@ -110,10 +98,6 @@
 				{
 					"path": "plugin/kdco-background-agents.ts",
 					"target": ".opencode/plugin/kdco-background-agents.ts"
-				},
-				{
-					"path": "skill/kdco-background-protocol/SKILL.md",
-					"target": ".opencode/skill/kdco-background-protocol/SKILL.md"
 				}
 			],
 			"dependencies": [],
@@ -140,7 +124,6 @@
 			"dependencies": [
 				"kdco-workspace-plugin",
 				"kdco-plan-protocol",
-				"kdco-research-protocol",
 				"kdco-librarian",
 				"kdco-writer",
 				"kdco-notify"
