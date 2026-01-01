@@ -142,7 +142,8 @@
 				"kdco-plan-protocol",
 				"kdco-research-protocol",
 				"kdco-librarian",
-				"kdco-writer"
+				"kdco-writer",
+				"kdco-notify"
 			],
 			"disabledTools": ["webfetch"]
 		},
