@@ -58,7 +58,7 @@ interface RegistryData {
 
 function normalizeFile(file: ComponentFile): ComponentFileObject {
 	if (typeof file === "string") {
-		return { path: file, target: file }
+		return { path: file, target: `.opencode/${file}` }
 	}
 	return file
 }
