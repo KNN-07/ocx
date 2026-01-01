@@ -9,6 +9,7 @@ import * as Diff from "diff"
 import kleur from "kleur"
 import { fetchComponent, fetchFileContent } from "../registry/fetcher.js"
 import { readOcxConfig, readOcxLock } from "../schemas/config.js"
+import { normalizeFile } from "../schemas/registry.js"
 import { handleError, logger, outputJson } from "../utils/index.js"
 
 interface DiffOptions {
@@ -96,11 +97,12 @@ export function registerDiffCommand(program: Command): void {
 
 						// Assume first file for simplicity in this MVP
 						// In a full implementation we'd diff all files in the component
-						const upstreamFile = upstream.files[0]
-						if (!upstreamFile) {
+						const rawUpstreamFile = upstream.files[0]
+						if (!rawUpstreamFile) {
 							results.push({ name, hasChanges: false })
 							continue
 						}
+						const upstreamFile = normalizeFile(rawUpstreamFile)
 
 						// Fetch actual content from registry
 						const upstreamContent = await fetchFileContent(

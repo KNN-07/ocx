@@ -24,6 +24,8 @@ my-registry/
 
 ### registry.json
 
+OCX uses **Cargo-style union types** for a clean developer experience: use strings for simple cases, objects when you need more control.
+
 ```json
 {
   "name": "My Extensions",
@@ -35,17 +37,91 @@ my-registry/
       "name": "my-cool-plugin",
       "type": "ocx:plugin",
       "description": "Does something cool",
-      "files": [
-        {
-          "path": "plugin/index.ts",
-          "target": ".opencode/plugin/my-cool-plugin.ts"
-        }
-      ],
+      "files": ["plugin/my-cool-plugin.ts"],
       "dependencies": []
     }
   ]
 }
 ```
+
+## Cargo-Style Patterns
+
+### Files
+
+Use string shorthand when the target can be auto-inferred from the path:
+
+```json
+// String shorthand (recommended)
+"files": ["plugin/my-plugin.ts"]
+// Expands to: { "path": "plugin/my-plugin.ts", "target": ".opencode/plugin/my-plugin.ts" }
+
+// Full object (when you need a custom target)
+"files": [
+  {
+    "path": "skill/my-skill/SKILL.md",
+    "target": ".opencode/skill/my-skill/SKILL.md"
+  }
+]
+```
+
+### MCP Servers
+
+Use URL shorthand for remote servers:
+
+```json
+// String shorthand (recommended for remote servers)
+"mcpServers": {
+  "context7": "https://mcp.context7.com/mcp"
+}
+// Expands to: { "type": "remote", "url": "https://...", "enabled": true }
+
+// Full object (for local servers or advanced config)
+"mcpServers": {
+  "local-mcp": {
+    "type": "local",
+    "command": ["node", "server.js"],
+    "args": ["--port", "3000"],
+    "environment": { "DEBUG": "true" }
+  }
+}
+```
+
+### OpenCode Config Block
+
+Components can specify settings to merge into the user's `opencode.json`:
+
+```json
+{
+  "name": "my-agent",
+  "type": "ocx:agent",
+  "files": ["agent/my-agent.md"],
+  "dependencies": [],
+  "opencode": {
+    "plugins": ["@some-org/opencode-plugin"],
+    "tools": {
+      "webfetch": false
+    },
+    "agent": {
+      "my-agent": {
+        "tools": {
+          "read": true,
+          "write": true,
+          "bash": false
+        },
+        "temperature": 0.7
+      }
+    },
+    "instructions": ["Always follow best practices"]
+  }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `opencode.plugins` | npm packages added to `opencode.json` plugin array |
+| `opencode.tools` | Global tool enable/disable settings |
+| `opencode.agent` | Per-agent configuration (tools, temperature, permission, prompt) |
+| `opencode.instructions` | Global instructions appended to config |
 
 ## Component Types
 

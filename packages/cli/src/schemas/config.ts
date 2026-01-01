@@ -98,6 +98,9 @@ export const opencodeMcpSchema = z.record(mcpServerSchema)
 export const opencodeAgentSchema = z.object({
 	disable: z.boolean().optional(),
 	tools: z.record(z.boolean()).optional(),
+	temperature: z.number().min(0).max(2).optional(),
+	prompt: z.string().optional(),
+	permission: z.record(z.enum(["allow", "deny"])).optional(),
 })
 
 /**
@@ -115,6 +118,12 @@ export const opencodeConfigPatchSchema = z.object({
 
 	/** Agent configuration */
 	agent: z.record(opencodeAgentSchema).optional(),
+
+	/** NPM plugins */
+	plugin: z.array(z.string()).optional(),
+
+	/** Global instructions */
+	instructions: z.array(z.string()).optional(),
 })
 
 export type OpencodeConfigPatch = z.infer<typeof opencodeConfigPatchSchema>

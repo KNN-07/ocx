@@ -3,12 +3,18 @@
  * Based on: https://github.com/shadcn-ui/ui/blob/main/packages/shadcn/src/registry/resolver.ts
  */
 
+import { mergeDeep } from "remeda"
 import type { RegistryConfig } from "../schemas/config.js"
-import type { ComponentManifest, McpServer } from "../schemas/registry.js"
+import {
+	type ComponentManifest,
+	type McpServerObject,
+	type NormalizedComponentManifest,
+	normalizeComponentManifest,
+} from "../schemas/registry.js"
 import { OCXError, ValidationError } from "../utils/errors.js"
 import { fetchComponent } from "./fetcher.js"
 
-export interface ResolvedComponent extends ComponentManifest {
+export interface ResolvedComponent extends NormalizedComponentManifest {
 	registryName: string
 	baseUrl: string
 }
@@ -26,8 +32,8 @@ export interface ResolvedDependencies {
 	components: ResolvedComponent[]
 	/** Install order (component names) */
 	installOrder: string[]
-	/** Aggregated MCP servers from all components */
-	mcpServers: Record<string, McpServer>
+	/** Aggregated MCP servers from all components (normalized to objects) */
+	mcpServers: Record<string, McpServerObject>
 	/** Agent-to-MCP bindings for agent-scoped servers */
 	agentMcpBindings: AgentMcpBinding[]
 	/** Aggregated npm dependencies from all components */
@@ -36,6 +42,12 @@ export interface ResolvedDependencies {
 	npmDevDependencies: string[]
 	/** Tools to disable globally */
 	disabledTools: string[]
+	/** OpenCode plugins (npm packages) to add to opencode.json plugin array */
+	plugins: string[]
+	/** Agent configurations to merge into opencode.json agent key */
+	agentConfigs: Record<string, Record<string, unknown>>
+	/** Global instructions to append to opencode.json instructions array */
+	instructions: string[]
 }
 
 /**
@@ -48,11 +60,14 @@ export async function resolveDependencies(
 ): Promise<ResolvedDependencies> {
 	const resolved = new Map<string, ResolvedComponent>()
 	const visiting = new Set<string>()
-	const mcpServers: Record<string, McpServer> = {}
+	const mcpServers: Record<string, McpServerObject> = {}
 	const agentMcpBindings: AgentMcpBinding[] = []
 	const npmDeps = new Set<string>()
 	const npmDevDeps = new Set<string>()
 	const disabledTools = new Set<string>()
+	const plugins = new Set<string>()
+	const agentConfigs: Record<string, Record<string, unknown>> = {}
+	const instructionsSet = new Set<string>()
 
 	async function resolve(name: string, path: string[] = []): Promise<void> {
 		// Already resolved
@@ -92,19 +107,23 @@ export async function resolveDependencies(
 			await resolve(dep, [...path, name])
 		}
 
+		// Normalize the component (expand Cargo-style shorthands)
+		const normalizedComponent = normalizeComponentManifest(component)
+
 		// Add to resolved (dependencies are already added)
 		resolved.set(name, {
-			...component,
+			...normalizedComponent,
 			registryName: foundRegistry.name,
 			baseUrl: foundRegistry.url,
 		})
 		visiting.delete(name)
 
 		// Collect MCP servers and track agent bindings
-		if (component.mcpServers) {
+		if (normalizedComponent.mcpServers) {
 			const serverNames: string[] = []
-			for (const [serverName, config] of Object.entries(component.mcpServers)) {
-				mcpServers[serverName] = config as McpServer
+			for (const [serverName, config] of Object.entries(normalizedComponent.mcpServers)) {
+				// Use already-normalized MCP server from normalizeComponentManifest
+				mcpServers[serverName] = config
 				serverNames.push(serverName)
 			}
 
@@ -136,6 +155,40 @@ export async function resolveDependencies(
 				disabledTools.add(tool)
 			}
 		}
+
+		// Collect opencode config: plugins, agent configs, instructions
+		if (component.opencode) {
+			// Collect plugins (npm packages for opencode.json plugin array)
+			if (component.opencode.plugins) {
+				for (const plugin of component.opencode.plugins) {
+					plugins.add(plugin)
+				}
+			}
+
+			// Collect agent configurations
+			if (component.opencode.agent) {
+				for (const [agentName, config] of Object.entries(component.opencode.agent)) {
+					// Deep merge agent configs (later components override earlier ones)
+					agentConfigs[agentName] = mergeDeep(agentConfigs[agentName] ?? {}, config)
+				}
+			}
+
+			// Collect instructions
+			if (component.opencode.instructions) {
+				for (const instruction of component.opencode.instructions) {
+					instructionsSet.add(instruction)
+				}
+			}
+
+			// Collect tools config (converts to disabledTools for false values)
+			if (component.opencode.tools) {
+				for (const [tool, enabled] of Object.entries(component.opencode.tools)) {
+					if (enabled === false) {
+						disabledTools.add(tool)
+					}
+				}
+			}
+		}
 	}
 
 	// Resolve all requested components
@@ -155,6 +208,9 @@ export async function resolveDependencies(
 		npmDependencies: Array.from(npmDeps),
 		npmDevDependencies: Array.from(npmDevDeps),
 		disabledTools: Array.from(disabledTools),
+		plugins: Array.from(plugins),
+		agentConfigs,
+		instructions: Array.from(instructionsSet),
 	}
 }
 

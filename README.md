@@ -98,11 +98,41 @@ The user-editable configuration file.
 ### `ocx.lock`
 Auto-generated lockfile tracking installed versions, hashes, and targets.
 
+## OpenCode Feature Matrix
+
+OCX supports the full range of OpenCode configuration options:
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| **Components** |||
+| Agents (`.opencode/agent/*.md`) | ✅ | Full support |
+| Skills (`.opencode/skill/<name>/SKILL.md`) | ✅ | Full support |
+| Plugins (file-based `.opencode/plugin/*.ts`) | ✅ | Full support |
+| Plugins (npm packages) | ✅ | Via `opencode.plugins` |
+| Commands (`.opencode/command/*.md`) | ✅ | Full support |
+| Bundles (meta-components) | ✅ | Full support |
+| **opencode.json Config** |||
+| `plugin` (npm package array) | ✅ | Full support |
+| `mcp` (MCP servers) | ✅ | URL shorthand + full objects |
+| `tools` (enable/disable patterns) | ✅ | Full support |
+| `agent` (per-agent config) | ✅ | tools, temperature, permission, prompt |
+| `instructions` (global instructions) | ✅ | Appended from components |
+| **MCP Server Config** |||
+| Remote servers (`type: remote`) | ✅ | URL shorthand supported |
+| Local servers (`type: local`) | ✅ | Full support |
+| Headers, environment, args, oauth | ✅ | Full support |
+| **Schema Design** |||
+| Cargo-style union types | ✅ | String shorthand + full objects |
+| File string shorthand | ✅ | Auto-generates target path |
+| MCP URL shorthand | ✅ | `"https://..."` → remote server |
+
 ## Roadmap
 
 - [x] Lighter-weight rule injection architecture
 - [x] Recursive AGENTS.md discovery
 - [x] Multi-platform binary distribution
+- [x] Cargo-style schema with string shorthands
+- [x] Full OpenCode config support (plugins, agent config, instructions)
 - [ ] Cursor / Claude Code adapter support
 - [ ] Centralized component discovery portal
 

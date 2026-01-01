@@ -8,7 +8,7 @@ import { mkdir } from "node:fs/promises"
 import { dirname, join, relative } from "node:path"
 import type { Command } from "commander"
 import kleur from "kleur"
-import { registrySchema } from "../schemas/registry.js"
+import { normalizeFile, registrySchema } from "../schemas/registry.js"
 import { createSpinner, handleError, logger, outputJson } from "../utils/index.js"
 
 interface BuildOptions {
@@ -86,7 +86,8 @@ export function registerBuildCommand(program: Command): void {
 					await Bun.write(packumentPath, JSON.stringify(packument, null, 2))
 
 					// Copy files to components/[name]/[path]
-					for (const file of component.files) {
+					for (const rawFile of component.files) {
+						const file = normalizeFile(rawFile)
 						const sourceFilePath = join(sourcePath, "files", file.path)
 						const destFilePath = join(componentsDir, component.name, file.path)
 						const destFileDir = dirname(destFilePath)

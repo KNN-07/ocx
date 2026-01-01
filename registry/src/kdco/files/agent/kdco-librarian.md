@@ -1,12 +1,6 @@
 ---
 description: Knowledge architect for external research and documentation
 mode: subagent
-tools:
-  context7_resolve-library-id: true
-  context7_query-docs: true
-  gh_grep_searchGitHub: true
-  exa_web_search_exa: true
-  exa_get_code_context_exa: true
 ---
 
 # Librarian Agent

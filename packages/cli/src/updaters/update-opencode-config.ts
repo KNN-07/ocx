@@ -11,7 +11,8 @@
  */
 
 import { applyEdits, type ModificationOptions, modify, parse as parseJsonc } from "jsonc-parser"
-import type { McpServer } from "../schemas/registry.js"
+import { mergeDeep } from "remeda"
+import type { McpServerObject, AgentConfig as RegistryAgentConfig } from "../schemas/registry.js"
 
 // =============================================================================
 // TYPES
@@ -49,14 +50,20 @@ export interface AgentMcpBinding {
 }
 
 export interface UpdateOpencodeConfigOptions {
-	/** MCP servers to add (global scope) */
-	mcpServers?: Record<string, McpServer>
+	/** MCP servers to add (global scope) - already normalized to objects */
+	mcpServers?: Record<string, McpServerObject>
 	/** Agent-to-MCP bindings for scoped access */
 	agentMcpBindings?: AgentMcpBinding[]
 	/** Default agent to set (if not already set) */
 	defaultAgent?: string
 	/** Tools to disable globally (e.g., ["WebFetch"]) */
 	disabledTools?: string[]
+	/** NPM plugin packages to add to opencode.json 'plugin' array */
+	plugins?: string[]
+	/** Per-agent configuration to merge into opencode.json 'agent' key */
+	agentConfigs?: Record<string, RegistryAgentConfig>
+	/** Global instructions to append to opencode.json 'instructions' array */
+	instructions?: string[]
 }
 
 export interface UpdateOpencodeConfigResult {
@@ -72,6 +79,10 @@ export interface UpdateOpencodeConfigResult {
 	agentsConfigured: string[]
 	/** Tools that were disabled globally */
 	toolsDisabled: string[]
+	/** Plugins that were added */
+	pluginsAdded: string[]
+	/** Instructions that were appended */
+	instructionsAdded: string[]
 }
 
 // =============================================================================
@@ -135,7 +146,7 @@ async function writeOpencodeConfig(path: string, content: string): Promise<void>
 function applyMcpServers(
 	content: string,
 	config: OpencodeConfig,
-	mcpServers: Record<string, McpServer>,
+	mcpServers: Record<string, McpServerObject>,
 ): { content: string; added: string[]; skipped: string[] } {
 	const added: string[] = []
 	const skipped: string[] = []
@@ -252,6 +263,136 @@ function applyDefaultAgent(content: string, config: OpencodeConfig, defaultAgent
 	return applyEdits(content, edits)
 }
 
+/**
+ * Add plugin packages to opencode.json 'plugin' array
+ * Returns list of added plugins (skips duplicates)
+ */
+function applyPlugins(
+	content: string,
+	config: OpencodeConfig,
+	plugins: string[],
+): { content: string; added: string[] } {
+	const added: string[] = []
+	let updatedContent = content
+
+	// Get existing plugins array
+	const existingPlugins = (config as { plugin?: string[] }).plugin ?? []
+
+	for (const plugin of plugins) {
+		if (existingPlugins.includes(plugin)) {
+			continue
+		}
+
+		// Add to the plugin array at the next index
+		const newIndex = existingPlugins.length + added.length
+		const edits = modify(updatedContent, ["plugin", newIndex], plugin, JSONC_OPTIONS)
+		updatedContent = applyEdits(updatedContent, edits)
+		added.push(plugin)
+	}
+
+	return { content: updatedContent, added }
+}
+
+/**
+ * Merge agent configurations into opencode.json 'agent' key
+ * Component config is treated as defaults; user config takes precedence.
+ * Only sets values that don't already exist in user config.
+ */
+function applyAgentConfigs(
+	content: string,
+	existingConfig: OpencodeConfig,
+	agentConfigs: Record<string, RegistryAgentConfig>,
+): { content: string; agentsConfigured: string[] } {
+	let updatedContent = content
+	const agentsConfigured: string[] = []
+
+	for (const [agentName, componentAgentConfig] of Object.entries(agentConfigs)) {
+		const existingAgentConfig = existingConfig.agent?.[agentName] ?? {}
+
+		// Deep merge: component as base, user as override (user wins)
+		const merged = mergeDeep(componentAgentConfig, existingAgentConfig) as RegistryAgentConfig
+
+		// Apply each field of the merged config
+		if (merged.tools) {
+			for (const [toolPattern, enabled] of Object.entries(merged.tools)) {
+				const edits = modify(
+					updatedContent,
+					["agent", agentName, "tools", toolPattern],
+					enabled,
+					JSONC_OPTIONS,
+				)
+				updatedContent = applyEdits(updatedContent, edits)
+			}
+		}
+
+		if (merged.temperature !== undefined) {
+			const edits = modify(
+				updatedContent,
+				["agent", agentName, "temperature"],
+				merged.temperature,
+				JSONC_OPTIONS,
+			)
+			updatedContent = applyEdits(updatedContent, edits)
+		}
+
+		if (merged.prompt) {
+			const edits = modify(
+				updatedContent,
+				["agent", agentName, "prompt"],
+				merged.prompt,
+				JSONC_OPTIONS,
+			)
+			updatedContent = applyEdits(updatedContent, edits)
+		}
+
+		if (merged.permission) {
+			for (const [pattern, permission] of Object.entries(merged.permission)) {
+				const edits = modify(
+					updatedContent,
+					["agent", agentName, "permission", pattern],
+					permission,
+					JSONC_OPTIONS,
+				)
+				updatedContent = applyEdits(updatedContent, edits)
+			}
+		}
+
+		agentsConfigured.push(agentName)
+	}
+
+	return { content: updatedContent, agentsConfigured }
+}
+
+/**
+ * Append global instructions to opencode.json 'instructions' array
+ * Returns list of added instructions (skips duplicates)
+ */
+function applyInstructions(
+	content: string,
+	config: OpencodeConfig,
+	instructions: string[],
+): { content: string; added: string[] } {
+	const added: string[] = []
+	let updatedContent = content
+
+	// Get existing instructions array
+	const existingInstructions = (config as { instructions?: string[] }).instructions ?? []
+
+	for (const instruction of instructions) {
+		if (existingInstructions.includes(instruction)) {
+			continue
+		}
+
+		// Add to the instructions array at the next index
+		const newIndex = existingInstructions.length + added.length
+		const edits = modify(updatedContent, ["instructions", newIndex], instruction, JSONC_OPTIONS)
+		updatedContent = applyEdits(updatedContent, edits)
+		added.push(instruction)
+	}
+
+	return { content: updatedContent, added }
+}
+
 // =============================================================================
 // MAIN UPDATER
 // =============================================================================
@@ -294,6 +435,8 @@ export async function updateOpencodeConfig(
 	let mcpSkipped: string[] = []
 	let agentsConfigured: string[] = []
 	let toolsDisabled: string[] = []
+	let pluginsAdded: string[] = []
+	let instructionsAdded: string[] = []
 
 	// Apply MCP servers
 	if (options.mcpServers && Object.keys(options.mcpServers).length > 0) {
@@ -334,6 +477,34 @@ export async function updateOpencodeConfig(
 		toolsDisabled = options.disabledTools
 	}
 
+	// Apply plugins
+	if (options.plugins && options.plugins.length > 0) {
+		// Re-parse config after modifications
+		const updatedConfig = parseJsonc(content, [], { allowTrailingComma: true }) as OpencodeConfig
+		const result = applyPlugins(content, updatedConfig, options.plugins)
+		content = result.content
+		pluginsAdded = result.added
+	}
+
+	// Apply agent configs
+	if (options.agentConfigs && Object.keys(options.agentConfigs).length > 0) {
+		// Re-parse config after modifications to get current user settings
+		const updatedConfig = parseJsonc(content, [], { allowTrailingComma: true }) as OpencodeConfig
+		const result = applyAgentConfigs(content, updatedConfig, options.agentConfigs)
+		content = result.content
+		// Merge with existing agentsConfigured from MCP bindings
+		agentsConfigured = [...new Set([...agentsConfigured, ...result.agentsConfigured])]
+	}
+
+	// Apply instructions
+	if (options.instructions && options.instructions.length > 0) {
+		// Re-parse config after modifications
+		const updatedConfig = parseJsonc(content, [], { allowTrailingComma: true }) as OpencodeConfig
+		const result = applyInstructions(content, updatedConfig, options.instructions)
+		content = result.content
+		instructionsAdded = result.added
+	}
+
 	// Write config
 	await writeOpencodeConfig(configPath, content)
 
@@ -344,5 +515,7 @@ export async function updateOpencodeConfig(
 		mcpSkipped,
 		agentsConfigured,
 		toolsDisabled,
+		pluginsAdded,
+		instructionsAdded,
 	}
 }

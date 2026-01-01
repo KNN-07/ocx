@@ -8,98 +8,67 @@
 			"name": "kdco-workspace-plugin",
 			"type": "ocx:plugin",
 			"description": "Plan management and rule injection for workspace workflows",
-			"files": [
-				{
-					"path": "plugin/kdco-workspace-plugin.ts",
-					"target": ".opencode/plugin/kdco-workspace-plugin.ts"
-				}
-			],
+			"files": ["plugin/kdco-workspace-plugin.ts"],
 			"dependencies": ["kdco-background-agents"]
 		},
 		{
 			"name": "kdco-plan-protocol",
 			"type": "ocx:skill",
 			"description": "Guidelines for using the plan system",
-			"files": [
-				{
-					"path": "skill/kdco-plan-protocol/SKILL.md",
-					"target": ".opencode/skill/kdco-plan-protocol/SKILL.md"
-				}
-			],
+			"files": ["skill/kdco-plan-protocol/SKILL.md"],
 			"dependencies": ["kdco-workspace-plugin"]
 		},
 		{
 			"name": "kdco-code-philosophy",
 			"type": "ocx:skill",
 			"description": "The 5 Laws of Elegant Defense",
-			"files": [
-				{
-					"path": "skill/kdco-code-philosophy/SKILL.md",
-					"target": ".opencode/skill/kdco-code-philosophy/SKILL.md"
-				}
-			],
+			"files": ["skill/kdco-code-philosophy/SKILL.md"],
 			"dependencies": []
 		},
 		{
 			"name": "kdco-frontend-philosophy",
 			"type": "ocx:skill",
 			"description": "The 5 Pillars of Intentional UI",
-			"files": [
-				{
-					"path": "skill/kdco-frontend-philosophy/SKILL.md",
-					"target": ".opencode/skill/kdco-frontend-philosophy/SKILL.md"
-				}
-			],
+			"files": ["skill/kdco-frontend-philosophy/SKILL.md"],
 			"dependencies": []
 		},
 		{
 			"name": "kdco-librarian",
 			"type": "ocx:agent",
 			"description": "Knowledge architect for external research",
-			"files": [
-				{
-					"path": "agent/kdco-librarian.md",
-					"target": ".opencode/agent/kdco-librarian.md"
-				}
-			],
+			"files": ["agent/kdco-librarian.md"],
 			"dependencies": ["kdco-background-agents"],
 			"mcpServers": {
-				"context7": {
-					"type": "remote",
-					"url": "https://mcp.context7.com/mcp"
-				},
-				"gh_grep": {
-					"type": "remote",
-					"url": "https://mcp.grep.app"
-				},
-				"exa": {
-					"type": "remote",
-					"url": "https://mcp.exa.ai/mcp"
-				}
+				"context7": "https://mcp.context7.com/mcp",
+				"gh_grep": "https://mcp.grep.app",
+				"exa": "https://mcp.exa.ai/mcp"
 			}
 		},
 		{
 			"name": "kdco-writer",
 			"type": "ocx:agent",
 			"description": "Human-facing content specialist",
-			"files": [
-				{
-					"path": "agent/kdco-writer.md",
-					"target": ".opencode/agent/kdco-writer.md"
+			"files": ["agent/kdco-writer.md"],
+			"dependencies": [],
+			"opencode": {
+				"agent": {
+					"kdco-writer": {
+						"tools": {
+							"read": true,
+							"write": true,
+							"edit": true,
+							"glob": true,
+							"bash": true
+						}
+					}
 				}
-			],
-			"dependencies": []
+			}
 		},
 		{
 			"name": "kdco-background-agents",
 			"type": "ocx:plugin",
 			"description": "Background agent execution - run async tasks while you work",
-			"files": [
-				{
-					"path": "plugin/kdco-background-agents.ts",
-					"target": ".opencode/plugin/kdco-background-agents.ts"
-				}
-			],
+			"files": ["plugin/kdco-background-agents.ts"],
 			"dependencies": [],
 			"npmDependencies": ["unique-names-generator"]
 		},
@@ -107,12 +76,7 @@
 			"name": "kdco-notify",
 			"type": "ocx:plugin",
 			"description": "Native OS notifications - get notified when tasks complete",
-			"files": [
-				{
-					"path": "plugin/kdco-notify.ts",
-					"target": ".opencode/plugin/kdco-notify.ts"
-				}
-			],
+			"files": ["plugin/kdco-notify.ts"],
 			"dependencies": [],
 			"npmDependencies": ["node-notifier", "detect-terminal"]
 		},
@@ -128,18 +92,18 @@
 				"kdco-writer",
 				"kdco-notify"
 			],
-			"disabledTools": ["webfetch"]
+			"opencode": {
+				"plugins": ["@tarquinen/opencode-dcp@1.1.2"],
+				"tools": {
+					"webfetch": false
+				}
+			}
 		},
 		{
 			"name": "kdco-philosophy",
 			"type": "ocx:bundle",
 			"description": "Full KDCO Philosophy enforcement",
-			"files": [
-				{
-					"path": "philosophy/AGENTS.md",
-					"target": ".opencode/philosophy/AGENTS.md"
-				}
-			],
+			"files": ["philosophy/AGENTS.md"],
 			"dependencies": ["kdco-code-philosophy", "kdco-frontend-philosophy"]
 		}
 	]

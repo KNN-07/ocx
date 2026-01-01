@@ -10,9 +10,10 @@ import { dirname, join } from "node:path"
 import { parseNi, run } from "@antfu/ni"
 import type { Command } from "commander"
 import { fetchFileContent, fetchRegistryIndex } from "../registry/fetcher.js"
+import type { ResolvedComponent } from "../registry/resolver.js"
 import { type ResolvedDependencies, resolveDependencies } from "../registry/resolver.js"
 import { type OcxLock, readOcxConfig, readOcxLock } from "../schemas/config.js"
-import type { ComponentManifest } from "../schemas/registry.js"
+import type { ComponentFileObject } from "../schemas/registry.js"
 import { updateOpencodeConfig } from "../updaters/update-opencode-config.js"
 import { ConfigError, IntegrityError } from "../utils/errors.js"
 import { createSpinner, handleError, logger } from "../utils/index.js"
@@ -124,16 +125,22 @@ async function runAdd(componentNames: string[], options: AddOptions): Promise<vo
 
 		installSpin?.succeed(`Installed ${resolved.components.length} components`)
 
-		// Apply opencode.json changes (MCP servers with agent-scoped tools, disabled tools)
+		// Apply opencode.json changes (MCP servers, plugins, agent configs, instructions, disabled tools)
 		const hasMcpChanges =
 			Object.keys(resolved.mcpServers).length > 0 || resolved.agentMcpBindings.length > 0
 		const hasDisabledTools = resolved.disabledTools.length > 0
+		const hasPlugins = resolved.plugins.length > 0
+		const hasAgentConfigs = Object.keys(resolved.agentConfigs).length > 0
+		const hasInstructions = resolved.instructions.length > 0
 
-		if (hasMcpChanges || hasDisabledTools) {
+		if (hasMcpChanges || hasDisabledTools || hasPlugins || hasAgentConfigs || hasInstructions) {
 			const result = await updateOpencodeConfig(cwd, {
 				mcpServers: resolved.mcpServers,
 				agentMcpBindings: resolved.agentMcpBindings,
 				disabledTools: resolved.disabledTools,
+				plugins: resolved.plugins,
+				agentConfigs: resolved.agentConfigs,
+				instructions: resolved.instructions,
 			})
 
 			if (result.mcpSkipped.length > 0 && !options.quiet) {
@@ -155,6 +162,22 @@ async function runAdd(componentNames: string[], options: AddOptions): Promise<vo
 				logger.info(
 					`Disabled ${result.toolsDisabled.length} tools: ${result.toolsDisabled.join(", ")}`,
 				)
+			}
+
+			if (!options.quiet && result.pluginsAdded.length > 0) {
+				logger.info(
+					`Added ${result.pluginsAdded.length} plugins: ${result.pluginsAdded.join(", ")}`,
+				)
+			}
+
+			if (!options.quiet && result.agentsConfigured.length > 0) {
+				logger.info(
+					`Configured ${result.agentsConfigured.length} agents: ${result.agentsConfigured.join(", ")}`,
+				)
+			}
+
+			if (!options.quiet && result.instructionsAdded.length > 0) {
+				logger.info(`Added ${result.instructionsAdded.length} instructions`)
 			}
 		}
 
@@ -209,12 +232,12 @@ async function runAdd(componentNames: string[], options: AddOptions): Promise<vo
 }
 
 async function installComponent(
-	component: ComponentManifest,
+	component: ResolvedComponent,
 	files: { path: string; content: Buffer }[],
 	cwd: string,
 ): Promise<void> {
 	for (const file of files) {
-		const componentFile = component.files.find((f) => f.path === file.path)
+		const componentFile = component.files.find((f: ComponentFileObject) => f.path === file.path)
 		if (!componentFile) continue
 
 		const targetPath = join(cwd, componentFile.target)
@@ -229,8 +252,10 @@ async function installComponent(
 	}
 }
 
-function getTargetPath(component: ComponentManifest): string {
-	return component.files[0]?.target ?? `.opencode/${component.type}/${component.name}`
+function getTargetPath(component: ResolvedComponent): string {
+	// Strip 'ocx:' prefix from type for fallback path (e.g., 'ocx:agent' -> 'agent')
+	const typeDir = component.type.replace(/^ocx:/, "")
+	return component.files[0]?.target ?? `.opencode/${typeDir}/${component.name}`
 }
 
 async function hashContent(content: string | Buffer): Promise<string> {

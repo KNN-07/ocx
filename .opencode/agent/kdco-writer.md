@@ -1,12 +1,6 @@
 ---
 description: Human-facing content specialist for documentation and commits
 mode: subagent
-tools:
-  read: true
-  write: true
-  edit: true
-  glob: true
-  bash: true
 ---
 
 # Writer Agent
