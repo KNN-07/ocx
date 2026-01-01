@@ -26,8 +26,10 @@ jobs:
 
       - name: Sync Files
         run: |
-          cp ocx/registry/src/kdco/files/plugin/kdco-notify.ts \
-             notify/src/kdco-notify.ts
+          # Sync plugin file (rsync for consistency with other sync workflows)
+          rsync -av \
+            ocx/registry/src/kdco/files/plugin/kdco-notify.ts \
+            notify/src/kdco-notify.ts
 
       - name: Commit and Push
         working-directory: notify

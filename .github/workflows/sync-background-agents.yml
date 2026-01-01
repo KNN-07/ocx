@@ -1,12 +1,12 @@
 name: Sync Background Agents
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
     paths:
       - 'registry/src/kdco/files/plugin/kdco-background-agents.ts'
-      - 'registry/src/kdco/files/skill/kdco-background-protocol/**'
 
 jobs:
   sync:
@@ -27,13 +27,14 @@ jobs:
 
       - name: Sync Files
         run: |
-          # Copy plugin
-          cp ocx/registry/src/kdco/files/plugin/kdco-background-agents.ts \
-             background-agents/src/plugin/
-
-          # Copy skill
-          cp ocx/registry/src/kdco/files/skill/kdco-background-protocol/SKILL.md \
-             background-agents/src/skill/kdco-background-protocol/
+          # Sync plugin directory (--delete removes files no longer in source)
+          rsync -av --delete \
+            --exclude '.git' \
+            ocx/registry/src/kdco/files/plugin/kdco-background-agents.ts \
+            background-agents/src/plugin/
+          
+          # Remove skill directory if it exists (was deleted from source)
+          rm -rf background-agents/src/skill/
 
       - name: Commit and Push
         working-directory: background-agents
