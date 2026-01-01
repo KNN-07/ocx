@@ -43,6 +43,7 @@ ocx add kdco-librarian
 | Component | Description |
 |-----------|-------------|
 | `kdco-background-agents` | Async delegation with the waiter model. Fire-and-forget tasks with persistent results. |
+| `kdco-notify` | Native OS notifications. Get notified when tasks complete, errors occur, or input is needed. |
 | `kdco-workspace-plugin` | Plan management and rule injection for workspace workflows |
 
 ### Agents

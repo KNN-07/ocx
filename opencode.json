@@ -21,7 +21,7 @@
 		"context7_*": false,
 		"gh_grep_*": false,
 		"exa_*": false,
-		"WebFetch": false
+		"webfetch": false
 	},
 	"agent": {
 		"kdco-librarian": {

@@ -120,6 +120,19 @@
 			"npmDependencies": ["unique-names-generator"]
 		},
 		{
+			"name": "kdco-notify",
+			"type": "ocx:plugin",
+			"description": "Native OS notifications - get notified when tasks complete",
+			"files": [
+				{
+					"path": "plugin/kdco-notify.ts",
+					"target": ".opencode/plugin/kdco-notify.ts"
+				}
+			],
+			"dependencies": [],
+			"npmDependencies": ["node-notifier", "detect-terminal"]
+		},
+		{
 			"name": "kdco-workspace",
 			"type": "ocx:bundle",
 			"description": "Full KDCO Workspace experience",

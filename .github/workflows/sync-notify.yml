@@ -1,12 +1,11 @@
-name: Sync Background Agents
+name: Sync Notify
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'registry/src/kdco/files/plugin/kdco-background-agents.ts'
-      - 'registry/src/kdco/files/skill/kdco-background-protocol/**'
+      - 'registry/src/kdco/files/plugin/kdco-notify.ts'
 
 jobs:
   sync:
@@ -18,30 +17,24 @@ jobs:
         with:
           path: ocx
 
-      - name: Checkout Background Agents Repo
+      - name: Checkout Notify Repo
         uses: actions/checkout@v4
         with:
-          repository: kdcokenny/opencode-background-agents
+          repository: kdcokenny/opencode-notify
           token: ${{ secrets.FACADE_SYNC_PAT }}
-          path: background-agents
+          path: notify
 
       - name: Sync Files
         run: |
-          # Copy plugin
-          cp ocx/registry/src/kdco/files/plugin/kdco-background-agents.ts \
-             background-agents/src/plugin/
-
-          # Copy skill
-          cp ocx/registry/src/kdco/files/skill/kdco-background-protocol/SKILL.md \
-             background-agents/src/skill/kdco-background-protocol/
+          cp ocx/registry/src/kdco/files/plugin/kdco-notify.ts \
+             notify/src/kdco-notify.ts
 
       - name: Commit and Push
-        working-directory: background-agents
+        working-directory: notify
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Check if there are changes
           if git diff --quiet; then
             echo "No changes to sync"
             exit 0
