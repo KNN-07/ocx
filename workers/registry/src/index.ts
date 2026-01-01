@@ -10,14 +10,38 @@ import { trimTrailingSlash } from "hono/trailing-slash"
 // Types
 // =============================================================================
 
+// Cargo-style unions: accept string shorthand or full object
+type ComponentFile = string | { path: string; target: string }
+type ComponentFileObject = { path: string; target: string }
+
+interface ComponentManifestRaw {
+	name: string
+	type: string
+	description: string
+	files: ComponentFile[]
+	dependencies: string[]
+	mcpServers?: Record<string, unknown>
+	mcpScope?: string
+	opencode?: Record<string, unknown>
+}
+
 interface ComponentManifest {
 	name: string
 	type: string
 	description: string
-	files: Array<{ path: string; target: string }>
+	files: ComponentFileObject[]
 	dependencies: string[]
 	mcpServers?: Record<string, unknown>
 	mcpScope?: string
+	opencode?: Record<string, unknown>
+}
+
+interface RegistryDataRaw {
+	name: string
+	prefix: string
+	version: string
+	author: string
+	components: ComponentManifestRaw[]
 }
 
 interface RegistryData {
@@ -26,6 +50,31 @@ interface RegistryData {
 	version: string
 	author: string
 	components: ComponentManifest[]
+}
+
+// =============================================================================
+// Normalization (Cargo-style shorthand → canonical objects)
+// =============================================================================
+
+function normalizeFile(file: ComponentFile): ComponentFileObject {
+	if (typeof file === "string") {
+		return { path: file, target: file }
+	}
+	return file
+}
+
+function normalizeComponent(component: ComponentManifestRaw): ComponentManifest {
+	return {
+		...component,
+		files: component.files.map(normalizeFile),
+	}
+}
+
+function normalizeRegistry(raw: RegistryDataRaw): RegistryData {
+	return {
+		...raw,
+		components: raw.components.map(normalizeComponent),
+	}
 }
 
 type AppEnv = {
@@ -103,7 +152,8 @@ async function fetchRegistryData(env: Env): Promise<RegistryData> {
 		)
 	}
 
-	return response.json() as Promise<RegistryData>
+	const raw = (await response.json()) as RegistryDataRaw
+	return normalizeRegistry(raw)
 }
 
 // =============================================================================
