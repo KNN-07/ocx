@@ -38,7 +38,7 @@ interface ComponentManifest {
 
 interface RegistryDataRaw {
 	name: string
-	prefix: string
+	namespace: string
 	version: string
 	author: string
 	components: ComponentManifestRaw[]
@@ -46,7 +46,7 @@ interface RegistryDataRaw {
 
 interface RegistryData {
 	name: string
-	prefix: string
+	namespace: string
 	version: string
 	author: string
 	components: ComponentManifest[]
@@ -110,28 +110,33 @@ class RegistryError extends Error {
 export function buildGitHubRawUrl(
 	repo: string,
 	branch: string,
-	prefix: string,
+	namespace: string,
 	path: string,
 ): string {
-	return `https://raw.githubusercontent.com/${repo}/${branch}/registry/src/${prefix}/${path}`
+	return `https://raw.githubusercontent.com/${repo}/${branch}/registry/src/${namespace}/${path}`
 }
 
 export function buildRegistryUrl(env: {
 	GITHUB_REPO: string
 	GITHUB_BRANCH: string
-	REGISTRY_PREFIX: string
+	REGISTRY_NAMESPACE: string
 }): string {
-	return buildGitHubRawUrl(env.GITHUB_REPO, env.GITHUB_BRANCH, env.REGISTRY_PREFIX, "registry.json")
+	return buildGitHubRawUrl(
+		env.GITHUB_REPO,
+		env.GITHUB_BRANCH,
+		env.REGISTRY_NAMESPACE,
+		"registry.json",
+	)
 }
 
 export function buildFileUrl(
-	env: { GITHUB_REPO: string; GITHUB_BRANCH: string; REGISTRY_PREFIX: string },
+	env: { GITHUB_REPO: string; GITHUB_BRANCH: string; REGISTRY_NAMESPACE: string },
 	filePath: string,
 ): string {
 	return buildGitHubRawUrl(
 		env.GITHUB_REPO,
 		env.GITHUB_BRANCH,
-		env.REGISTRY_PREFIX,
+		env.REGISTRY_NAMESPACE,
 		`files/${filePath}`,
 	)
 }
@@ -199,14 +204,14 @@ app.get("/", (c) => {
 
 /**
  * GET /index.json - Registry index with component summaries
- * Returns: { name, prefix, version, author, components: [{name, type, description}] }
+ * Returns: { name, namespace, version, author, components: [{name, type, description}] }
  */
 app.get("/index.json", async (c) => {
 	const registry = await fetchRegistryData(c.env)
 
 	const index = {
 		name: registry.name,
-		prefix: registry.prefix,
+		namespace: registry.namespace,
 		version: registry.version,
 		author: registry.author,
 		components: registry.components.map((comp) => ({

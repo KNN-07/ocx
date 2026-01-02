@@ -4,20 +4,20 @@ import { buildFileUrl, buildGitHubRawUrl, buildRegistryUrl } from "./index"
 const mockEnv = {
 	GITHUB_REPO: "kdcokenny/ocx",
 	GITHUB_BRANCH: "main",
-	REGISTRY_PREFIX: "kdco",
+	REGISTRY_NAMESPACE: "kdco",
 }
 
 describe("URL Construction", () => {
 	describe("buildGitHubRawUrl", () => {
 		test("constructs correct base URL", () => {
-			const url = buildGitHubRawUrl("owner/repo", "main", "prefix", "some/path.json")
+			const url = buildGitHubRawUrl("owner/repo", "main", "namespace", "some/path.json")
 			expect(url).toBe(
-				"https://raw.githubusercontent.com/owner/repo/main/registry/src/prefix/some/path.json",
+				"https://raw.githubusercontent.com/owner/repo/main/registry/src/namespace/some/path.json",
 			)
 		})
 
 		test("handles different branches", () => {
-			const url = buildGitHubRawUrl("owner/repo", "develop", "prefix", "file.ts")
+			const url = buildGitHubRawUrl("owner/repo", "develop", "namespace", "file.ts")
 			expect(url).toContain("/develop/")
 		})
 	})
