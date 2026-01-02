@@ -70,7 +70,7 @@
 			"description": "Background agent execution - run async tasks while you work",
 			"files": ["plugin/background-agents.ts"],
 			"dependencies": [],
-			"npmDependencies": ["unique-names-generator"]
+			"npmDevDependencies": ["unique-names-generator@4.7.1"]
 		},
 		{
 			"name": "notify",
@@ -78,7 +78,7 @@
 			"description": "Native OS notifications - get notified when tasks complete",
 			"files": ["plugin/notify.ts"],
 			"dependencies": [],
-			"npmDependencies": ["node-notifier", "detect-terminal"]
+			"npmDevDependencies": ["node-notifier@10.0.1", "detect-terminal@2.0.0"]
 		},
 		{
 			"name": "workspace",

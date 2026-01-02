@@ -7,7 +7,7 @@ import { createHash } from "node:crypto"
 import { existsSync } from "node:fs"
 import { mkdir, writeFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
-import { parseNi, run } from "@antfu/ni"
+
 import type { Command } from "commander"
 import { fetchFileContent, fetchRegistryIndex } from "../registry/fetcher.js"
 import type { ResolvedComponent } from "../registry/resolver.js"
@@ -15,7 +15,7 @@ import { type ResolvedDependencies, resolveDependencies } from "../registry/reso
 import { type OcxLock, readOcxConfig, readOcxLock } from "../schemas/config.js"
 import type { ComponentFileObject } from "../schemas/registry.js"
 import { updateOpencodeConfig } from "../updaters/update-opencode-config.js"
-import { ConfigError, ConflictError, IntegrityError } from "../utils/errors.js"
+import { ConfigError, ConflictError, IntegrityError, ValidationError } from "../utils/errors.js"
 import { createSpinner, handleError, logger } from "../utils/index.js"
 
 interface AddOptions {
@@ -199,27 +199,26 @@ async function runAdd(componentNames: string[], options: AddOptions): Promise<vo
 			}
 		}
 
-		// Install npm dependencies
+		// Update .opencode/package.json with npm dependencies
 		const hasNpmDeps = resolved.npmDependencies.length > 0
 		const hasNpmDevDeps = resolved.npmDevDependencies.length > 0
 
 		if (hasNpmDeps || hasNpmDevDeps) {
 			const npmSpin = options.quiet
 				? null
-				: createSpinner({ text: "Installing npm dependencies..." })
+				: createSpinner({ text: "Updating .opencode/package.json..." })
 			npmSpin?.start()
 
 			try {
-				await installNpmDependencies(
+				await updateOpencodeDevDependencies(
+					cwd,
 					resolved.npmDependencies,
 					resolved.npmDevDependencies,
-					cwd,
-					options,
 				)
 				const totalDeps = resolved.npmDependencies.length + resolved.npmDevDependencies.length
-				npmSpin?.succeed(`Installed ${totalDeps} npm dependencies`)
+				npmSpin?.succeed(`Added ${totalDeps} dependencies to .opencode/package.json`)
 			} catch (error) {
-				npmSpin?.fail("Failed to install npm dependencies")
+				npmSpin?.fail("Failed to update .opencode/package.json")
 				throw error
 			}
 		}
@@ -321,27 +320,152 @@ function logResolved(resolved: ResolvedDependencies): void {
 	}
 }
 
-async function installNpmDependencies(
-	dependencies: string[],
-	devDependencies: string[],
-	cwd: string,
-	options: AddOptions,
-): Promise<void> {
-	// Install regular dependencies
-	if (dependencies.length > 0) {
-		if (options.verbose) {
-			logger.info(`Installing: ${dependencies.join(", ")}`)
-		}
-		await run(parseNi, dependencies, { cwd })
+// ============================================================================
+// NPM Dependency Management
+// ============================================================================
+
+interface NpmDependency {
+	name: string
+	version: string
+}
+
+interface OpencodePackageJson {
+	name?: string
+	private?: boolean
+	type?: string
+	dependencies?: Record<string, string>
+	devDependencies?: Record<string, string>
+}
+
+const DEFAULT_PACKAGE_JSON: OpencodePackageJson = {
+	name: "opencode-plugins",
+	private: true,
+	type: "module",
+}
+
+/**
+ * Parses an npm dependency spec into name and version.
+ * Handles: "lodash", "lodash@4.0.0", "@types/node", "@types/node@1.0.0"
+ */
+function parseNpmDependency(spec: string): NpmDependency {
+	// Guard: invalid input
+	if (!spec?.trim()) {
+		throw new ValidationError(`Invalid npm dependency: expected non-empty string, got "${spec}"`)
 	}
 
-	// Install dev dependencies
-	if (devDependencies.length > 0) {
-		if (options.verbose) {
-			logger.info(`Installing dev: ${devDependencies.join(", ")}`)
+	const trimmed = spec.trim()
+	const lastAt = trimmed.lastIndexOf("@")
+
+	// Has version: "lodash@4.0.0" or "@types/node@1.0.0"
+	if (lastAt > 0) {
+		const name = trimmed.slice(0, lastAt)
+		const version = trimmed.slice(lastAt + 1)
+		if (!version) {
+			throw new ValidationError(`Invalid npm dependency: missing version after @ in "${spec}"`)
 		}
-		await run(parseNi, [...devDependencies, "-D"], { cwd })
+		return { name, version }
 	}
+
+	// No version: "lodash" or "@types/node" → use "*"
+	return { name: trimmed, version: "*" }
+}
+
+/**
+ * Merges new dependencies into existing package.json structure.
+ * Pure function: same inputs always produce same output.
+ */
+function mergeDevDependencies(
+	existing: OpencodePackageJson,
+	newDeps: NpmDependency[],
+): OpencodePackageJson {
+	const merged: Record<string, string> = { ...existing.devDependencies }
+	for (const dep of newDeps) {
+		merged[dep.name] = dep.version
+	}
+	return { ...existing, devDependencies: merged }
+}
+
+/**
+ * Reads .opencode/package.json or returns default structure if missing.
+ */
+async function readOpencodePackageJson(opencodeDir: string): Promise<OpencodePackageJson> {
+	const pkgPath = join(opencodeDir, "package.json")
+
+	// Guard: file doesn't exist - return default
+	if (!existsSync(pkgPath)) {
+		return { ...DEFAULT_PACKAGE_JSON }
+	}
+
+	// Try to parse, fail fast on invalid JSON
+	try {
+		const content = await Bun.file(pkgPath).text()
+		return JSON.parse(content) as OpencodePackageJson
+	} catch (e) {
+		const message = e instanceof Error ? e.message : String(e)
+		throw new ConfigError(`Invalid .opencode/package.json: ${message}`)
+	}
+}
+
+/**
+ * Modifies .opencode/.gitignore to ensure package.json and bun.lock are tracked.
+ * Creates the file with sensible defaults if missing.
+ */
+async function ensureManifestFilesAreTracked(opencodeDir: string): Promise<void> {
+	const gitignorePath = join(opencodeDir, ".gitignore")
+	const filesToTrack = new Set(["package.json", "bun.lock"])
+	const requiredIgnores = ["node_modules"]
+
+	// Read existing lines or start fresh
+	let lines: string[] = []
+	if (existsSync(gitignorePath)) {
+		const content = await Bun.file(gitignorePath).text()
+		lines = content
+			.split("\n")
+			.map((l) => l.trim())
+			.filter(Boolean)
+	}
+
+	// Remove entries that should be tracked (not ignored)
+	lines = lines.filter((line) => !filesToTrack.has(line))
+
+	// Ensure required ignores are present
+	for (const ignore of requiredIgnores) {
+		if (!lines.includes(ignore)) {
+			lines.push(ignore)
+		}
+	}
+
+	await Bun.write(gitignorePath, `${lines.join("\n")}\n`)
+}
+
+/**
+ * Updates .opencode/package.json with new devDependencies and ensures
+ * manifest files are tracked by git.
+ */
+async function updateOpencodeDevDependencies(
+	cwd: string,
+	npmDeps: string[],
+	npmDevDeps: string[],
+): Promise<void> {
+	// Guard: no deps to process
+	const allDepSpecs = [...npmDeps, ...npmDevDeps]
+	if (allDepSpecs.length === 0) return
+
+	const opencodeDir = join(cwd, ".opencode")
+
+	// Ensure directory exists
+	await mkdir(opencodeDir, { recursive: true })
+
+	// Parse all deps - fails fast on invalid
+	const parsedDeps = allDepSpecs.map(parseNpmDependency)
+
+	// Read → merge → write
+	const existing = await readOpencodePackageJson(opencodeDir)
+	const updated = mergeDevDependencies(existing, parsedDeps)
+	await Bun.write(join(opencodeDir, "package.json"), `${JSON.stringify(updated, null, 2)}\n`)
+
+	// Ensure manifest files are tracked by git
+	await ensureManifestFilesAreTracked(opencodeDir)
 }
 
 /**
