@@ -96,8 +96,8 @@ describe("updateOpencodeConfig", () => {
 		expect(config.tools["gh_grep_*"]).toBe(false)
 
 		// Tools should be enabled for the owning agent
-		expect(config.agent["librarian"].tools["context7_*"]).toBe(true)
-		expect(config.agent["librarian"].tools["gh_grep_*"]).toBe(true)
+		expect(config.agent.librarian.tools["context7_*"]).toBe(true)
+		expect(config.agent.librarian.tools["gh_grep_*"]).toBe(true)
 	})
 
 	it("should handle multiple agents with different MCPs", async () => {
@@ -124,11 +124,11 @@ describe("updateOpencodeConfig", () => {
 		expect(config.tools["exa_*"]).toBe(false)
 
 		// Each agent gets only their own MCPs enabled
-		expect(config.agent["librarian"].tools["context7_*"]).toBe(true)
-		expect(config.agent["librarian"].tools["exa_*"]).toBeUndefined()
+		expect(config.agent.librarian.tools["context7_*"]).toBe(true)
+		expect(config.agent.librarian.tools["exa_*"]).toBeUndefined()
 
-		expect(config.agent["researcher"].tools["exa_*"]).toBe(true)
-		expect(config.agent["researcher"].tools["context7_*"]).toBeUndefined()
+		expect(config.agent.researcher.tools["exa_*"]).toBe(true)
+		expect(config.agent.researcher.tools["context7_*"]).toBeUndefined()
 	})
 
 	it("should preserve existing config (non-destructive merge)", async () => {
@@ -272,5 +272,44 @@ describe("updateOpencodeConfig", () => {
 		const config = parseJsonc(await readFile(join(testDir, "opencode.json"), "utf-8"))
 		expect(config.tools.WebFetch).toBe(false)
 		expect(config.tools.SomeOtherTool).toBe(false)
+	})
+
+	it("should write local MCP with environment variables", async () => {
+		const mcpServers: Record<string, McpServer> = {
+			"local-mcp": {
+				type: "local",
+				command: ["uvx", "some-mcp"],
+				environment: { API_KEY: "{env:API_KEY}" },
+				enabled: false,
+			},
+		}
+
+		await updateOpencodeConfig(testDir, { mcpServers, agentMcpBindings: [] })
+
+		const config = parseJsonc(await readFile(join(testDir, "opencode.json"), "utf-8"))
+		expect(config.mcp["local-mcp"].type).toBe("local")
+		expect(config.mcp["local-mcp"].command).toEqual(["uvx", "some-mcp"])
+		expect(config.mcp["local-mcp"].environment).toEqual({ API_KEY: "{env:API_KEY}" })
+		expect(config.mcp["local-mcp"].enabled).toBe(false)
+	})
+
+	it("should write all optional MCP fields", async () => {
+		const mcpServers: Record<string, McpServer> = {
+			"full-mcp": {
+				type: "remote",
+				url: "https://mcp.example.com",
+				headers: { "X-Custom": "value" },
+				args: ["--verbose", "--debug"],
+				oauth: true,
+				enabled: true,
+			},
+		}
+
+		await updateOpencodeConfig(testDir, { mcpServers, agentMcpBindings: [] })
+
+		const config = parseJsonc(await readFile(join(testDir, "opencode.json"), "utf-8"))
+		expect(config.mcp["full-mcp"].headers).toEqual({ "X-Custom": "value" })
+		expect(config.mcp["full-mcp"].args).toEqual(["--verbose", "--debug"])
+		expect(config.mcp["full-mcp"].oauth).toBe(true)
 	})
 })

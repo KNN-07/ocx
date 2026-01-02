@@ -196,16 +196,16 @@ export const mcpServerObjectSchema = z
 		},
 	)
 
-export type McpServerObject = z.infer<typeof mcpServerObjectSchema>
+export type McpServer = z.infer<typeof mcpServerObjectSchema>
 
 /**
- * Cargo-style MCP server schema:
+ * Cargo-style MCP server reference:
  * - String: URL shorthand for remote server (e.g., "https://mcp.example.com")
  * - Object: Full configuration
  */
-export const mcpServerSchema = z.union([z.string().url(), mcpServerObjectSchema])
+export const mcpServerRefSchema = z.union([z.string().url(), mcpServerObjectSchema])
 
-export type McpServer = z.infer<typeof mcpServerSchema>
+export type McpServerRef = z.infer<typeof mcpServerRefSchema>
 
 // =============================================================================
 // COMPONENT FILE SCHEMA (Cargo-style: string path or full object)
@@ -315,7 +315,7 @@ export const componentManifestSchema = z.object({
 	 * - String value: URL shorthand for remote server
 	 * - Object value: Full MCP configuration
 	 */
-	mcpServers: z.record(mcpServerSchema).optional(),
+	mcpServers: z.record(mcpServerRefSchema).optional(),
 
 	/** Scope MCP servers to this agent only? Default: "agent" */
 	mcpScope: z.enum(["agent", "global"]).default("agent"),
@@ -363,7 +363,7 @@ export function normalizeFile(file: ComponentFile): ComponentFileObject {
 /**
  * Normalize an MCP server entry from URL shorthand to full object
  */
-export function normalizeMcpServer(server: McpServer): McpServerObject {
+export function normalizeMcpServer(server: McpServerRef): McpServer {
 	if (typeof server === "string") {
 		return {
 			type: "remote",
@@ -401,7 +401,7 @@ export function normalizeComponentManifest(
 export interface NormalizedComponentManifest
 	extends Omit<ComponentManifest, "files" | "mcpServers"> {
 	files: ComponentFileObject[]
-	mcpServers?: Record<string, McpServerObject>
+	mcpServers?: Record<string, McpServer>
 }
 
 // =============================================================================

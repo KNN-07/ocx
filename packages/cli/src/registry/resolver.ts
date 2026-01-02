@@ -8,7 +8,7 @@ import type { RegistryConfig } from "../schemas/config.js"
 import {
 	type ComponentManifest,
 	createQualifiedComponent,
-	type McpServerObject,
+	type McpServer,
 	type NormalizedComponentManifest,
 	normalizeComponentManifest,
 	parseQualifiedComponent,
@@ -63,7 +63,7 @@ export interface ResolvedDependencies {
 	/** Install order (component names) */
 	installOrder: string[]
 	/** Aggregated MCP servers from all components (normalized to objects) */
-	mcpServers: Record<string, McpServerObject>
+	mcpServers: Record<string, McpServer>
 	/** Agent-to-MCP bindings for agent-scoped servers */
 	agentMcpBindings: AgentMcpBinding[]
 	/** Aggregated npm dependencies from all components */
@@ -90,7 +90,7 @@ export async function resolveDependencies(
 ): Promise<ResolvedDependencies> {
 	const resolved = new Map<string, ResolvedComponent>()
 	const visiting = new Set<string>()
-	const mcpServers: Record<string, McpServerObject> = {}
+	const mcpServers: Record<string, McpServer> = {}
 	const agentMcpBindings: AgentMcpBinding[] = []
 	const npmDeps = new Set<string>()
 	const npmDevDeps = new Set<string>()

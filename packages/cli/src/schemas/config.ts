@@ -6,7 +6,7 @@
 
 import { parse as parseJsonc } from "jsonc-parser"
 import { z } from "zod"
-import { mcpServerSchema, qualifiedComponentSchema } from "./registry.js"
+import { mcpServerRefSchema, qualifiedComponentSchema } from "./registry.js"
 
 // =============================================================================
 // OCX CONFIG SCHEMA (ocx.jsonc)
@@ -95,7 +95,7 @@ export type OcxLock = z.infer<typeof ocxLockSchema>
 /**
  * MCP server config for opencode.json
  */
-export const opencodeMcpSchema = z.record(mcpServerSchema)
+export const opencodeMcpSchema = z.record(mcpServerRefSchema)
 
 /**
  * Agent config for opencode.json

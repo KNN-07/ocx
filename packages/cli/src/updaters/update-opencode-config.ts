@@ -12,7 +12,7 @@
 
 import { applyEdits, type ModificationOptions, modify, parse as parseJsonc } from "jsonc-parser"
 import { mergeDeep } from "remeda"
-import type { McpServerObject, AgentConfig as RegistryAgentConfig } from "../schemas/registry.js"
+import type { McpServer, AgentConfig as RegistryAgentConfig } from "../schemas/registry.js"
 
 // =============================================================================
 // TYPES
@@ -31,8 +31,11 @@ export interface McpServerConfig {
 	type: "remote" | "local"
 	url?: string
 	command?: string[]
+	args?: string[]
 	headers?: Record<string, string>
+	oauth?: boolean
 	enabled?: boolean
+	environment?: Record<string, string>
 }
 
 export interface AgentConfig {
@@ -51,7 +54,7 @@ export interface AgentMcpBinding {
 
 export interface UpdateOpencodeConfigOptions {
 	/** MCP servers to add (global scope) - already normalized to objects */
-	mcpServers?: Record<string, McpServerObject>
+	mcpServers?: Record<string, McpServer>
 	/** Agent-to-MCP bindings for scoped access */
 	agentMcpBindings?: AgentMcpBinding[]
 	/** Default agent to set (if not already set) */
@@ -146,7 +149,7 @@ async function writeOpencodeConfig(path: string, content: string): Promise<void>
 function applyMcpServers(
 	content: string,
 	config: OpencodeConfig,
-	mcpServers: Record<string, McpServerObject>,
+	mcpServers: Record<string, McpServer>,
 ): { content: string; added: string[]; skipped: string[] } {
 	const added: string[] = []
 	const skipped: string[] = []
@@ -171,11 +174,20 @@ function applyMcpServers(
 		if (server.type === "local" && server.command) {
 			serverConfig.command = server.command
 		}
+		if (server.args) {
+			serverConfig.args = server.args
+		}
 		if (server.headers) {
 			serverConfig.headers = server.headers
 		}
+		if (server.oauth !== undefined) {
+			serverConfig.oauth = server.oauth
+		}
 		if (server.enabled !== undefined) {
 			serverConfig.enabled = server.enabled
+		}
+		if (server.environment) {
+			serverConfig.environment = server.environment
 		}
 
 		// Apply edit using jsonc-parser (preserves comments)
