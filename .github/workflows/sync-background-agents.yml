@@ -6,7 +6,7 @@ on:
     branches:
       - main
     paths:
-      - 'registry/src/kdco/files/plugin/kdco-background-agents.ts'
+      - 'registry/src/kdco/files/plugin/background-agents.ts'
 
 jobs:
   sync:
@@ -27,11 +27,10 @@ jobs:
 
       - name: Sync Files
         run: |
-          # Sync plugin directory (--delete removes files no longer in source)
-          rsync -av --delete \
-            --exclude '.git' \
-            ocx/registry/src/kdco/files/plugin/kdco-background-agents.ts \
-            background-agents/src/plugin/
+          # Sync plugin file
+          rsync -av \
+            ocx/registry/src/kdco/files/plugin/background-agents.ts \
+            background-agents/src/plugin/background-agents.ts
           
           # Remove skill directory if it exists (was deleted from source)
           rm -rf background-agents/src/skill/
