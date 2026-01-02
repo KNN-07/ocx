@@ -22,11 +22,11 @@ Then install components:
 
 ```bash
 # Full workspace (recommended)
-ocx add kdco-workspace
+ocx add kdco/workspace
 
 # Or individual components
-ocx add kdco-background-agents
-ocx add kdco-librarian
+ocx add kdco/background-agents
+ocx add kdco/librarian
 ```
 
 ## Components
@@ -35,38 +35,38 @@ ocx add kdco-librarian
 
 | Component | Description |
 |-----------|-------------|
-| `kdco-workspace` | Full KDCO experience: background agents, planning, specialist agents, research protocols |
-| `kdco-philosophy` | Full KDCO philosophy enforcement: code philosophy, frontend philosophy, and AGENTS.md |
+| `workspace` | Full KDCO experience: background agents, planning, specialist agents, research protocols |
+| `philosophy` | Full KDCO philosophy enforcement: code philosophy, frontend philosophy, and AGENTS.md |
 
 ### Plugins
 
 | Component | Description |
 |-----------|-------------|
-| `kdco-background-agents` | Async delegation with the waiter model. Fire-and-forget tasks with persistent results. |
-| `kdco-notify` | Native OS notifications. Get notified when tasks complete, errors occur, or input is needed. |
-| `kdco-workspace-plugin` | Plan management and rule injection for workspace workflows |
+| `background-agents` | Async delegation with the waiter model. Fire-and-forget tasks with persistent results. |
+| `notify` | Native OS notifications. Get notified when tasks complete, errors occur, or input is needed. |
+| `workspace-plugin` | Plan management and rule injection for workspace workflows |
 
 ### Agents
 
 | Component | Description |
 |-----------|-------------|
-| `kdco-librarian` | External research specialist. Routes to Context7, GitHub grep, and web search for docs and examples. |
-| `kdco-writer` | Human-facing content specialist. Crafts commits, documentation, and PR descriptions. |
+| `librarian` | External research specialist. Routes to Context7, GitHub grep, and web search for docs and examples. |
+| `writer` | Human-facing content specialist. Crafts commits, documentation, and PR descriptions. |
 
 ### Skills
 
 | Component | Description |
 |-----------|-------------|
-| `kdco-plan-protocol` | Guidelines for using the plan system to track implementation phases |
-| `kdco-code-philosophy` | The 5 Laws of Elegant Defense |
-| `kdco-frontend-philosophy` | The 5 Pillars of Intentional UI |
+| `plan-protocol` | Guidelines for using the plan system to track implementation phases |
+| `code-philosophy` | The 5 Laws of Elegant Defense |
+| `frontend-philosophy` | The 5 Pillars of Intentional UI |
 
 ## Quick Start
 
 For most projects, install the full workspace:
 
 ```bash
-ocx add kdco-workspace
+ocx add kdco/workspace
 ```
 
 This installs:
@@ -85,14 +85,14 @@ All components are copied to your project. Edit them directly:
 ```
 .opencode/
 ├── agent/
-│   ├── kdco-librarian.md     # Customize research behavior
-│   └── kdco-writer.md        # Customize writing style
+│   ├── librarian.md          # Customize research behavior
+│   └── writer.md             # Customize writing style
 ├── plugin/
-│   ├── kdco-background-agents.ts
-│   ├── kdco-workspace-plugin.ts
-│   └── kdco-notify.ts        # Customize notification behavior
+│   ├── background-agents.ts
+│   ├── workspace-plugin.ts
+│   └── notify.ts             # Customize notification behavior
 └── skill/
-    └── kdco-plan-protocol/
+    └── plan-protocol/
         └── SKILL.md          # Planning guidelines
 ```
 

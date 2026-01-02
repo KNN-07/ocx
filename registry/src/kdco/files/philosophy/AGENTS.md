@@ -4,15 +4,15 @@ Before executing any task, route work to the appropriate agent:
 
 | Agent | Scope | When to Use |
 |-------|-------|-------------|
-| **@kdco-librarian** | External research | Documentation, APIs, open-source patterns, best practices |
+| **librarian** | External research | Documentation, APIs, open-source patterns, best practices |
 | **@explore** | Internal codebase | Finding files, understanding code structure, searching content |
-| **@kdco-writer** | Content creation | Commits, PRs, documentation, technical writing |
+| **writer** | Content creation | Commits, PRs, documentation, technical writing |
 
 ### Routing Rules
 
-1. **External research → @kdco-librarian**: ALWAYS delegate via `delegate` tool. Never use MCP servers directly.
+1. **External research → librarian**: ALWAYS delegate via `delegate` tool. Never use MCP servers directly.
 2. **Internal exploration → @explore**: Use for codebase questions, file discovery, pattern finding.
-3. **Content creation → @kdco-writer**: Use for commits, documentation, PR descriptions.
+3. **Content creation → writer**: Use for commits, documentation, PR descriptions.
 
 ### Delegation Best Practices
 
@@ -28,8 +28,8 @@ Before executing any task, route work to the appropriate agent:
 Before writing or modifying any code, you MUST:
 
 1. **Select the relevant philosophy** based on your task:
-   - Working on UI/frontend? → Load **`kdco-frontend-philosophy`** (The 5 Pillars of Intentional UI)
-   - Working on backend/logic? → Load **`kdco-code-philosophy`** (The 5 Laws of Elegant Defense)
+   - Working on UI/frontend? → Load **`frontend-philosophy`** (The 5 Pillars of Intentional UI)
+   - Working on backend/logic? → Load **`code-philosophy`** (The 5 Laws of Elegant Defense)
    - Working on both? → Load both
 
 2. **Load the skill** using the `skill` tool BEFORE implementation

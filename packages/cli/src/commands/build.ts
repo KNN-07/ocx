@@ -117,7 +117,7 @@ export function registerBuildCommand(program: Command): void {
 				// Generate index.json at the root
 				const index = {
 					name: registry.name,
-					prefix: registry.prefix,
+					namespace: registry.namespace,
 					version: registry.version,
 					author: registry.author,
 					components: registry.components.map((c) => ({

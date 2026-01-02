@@ -1,5 +1,5 @@
 ---
-name: kdco-plan-protocol
+name: plan-protocol
 description: Guidelines for using the plan system to track implementation phases and steps
 ---
 

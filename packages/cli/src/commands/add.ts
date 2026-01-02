@@ -15,7 +15,7 @@ import { type ResolvedDependencies, resolveDependencies } from "../registry/reso
 import { type OcxLock, readOcxConfig, readOcxLock } from "../schemas/config.js"
 import type { ComponentFileObject } from "../schemas/registry.js"
 import { updateOpencodeConfig } from "../updaters/update-opencode-config.js"
-import { ConfigError, IntegrityError } from "../utils/errors.js"
+import { ConfigError, ConflictError, IntegrityError } from "../utils/errors.js"
 import { createSpinner, handleError, logger } from "../utils/index.js"
 
 interface AddOptions {
@@ -101,24 +101,42 @@ async function runAdd(componentNames: string[], options: AddOptions): Promise<vo
 
 			const computedHash = await hashBundle(files)
 
-			// Verify integrity if already in lock
-			const existingEntry = lock.installed[component.name]
+			// Verify integrity if already in lock (use qualifiedName as key)
+			const existingEntry = lock.installed[component.qualifiedName]
 			if (existingEntry && existingEntry.hash !== computedHash) {
-				throw new IntegrityError(component.name, existingEntry.hash, computedHash)
+				throw new IntegrityError(component.qualifiedName, existingEntry.hash, computedHash)
 			}
 
-			// Install components
+			// Check for file conflicts with components from other namespaces
+			for (const file of component.files) {
+				const targetPath = join(cwd, file.target)
+				if (existsSync(targetPath)) {
+					// File exists - check if it's from the same component (re-install) or different (conflict)
+					const conflictingComponent = findComponentByFile(lock, file.target)
+					if (conflictingComponent && conflictingComponent !== component.qualifiedName) {
+						throw new ConflictError(
+							`File conflict: ${file.target} already exists (installed by '${conflictingComponent}').\n\n` +
+								`To resolve:\n` +
+								`  1. Remove existing: rm ${file.target}\n` +
+								`  2. Or rename it manually and update references\n` +
+								`  3. Then run: ocx add ${component.qualifiedName}`,
+						)
+					}
+				}
+			}
+
+			// Install component
 			await installComponent(component, files, cwd)
 
 			// Fetch registry index to get version for lockfile
 			const index = await fetchRegistryIndex(component.baseUrl)
 
-			// Update lock
-			lock.installed[component.name] = {
+			// Update lock with qualifiedName as key (namespace/component format)
+			lock.installed[component.qualifiedName] = {
 				registry: component.registryName,
 				version: index.version,
 				hash: computedHash,
-				target: getTargetPath(component),
+				files: component.files.map((f) => f.target),
 				installedAt: new Date().toISOString(),
 			}
 		}
@@ -252,12 +270,6 @@ async function installComponent(
 	}
 }
 
-function getTargetPath(component: ResolvedComponent): string {
-	// Strip 'ocx:' prefix from type for fallback path (e.g., 'ocx:agent' -> 'agent')
-	const typeDir = component.type.replace(/^ocx:/, "")
-	return component.files[0]?.target ?? `.opencode/${typeDir}/${component.name}`
-}
-
 async function hashContent(content: string | Buffer): Promise<string> {
 	return createHash("sha256").update(content).digest("hex")
 }
@@ -330,4 +342,16 @@ async function installNpmDependencies(
 		}
 		await run(parseNi, [...devDependencies, "-D"], { cwd })
 	}
+}
+
+/**
+ * Find which component installed a given file path
+ */
+function findComponentByFile(lock: OcxLock, filePath: string): string | null {
+	for (const [qualifiedName, entry] of Object.entries(lock.installed)) {
+		if (entry.files.includes(filePath)) {
+			return qualifiedName
+		}
+	}
+	return null
 }

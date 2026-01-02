@@ -1,97 +1,91 @@
 {
 	"name": "KDCO",
-	"prefix": "kdco",
+	"namespace": "kdco",
 	"version": "1.0.0",
 	"author": "kdcokenny",
 	"components": [
 		{
-			"name": "kdco-workspace-plugin",
+			"name": "workspace-plugin",
 			"type": "ocx:plugin",
 			"description": "Plan management and rule injection for workspace workflows",
-			"files": ["plugin/kdco-workspace-plugin.ts"],
-			"dependencies": ["kdco-background-agents"]
+			"files": ["plugin/workspace-plugin.ts"],
+			"dependencies": ["background-agents"]
 		},
 		{
-			"name": "kdco-plan-protocol",
+			"name": "plan-protocol",
 			"type": "ocx:skill",
 			"description": "Guidelines for using the plan system",
-			"files": ["skill/kdco-plan-protocol/SKILL.md"],
-			"dependencies": ["kdco-workspace-plugin"]
+			"files": ["skill/plan-protocol/SKILL.md"],
+			"dependencies": ["workspace-plugin"]
 		},
 		{
-			"name": "kdco-code-philosophy",
+			"name": "code-philosophy",
 			"type": "ocx:skill",
 			"description": "The 5 Laws of Elegant Defense",
-			"files": ["skill/kdco-code-philosophy/SKILL.md"],
+			"files": ["skill/code-philosophy/SKILL.md"],
 			"dependencies": []
 		},
 		{
-			"name": "kdco-frontend-philosophy",
+			"name": "frontend-philosophy",
 			"type": "ocx:skill",
 			"description": "The 5 Pillars of Intentional UI",
-			"files": ["skill/kdco-frontend-philosophy/SKILL.md"],
+			"files": ["skill/frontend-philosophy/SKILL.md"],
 			"dependencies": []
 		},
 		{
-			"name": "kdco-librarian",
+			"name": "librarian",
 			"type": "ocx:agent",
 			"description": "Knowledge architect for external research",
-			"files": ["agent/kdco-librarian.md"],
-			"dependencies": ["kdco-background-agents"],
+			"files": ["agent/librarian.md"],
+			"dependencies": ["background-agents"],
 			"mcpServers": {
 				"context7": "https://mcp.context7.com/mcp",
-				"gh_grep": "https://mcp.grep.app",
-				"exa": "https://mcp.exa.ai/mcp"
+				"exa": "https://mcp.exa.ai/mcp",
+				"gh_grep": "https://mcp.grep.app"
 			}
 		},
 		{
-			"name": "kdco-writer",
+			"name": "writer",
 			"type": "ocx:agent",
 			"description": "Human-facing content specialist",
-			"files": ["agent/kdco-writer.md"],
+			"files": ["agent/writer.md"],
 			"dependencies": [],
 			"opencode": {
 				"agent": {
-					"kdco-writer": {
+					"writer": {
 						"tools": {
-							"read": true,
-							"write": true,
+							"bash": true,
 							"edit": true,
 							"glob": true,
-							"bash": true
+							"read": true,
+							"write": true
 						}
 					}
 				}
 			}
 		},
 		{
-			"name": "kdco-background-agents",
+			"name": "background-agents",
 			"type": "ocx:plugin",
 			"description": "Background agent execution - run async tasks while you work",
-			"files": ["plugin/kdco-background-agents.ts"],
+			"files": ["plugin/background-agents.ts"],
 			"dependencies": [],
 			"npmDependencies": ["unique-names-generator"]
 		},
 		{
-			"name": "kdco-notify",
+			"name": "notify",
 			"type": "ocx:plugin",
 			"description": "Native OS notifications - get notified when tasks complete",
-			"files": ["plugin/kdco-notify.ts"],
+			"files": ["plugin/notify.ts"],
 			"dependencies": [],
 			"npmDependencies": ["node-notifier", "detect-terminal"]
 		},
 		{
-			"name": "kdco-workspace",
+			"name": "workspace",
 			"type": "ocx:bundle",
 			"description": "Full KDCO Workspace experience",
 			"files": [],
-			"dependencies": [
-				"kdco-workspace-plugin",
-				"kdco-plan-protocol",
-				"kdco-librarian",
-				"kdco-writer",
-				"kdco-notify"
-			],
+			"dependencies": ["workspace-plugin", "plan-protocol", "librarian", "writer", "notify"],
 			"opencode": {
 				"plugins": ["@tarquinen/opencode-dcp@1.1.2"],
 				"tools": {
@@ -100,11 +94,11 @@
 			}
 		},
 		{
-			"name": "kdco-philosophy",
+			"name": "philosophy",
 			"type": "ocx:bundle",
 			"description": "Full KDCO Philosophy enforcement",
 			"files": ["philosophy/AGENTS.md"],
-			"dependencies": ["kdco-code-philosophy", "kdco-frontend-philosophy"]
+			"dependencies": ["code-philosophy", "frontend-philosophy"]
 		}
 	]
 }

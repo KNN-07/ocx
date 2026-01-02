@@ -6,7 +6,7 @@
 
 import { parse as parseJsonc } from "jsonc-parser"
 import { z } from "zod"
-import { mcpServerSchema } from "./registry.js"
+import { mcpServerSchema, qualifiedComponentSchema } from "./registry.js"
 
 // =============================================================================
 // OCX CONFIG SCHEMA (ocx.jsonc)
@@ -50,9 +50,10 @@ export type OcxConfig = z.infer<typeof ocxConfigSchema>
 
 /**
  * Installed component entry in lockfile
+ * Key format: "namespace/component" (e.g., "kdco/librarian")
  */
 export const installedComponentSchema = z.object({
-	/** Registry this was installed from */
+	/** Registry namespace this was installed from */
 	registry: z.string(),
 
 	/** Version at time of install */
@@ -61,24 +62,28 @@ export const installedComponentSchema = z.object({
 	/** SHA-256 hash of installed files for integrity */
 	hash: z.string(),
 
-	/** Target path where installed */
-	target: z.string(),
+	/** Target files where installed (clean paths, no namespace prefix) */
+	files: z.array(z.string()),
 
 	/** ISO timestamp of installation */
 	installedAt: z.string(),
+
+	/** Optional alias if installed with --as flag */
+	alias: z.string().optional(),
 })
 
 export type InstalledComponent = z.infer<typeof installedComponentSchema>
 
 /**
  * OCX lockfile schema (ocx.lock)
+ * Keys are qualified component refs: "namespace/component"
  */
 export const ocxLockSchema = z.object({
 	/** Lockfile format version */
 	lockVersion: z.literal(1),
 
-	/** Installed components */
-	installed: z.record(installedComponentSchema).default({}),
+	/** Installed components, keyed by "namespace/component" */
+	installed: z.record(qualifiedComponentSchema, installedComponentSchema).default({}),
 })
 
 export type OcxLock = z.infer<typeof ocxLockSchema>

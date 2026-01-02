@@ -22,23 +22,23 @@ describe("ocx build", () => {
 
 		const registryJson = {
 			name: "Test Registry",
-			prefix: "kdco",
+			namespace: "kdco",
 			version: "1.0.0",
 			author: "Test Author",
 			components: [
 				{
-					name: "kdco-comp-1",
+					name: "comp-1",
 					type: "ocx:plugin",
 					description: "Test component 1",
-					files: [{ path: "index.ts", target: ".opencode/plugin/kdco-comp-1.ts" }],
+					files: [{ path: "index.ts", target: ".opencode/plugin/comp-1.ts" }],
 					dependencies: [],
 				},
 				{
-					name: "kdco-comp-2",
+					name: "comp-2",
 					type: "ocx:agent",
 					description: "Test component 2",
-					files: [{ path: "agent.md", target: ".opencode/agent/kdco-comp-2.md" }],
-					dependencies: ["kdco-comp-1"],
+					files: [{ path: "agent.md", target: ".opencode/agent/comp-2.md" }],
+					dependencies: ["comp-1"],
 				},
 			],
 		}
@@ -64,31 +64,31 @@ describe("ocx build", () => {
 		// Verify output files
 		const fullOutDir = join(testDir, outDir)
 		expect(existsSync(join(fullOutDir, "index.json"))).toBe(true)
-		expect(existsSync(join(fullOutDir, "components", "kdco-comp-1.json"))).toBe(true)
-		expect(existsSync(join(fullOutDir, "components", "kdco-comp-2.json"))).toBe(true)
+		expect(existsSync(join(fullOutDir, "components", "comp-1.json"))).toBe(true)
+		expect(existsSync(join(fullOutDir, "components", "comp-2.json"))).toBe(true)
 
 		// Verify index.json content
 		const index = JSON.parse(await readFile(join(fullOutDir, "index.json"), "utf-8"))
 		expect(index.name).toBe("Test Registry")
 		expect(index.components.length).toBe(2)
-		expect(index.components[0].name).toBe("kdco-comp-1")
+		expect(index.components[0].name).toBe("comp-1")
 	})
 
-	it("should fail if component prefix is missing", async () => {
+	it("should fail if component name is invalid", async () => {
 		const sourceDir = join(testDir, "registry-invalid")
 		await mkdir(sourceDir, { recursive: true })
 
 		const registryJson = {
 			name: "Invalid Registry",
-			prefix: "kdco",
+			namespace: "kdco",
 			version: "1.0.0",
 			author: "Test Author",
 			components: [
 				{
-					name: "wrong-prefix",
+					name: "INVALID_NAME",
 					type: "ocx:plugin",
 					description: "Invalid component",
-					files: [{ path: "index.ts", target: ".opencode/plugin/wrong-prefix.ts" }],
+					files: [{ path: "index.ts", target: ".opencode/plugin/invalid.ts" }],
 					dependencies: [],
 				},
 			],
@@ -99,8 +99,8 @@ describe("ocx build", () => {
 		const { exitCode, output } = await runCLI(["build", "registry-invalid"], testDir)
 
 		expect(exitCode).not.toBe(0)
-		// Match the actual Zod error message
-		expect(output).toContain("All component names must start with the registry prefix")
+		// Match the actual Zod error message for invalid component name
+		expect(output).toContain("Must be lowercase")
 	})
 
 	it("should fail on missing dependencies", async () => {
@@ -109,16 +109,16 @@ describe("ocx build", () => {
 
 		const registryJson = {
 			name: "Missing Dep Registry",
-			prefix: "kdco",
+			namespace: "kdco",
 			version: "1.0.0",
 			author: "Test Author",
 			components: [
 				{
-					name: "kdco-comp",
+					name: "comp",
 					type: "ocx:plugin",
 					description: "Component with missing dep",
-					files: [{ path: "index.ts", target: ".opencode/plugin/kdco-comp.ts" }],
-					dependencies: ["kdco-non-existent"],
+					files: [{ path: "index.ts", target: ".opencode/plugin/comp.ts" }],
+					dependencies: ["non-existent"],
 				},
 			],
 		}
@@ -130,7 +130,7 @@ describe("ocx build", () => {
 		expect(exitCode).not.toBe(0)
 		// Match the actual Zod error message
 		expect(output).toContain(
-			"All dependencies must reference components that exist in the registry",
+			"Bare dependencies must reference components that exist in the registry",
 		)
 	})
 })

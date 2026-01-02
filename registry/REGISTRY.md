@@ -4,9 +4,12 @@ OCX registries are collections of components (agents, skills, plugins, commands)
 
 ## Registry Philosophy
 
-1. **Prefix Enforcement**: Every registry MUST have a unique prefix (e.g., `kdco-`). All components within that registry must start with this prefix to prevent naming collisions.
-2. **Atomic Versions**: Components are versioned at the registry level. When you update a registry, components inherit the new version.
-3. **Self-Documenting**: All components must have a description and clear dependencies.
+OCX follows the **Cargo + ShadCN model**:
+
+1. **Namespace as Identity**: Every registry declares a `namespace` (e.g., `kdco`). Components are referenced as `namespace/component` (e.g., `kdco/librarian`).
+2. **Clean Component Names**: Components within a registry use clean names (`librarian`, not `kdco-librarian`). The namespace provides provenance.
+3. **Explicit Trust**: Cross-namespace dependencies require the user to have that registry configured. No auto-fetching from unknown sources.
+4. **Own Your Code**: Components are copied into your project with clean filenames. The lockfile tracks provenance.
 
 ## Structure
 
@@ -29,12 +32,12 @@ OCX uses **Cargo-style union types** for a clean developer experience: use strin
 ```json
 {
   "name": "My Extensions",
-  "prefix": "my",
+  "namespace": "my",
   "version": "1.0.0",
   "author": "Your Name",
   "components": [
     {
-      "name": "my-cool-plugin",
+      "name": "cool-plugin",
       "type": "ocx:plugin",
       "description": "Does something cool",
       "files": ["plugin/my-cool-plugin.ts"],
@@ -43,6 +46,11 @@ OCX uses **Cargo-style union types** for a clean developer experience: use strin
   ]
 }
 ```
+
+**Key fields:**
+- `namespace`: Your registry's unique identifier (lowercase, alphanumeric, hyphens). Users reference components as `namespace/component`.
+- `name`: Clean component name (no prefix required). The namespace provides provenance.
+- `dependencies`: Use bare names for same-namespace deps (`["utils"]`), qualified names for cross-namespace (`["other/utils"]`).
 
 ## Cargo-Style Patterns
 
@@ -143,9 +151,8 @@ ocx build ./my-registry --out ./dist
 
 This command will:
 1. Validate your `registry.json` against the Zod schema.
-2. Ensure all component names match the prefix.
-3. Verify that all listed dependencies exist within the registry.
-4. Generate an `index.json` and individual packument files (e.g., `my-cool-plugin.json`) in the output directory.
+2. Verify that all listed dependencies exist (same-namespace) or are properly qualified (cross-namespace).
+3. Generate an `index.json` and individual packument files (e.g., `cool-plugin.json`) in the output directory.
 
 ## Distribution
 
@@ -155,11 +162,59 @@ Example structure for a hosted registry:
 ```
 https://example.com/registry/
 ├── index.json
-├── my-cool-plugin.json
+├── cool-plugin.json
 └── ...
 ```
 
 Users can then add your registry using:
 ```bash
 ocx registry add https://example.com/registry --name my
+```
+
+After adding the registry, users install components with:
+```bash
+ocx add my/cool-plugin
+```
+
+## Dependencies
+
+### Same-Namespace Dependencies
+
+Use bare component names for dependencies within the same registry:
+
+```json
+{
+  "name": "librarian",
+  "dependencies": ["background-agents", "utils"]
+}
+```
+
+These resolve to `my/background-agents` and `my/utils` automatically.
+
+### Cross-Namespace Dependencies
+
+Use qualified names for dependencies from other registries:
+
+```json
+{
+  "name": "librarian",
+  "dependencies": ["background-agents", "acme/shared-utils"]
+}
+```
+
+The user must have the `acme` registry configured in their `ocx.jsonc` for cross-namespace deps to resolve.
+
+## Conflict Handling
+
+If a user tries to install a component that would overwrite an existing file from a different component:
+
+```bash
+$ ocx add acme/librarian
+Error: File conflict detected
+  .opencode/agent/librarian.md already exists (installed from kdco/librarian)
+
+To resolve:
+  1. Remove existing file and update ocx.lock
+  2. Or rename existing file manually
+  3. Then retry: ocx add acme/librarian
 ```

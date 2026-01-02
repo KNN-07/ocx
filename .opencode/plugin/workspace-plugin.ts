@@ -26,7 +26,7 @@ interface SystemTransformInput {
  * KDCO Workspace Plugin
  *
  * Provides plan management and targeted rule injection.
- * Research functionality has been moved to the delegation system (kdco-background-agents).
+ * Research functionality has been moved to the delegation system (background-agents).
  * Follows "Elegant Defense" philosophy: Flat, Safe, and Fast.
  */
 
@@ -35,25 +35,25 @@ interface SystemTransformInput {
 // ==========================================
 
 const PLAN_RULES = `<system-reminder>
-<kdco-routing policy_level="critical">
+<workspace-routing policy_level="critical">
 
 ## Agent Routing
 
 | When you need to... | Delegate to |
 |---------------------|-------------|
 | Search THIS codebase (files, patterns, structure) | \`explore\` |
-| Research OUTSIDE this codebase (docs, APIs, other repos, web) | \`kdco-librarian\` |
-| Write human-facing content (commits, PRs, docs) | \`kdco-writer\` |
+| Research OUTSIDE this codebase (docs, APIs, other repos, web) | \`librarian\` |
+| Write human-facing content (commits, PRs, docs) | \`writer\` |
 
 ## Critical Constraints
 
 **NEVER search the codebase yourself** - delegate to \`explore\`.
-**NEVER research external sources yourself** - delegate to \`kdco-librarian\`.
-**NEVER write commits/PRs/docs yourself** - delegate to \`kdco-writer\`.
+**NEVER research external sources yourself** - delegate to \`librarian\`.
+**NEVER write commits/PRs/docs yourself** - delegate to \`writer\`.
 
 <example>
 User: "What does the OpenAI API say about function calling?"
-Correct: delegate to kdco-librarian (external research)
+Correct: delegate to librarian (external research)
 Wrong: Try to answer from memory or use MCP tools directly
 </example>
 
@@ -63,12 +63,12 @@ Correct: delegate to explore (codebase search)
 Wrong: Use grep/glob directly
 </example>
 
-</kdco-routing>
+</workspace-routing>
 
 <philosophy>
 Load relevant skills before finalizing plan:
-- Backend/logic work → \`skill\` load \`kdco-code-philosophy\`
-- UI/frontend work → \`skill\` load \`kdco-frontend-philosophy\`
+- Backend/logic work → \`skill\` load \`code-philosophy\`
+- UI/frontend work → \`skill\` load \`frontend-philosophy\`
 </philosophy>
 
 <plan-format>
@@ -80,23 +80,23 @@ Use \`plan_save\` with structure:
 </system-reminder>`
 
 const BUILD_RULES = `<system-reminder>
-<kdco-routing policy_level="critical">
+<workspace-routing policy_level="critical">
 
 ## Agent Routing
 
 | When you need to... | Delegate to |
 |---------------------|-------------|
 | Search THIS codebase (files, patterns, structure) | \`explore\` |
-| Research OUTSIDE this codebase (docs, APIs, other repos, web) | \`kdco-librarian\` |
-| Write human-facing content (commits, PRs, docs) | \`kdco-writer\` |
+| Research OUTSIDE this codebase (docs, APIs, other repos, web) | \`librarian\` |
+| Write human-facing content (commits, PRs, docs) | \`writer\` |
 
 ## Critical Constraints
 
 **NEVER search the codebase yourself** - delegate to \`explore\`.
-**NEVER research external sources yourself** - delegate to \`kdco-librarian\`.
-**NEVER write commits/PRs/docs yourself** - delegate to \`kdco-writer\`.
+**NEVER research external sources yourself** - delegate to \`librarian\`.
+**NEVER write commits/PRs/docs yourself** - delegate to \`writer\`.
 
-</kdco-routing>
+</workspace-routing>
 
 <build-workflow>
 
@@ -108,8 +108,8 @@ const BUILD_RULES = `<system-reminder>
 
 ### Philosophy Loading
 Load the relevant skill BEFORE implementation:
-- Frontend work → \`skill\` load \`kdco-frontend-philosophy\`
-- Backend work → \`skill\` load \`kdco-code-philosophy\`
+- Frontend work → \`skill\` load \`frontend-philosophy\`
+- Backend work → \`skill\` load \`code-philosophy\`
 
 ### Execution
 1. Orient: Read plan and delegation findings

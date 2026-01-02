@@ -21,23 +21,23 @@ my-registry/
 
 ### 2. Registry Manifest (registry.json)
 
-Your `registry.json` must enforce a prefix for all components:
+Your `registry.json` defines a namespace for all components:
 
 ```json
 {
   "name": "My Registry",
-  "prefix": "my",
+  "namespace": "my",
   "version": "1.0.0",
   "author": "your-name",
   "components": [
     {
-      "name": "my-component",
+      "name": "component",
       "type": "ocx:plugin",
       "description": "What it does",
       "files": [
         {
           "path": "plugin/my-plugin.ts",
-          "target": ".opencode/plugin/my-plugin.ts"
+          "target": ".opencode/plugin/component.ts"
         }
       ],
       "dependencies": []
@@ -45,6 +45,8 @@ Your `registry.json` must enforce a prefix for all components:
   ]
 }
 ```
+
+**Note:** Component names are clean (no prefix). The namespace is used for CLI references: `ocx add my/component`
 
 ### 3. Building the Registry
 
@@ -55,7 +57,7 @@ ocx build ./my-registry --out ./dist
 ```
 
 The build command enforces:
-- All component names start with your prefix
+- Valid namespace identifier
 - Valid semver
 - Valid OpenCode target paths
 
@@ -108,8 +110,8 @@ cd packages/cli && bun run build && cd ../..
 # 5. Add local registry (MUST use absolute path with file://)
 ./packages/cli/dist/index.js registry add "file://$(pwd)/registry/src/kdco/dist" --name kdco
 
-# 6. Install components
-./packages/cli/dist/index.js add kdco-philosophy kdco-workspace --yes
+# 6. Install components (using namespace/component syntax)
+./packages/cli/dist/index.js add kdco/philosophy kdco/workspace --yes
 
 # 7. Verify the result
 cat opencode.json
@@ -127,7 +129,7 @@ Example structure:
 {
   "mcp": { "context7": { ... }, "gh_grep": { ... }, "exa": { ... } },
   "tools": { "context7_*": false, "gh_grep_*": false, "exa_*": false },
-  "agent": { "kdco-librarian": { "tools": { "context7_*": true, ... } } }
+  "agent": { "librarian": { "tools": { "context7_*": true, ... } } }
 }
 ```
 
@@ -139,7 +141,7 @@ For repeated testing (assumes registry is already built):
 rm -rf .opencode opencode.json ocx.lock ocx.jsonc && \
 ./packages/cli/dist/index.js init && \
 ./packages/cli/dist/index.js registry add "file://$(pwd)/registry/src/kdco/dist" --name kdco && \
-./packages/cli/dist/index.js add kdco-workspace --yes && \
+./packages/cli/dist/index.js add kdco/workspace --yes && \
 cat opencode.json
 ```
 

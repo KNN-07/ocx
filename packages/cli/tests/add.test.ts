@@ -40,12 +40,12 @@ describe("ocx add", () => {
 		const configPath = join(testDir, "ocx.jsonc")
 		const config = parseJsonc(await readFile(configPath, "utf-8"))
 		config.registries = {
-			test: { url: registry.url },
+			kdco: { url: registry.url },
 		}
 		await writeFile(configPath, JSON.stringify(config, null, 2))
 
 		// Install agent which depends on skill which depends on plugin
-		const { exitCode, output } = await runCLI(["add", "kdco-test-agent", "--yes"], testDir)
+		const { exitCode, output } = await runCLI(["add", "kdco/test-agent", "--yes"], testDir)
 
 		if (exitCode !== 0) {
 			console.log(output)
@@ -53,17 +53,17 @@ describe("ocx add", () => {
 		expect(exitCode).toBe(0)
 
 		// Verify files
-		expect(existsSync(join(testDir, ".opencode/agent/kdco-test-agent.md"))).toBe(true)
-		expect(existsSync(join(testDir, ".opencode/skill/kdco-test-skill/SKILL.md"))).toBe(true)
-		expect(existsSync(join(testDir, ".opencode/plugin/kdco-test-plugin.ts"))).toBe(true)
+		expect(existsSync(join(testDir, ".opencode/agent/test-agent.md"))).toBe(true)
+		expect(existsSync(join(testDir, ".opencode/skill/test-skill/SKILL.md"))).toBe(true)
+		expect(existsSync(join(testDir, ".opencode/plugin/test-plugin.ts"))).toBe(true)
 
 		// Verify lock file
 		const lockPath = join(testDir, "ocx.lock")
 		expect(existsSync(lockPath)).toBe(true)
 		const lock = parseJsonc(await readFile(lockPath, "utf-8"))
-		expect(lock.installed["kdco-test-agent"]).toBeDefined()
-		expect(lock.installed["kdco-test-skill"]).toBeDefined()
-		expect(lock.installed["kdco-test-plugin"]).toBeDefined()
+		expect(lock.installed["kdco/test-agent"]).toBeDefined()
+		expect(lock.installed["kdco/test-skill"]).toBeDefined()
+		expect(lock.installed["kdco/test-plugin"]).toBeDefined()
 
 		// Verify opencode.json patching
 		const opencodePath = join(testDir, "opencode.json")
@@ -82,18 +82,18 @@ describe("ocx add", () => {
 		const configPath = join(testDir, "ocx.jsonc")
 		const config = parseJsonc(await readFile(configPath, "utf-8"))
 		config.registries = {
-			test: { url: registry.url },
+			kdco: { url: registry.url },
 		}
 		await writeFile(configPath, JSON.stringify(config, null, 2))
 
 		// 1. Install normally to create lock entry
-		await runCLI(["add", "kdco-test-plugin", "--yes"], testDir)
+		await runCLI(["add", "kdco/test-plugin", "--yes"], testDir)
 
 		// 2. Tamper with the registry content
-		registry.setFileContent("kdco-test-plugin", "index.ts", "TAMPERED CONTENT")
+		registry.setFileContent("test-plugin", "index.ts", "TAMPERED CONTENT")
 
 		// 3. Try to add again (should fail integrity check)
-		const { exitCode, output } = await runCLI(["add", "kdco-test-plugin", "--yes"], testDir)
+		const { exitCode, output } = await runCLI(["add", "kdco/test-plugin", "--yes"], testDir)
 
 		expect(exitCode).not.toBe(0)
 		expect(output).toContain("Integrity verification failed")

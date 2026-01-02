@@ -34,26 +34,26 @@ describe("URL Construction", () => {
 	describe("buildFileUrl", () => {
 		test("constructs file URL without duplicating path segments", () => {
 			// This is the bug we fixed - filePath already contains "plugin/"
-			const url = buildFileUrl(mockEnv, "plugin/kdco-background-agents.ts")
+			const url = buildFileUrl(mockEnv, "plugin/background-agents.ts")
 			expect(url).toBe(
-				"https://raw.githubusercontent.com/kdcokenny/ocx/main/registry/src/kdco/files/plugin/kdco-background-agents.ts",
+				"https://raw.githubusercontent.com/kdcokenny/ocx/main/registry/src/kdco/files/plugin/background-agents.ts",
 			)
 			// Should NOT contain double "plugin/plugin/"
 			expect(url).not.toContain("plugin/plugin/")
 		})
 
 		test("constructs skill file URL correctly", () => {
-			const url = buildFileUrl(mockEnv, "skill/kdco-plan-protocol/SKILL.md")
+			const url = buildFileUrl(mockEnv, "skill/plan-protocol/SKILL.md")
 			expect(url).toBe(
-				"https://raw.githubusercontent.com/kdcokenny/ocx/main/registry/src/kdco/files/skill/kdco-plan-protocol/SKILL.md",
+				"https://raw.githubusercontent.com/kdcokenny/ocx/main/registry/src/kdco/files/skill/plan-protocol/SKILL.md",
 			)
 			expect(url).not.toContain("skill/skill/")
 		})
 
 		test("constructs agent file URL correctly", () => {
-			const url = buildFileUrl(mockEnv, "agent/kdco-librarian.md")
+			const url = buildFileUrl(mockEnv, "agent/librarian.md")
 			expect(url).toBe(
-				"https://raw.githubusercontent.com/kdcokenny/ocx/main/registry/src/kdco/files/agent/kdco-librarian.md",
+				"https://raw.githubusercontent.com/kdcokenny/ocx/main/registry/src/kdco/files/agent/librarian.md",
 			)
 			expect(url).not.toContain("agent/agent/")
 		})

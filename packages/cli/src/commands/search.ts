@@ -106,7 +106,7 @@ export function registerSearchCommand(program: Command): void {
 						}
 						for (const comp of index.components) {
 							allComponents.push({
-								name: comp.name,
+								name: `${index.namespace}/${comp.name}`,
 								description: comp.description,
 								type: comp.type,
 								registry: registryName,

@@ -39,7 +39,7 @@ ocx init
 ocx registry add https://registry.kdco.dev --name kdco
 
 # 3. Add the workspace bundle
-ocx add kdco-workspace
+ocx add kdco/workspace
 ```
 
 After installation, OCX will manage components in your `.opencode/` directory, where you can freely customize them to match your project's needs.
@@ -52,9 +52,15 @@ Initialize OCX configuration. Creates `ocx.jsonc` in your project root.
 ### `ocx registry add <url>`
 Add a component registry source. Registries are version-controlled and prefix-enforced.
 
-### `ocx add <component>`
+### `ocx add <namespace/component>`
 Install components into `.opencode/`. Dependencies are resolved automatically.
-Supports: `prefix-name`, `@registry/name`, local paths, or direct URLs.
+
+```bash
+# Install from a configured registry
+ocx add kdco/librarian
+```
+
+Components are referenced as `namespace/component`. The namespace must match a registry configured in your `ocx.jsonc`.
 
 ### `ocx search <query>`
 Search for components across all configured registries. Aliased as `ocx list`.

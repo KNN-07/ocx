@@ -14,26 +14,26 @@ export function startMockRegistry(): MockRegistry {
 	const customFiles = new Map<string, string>()
 
 	const components = {
-		"kdco-test-plugin": {
-			name: "kdco-test-plugin",
+		"test-plugin": {
+			name: "test-plugin",
 			type: "ocx:plugin",
 			description: "A test plugin",
-			files: [{ path: "index.ts", target: ".opencode/plugin/kdco-test-plugin.ts" }],
+			files: [{ path: "index.ts", target: ".opencode/plugin/test-plugin.ts" }],
 			dependencies: [],
 		},
-		"kdco-test-skill": {
-			name: "kdco-test-skill",
+		"test-skill": {
+			name: "test-skill",
 			type: "ocx:skill",
 			description: "A test skill",
-			files: [{ path: "SKILL.md", target: ".opencode/skill/kdco-test-skill/SKILL.md" }],
-			dependencies: ["kdco-test-plugin"],
+			files: [{ path: "SKILL.md", target: ".opencode/skill/test-skill/SKILL.md" }],
+			dependencies: ["test-plugin"],
 		},
-		"kdco-test-agent": {
-			name: "kdco-test-agent",
+		"test-agent": {
+			name: "test-agent",
 			type: "ocx:agent",
 			description: "A test agent",
-			files: [{ path: "agent.md", target: ".opencode/agent/kdco-test-agent.md" }],
-			dependencies: ["kdco-test-skill"],
+			files: [{ path: "agent.md", target: ".opencode/agent/test-agent.md" }],
+			dependencies: ["test-skill"],
 			mcpServers: {
 				"test-mcp": {
 					type: "remote",
@@ -52,7 +52,7 @@ export function startMockRegistry(): MockRegistry {
 			if (path === "/index.json") {
 				return Response.json({
 					name: "Test Registry",
-					prefix: "kdco",
+					namespace: "kdco",
 					version: "1.0.0",
 					author: "Test Author",
 					components: Object.values(components).map((c) => ({

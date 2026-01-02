@@ -73,7 +73,7 @@ describe("updateOpencodeConfig", () => {
 		}
 
 		const agentMcpBindings: AgentMcpBinding[] = [
-			{ agentName: "kdco-librarian", serverNames: ["context7", "gh_grep"] },
+			{ agentName: "librarian", serverNames: ["context7", "gh_grep"] },
 		]
 
 		const result = await updateOpencodeConfig(testDir, {
@@ -96,8 +96,8 @@ describe("updateOpencodeConfig", () => {
 		expect(config.tools["gh_grep_*"]).toBe(false)
 
 		// Tools should be enabled for the owning agent
-		expect(config.agent["kdco-librarian"].tools["context7_*"]).toBe(true)
-		expect(config.agent["kdco-librarian"].tools["gh_grep_*"]).toBe(true)
+		expect(config.agent["librarian"].tools["context7_*"]).toBe(true)
+		expect(config.agent["librarian"].tools["gh_grep_*"]).toBe(true)
 	})
 
 	it("should handle multiple agents with different MCPs", async () => {
@@ -107,8 +107,8 @@ describe("updateOpencodeConfig", () => {
 		}
 
 		const agentMcpBindings: AgentMcpBinding[] = [
-			{ agentName: "kdco-librarian", serverNames: ["context7"] },
-			{ agentName: "kdco-researcher", serverNames: ["exa"] },
+			{ agentName: "librarian", serverNames: ["context7"] },
+			{ agentName: "researcher", serverNames: ["exa"] },
 		]
 
 		await updateOpencodeConfig(testDir, {
@@ -124,11 +124,11 @@ describe("updateOpencodeConfig", () => {
 		expect(config.tools["exa_*"]).toBe(false)
 
 		// Each agent gets only their own MCPs enabled
-		expect(config.agent["kdco-librarian"].tools["context7_*"]).toBe(true)
-		expect(config.agent["kdco-librarian"].tools["exa_*"]).toBeUndefined()
+		expect(config.agent["librarian"].tools["context7_*"]).toBe(true)
+		expect(config.agent["librarian"].tools["exa_*"]).toBeUndefined()
 
-		expect(config.agent["kdco-researcher"].tools["exa_*"]).toBe(true)
-		expect(config.agent["kdco-researcher"].tools["context7_*"]).toBeUndefined()
+		expect(config.agent["researcher"].tools["exa_*"]).toBe(true)
+		expect(config.agent["researcher"].tools["context7_*"]).toBeUndefined()
 	})
 
 	it("should preserve existing config (non-destructive merge)", async () => {

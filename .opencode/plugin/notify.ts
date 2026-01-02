@@ -1,5 +1,5 @@
 /**
- * kdco-notify
+ * notify
  * Native OS notifications for OpenCode
  *
  * Philosophy: "Notify the human when the AI needs them back, not for every micro-event."

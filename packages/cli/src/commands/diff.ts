@@ -9,7 +9,7 @@ import * as Diff from "diff"
 import kleur from "kleur"
 import { fetchComponent, fetchFileContent } from "../registry/fetcher.js"
 import { readOcxConfig, readOcxLock } from "../schemas/config.js"
-import { normalizeFile } from "../schemas/registry.js"
+import { normalizeFile, parseQualifiedComponent } from "../schemas/registry.js"
 import { handleError, logger, outputJson } from "../utils/index.js"
 
 interface DiffOptions {
@@ -76,8 +76,14 @@ export function registerDiffCommand(program: Command): void {
 						continue
 					}
 
-					// Read local file
-					const localPath = `${options.cwd}/${installed.target}`
+					// Guard: check if files array exists and has items
+					if (!installed.files || installed.files.length === 0) {
+						logger.warn(`No files recorded for component '${name}'`)
+						continue
+					}
+
+					// Read local file (use first file from the files array)
+					const localPath = `${options.cwd}/${installed.files[0]}`
 					const localFile = Bun.file(localPath)
 					if (!(await localFile.exists())) {
 						results.push({ name, hasChanges: true, diff: "Local file missing" })
@@ -93,7 +99,10 @@ export function registerDiffCommand(program: Command): void {
 					}
 
 					try {
-						const upstream = await fetchComponent(registryConfig.url, name)
+						// Parse qualified name to get just the component name for fetching
+						const parsed = parseQualifiedComponent(name)
+						const componentName = parsed.component
+						const upstream = await fetchComponent(registryConfig.url, componentName)
 
 						// Assume first file for simplicity in this MVP
 						// In a full implementation we'd diff all files in the component
@@ -107,7 +116,7 @@ export function registerDiffCommand(program: Command): void {
 						// Fetch actual content from registry
 						const upstreamContent = await fetchFileContent(
 							registryConfig.url,
-							name,
+							componentName,
 							upstreamFile.path,
 						)
 

@@ -160,7 +160,7 @@ OpenCode supports per-agent tool configuration using wildcard patterns. Tools ca
   },
   // Enable only for specific agent
   "agent": {
-    "kdco-librarian": {
+    "librarian": {
       "tools": {
         "context7*": true,
         "exa*": true
