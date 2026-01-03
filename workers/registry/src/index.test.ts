@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test"
+import { join } from "node:path"
 import { registrySchema } from "ocx-schemas"
 import { buildFileUrl, buildGitHubRawUrl, buildRegistryUrl } from "./index"
+
+/** Absolute path to registry.json - resolves correctly regardless of CWD */
+const REGISTRY_PATH = join(import.meta.dir, "../../../registry/src/kdco/registry.json")
 
 const mockEnv = {
 	GITHUB_REPO: "kdcokenny/ocx",
@@ -64,7 +68,7 @@ describe("URL Construction", () => {
 describe("Registry Schema Validation", () => {
 	test("kdco/registry.json validates against Zod schema", async () => {
 		// Read the registry.json file
-		const registryFile = Bun.file("../../registry/src/kdco/registry.json")
+		const registryFile = Bun.file(REGISTRY_PATH)
 		const registryContent = await registryFile.text()
 		const registryData = JSON.parse(registryContent)
 
@@ -80,7 +84,7 @@ describe("Registry Schema Validation", () => {
 	})
 
 	test("registry.json has all required fields", async () => {
-		const registryFile = Bun.file("../../registry/src/kdco/registry.json")
+		const registryFile = Bun.file(REGISTRY_PATH)
 		const registryData = JSON.parse(await registryFile.text())
 
 		expect(registryData.name).toBeDefined()
@@ -91,7 +95,7 @@ describe("Registry Schema Validation", () => {
 	})
 
 	test("all components have valid structure", async () => {
-		const registryFile = Bun.file("../../registry/src/kdco/registry.json")
+		const registryFile = Bun.file(REGISTRY_PATH)
 		const registryData = JSON.parse(await registryFile.text())
 
 		for (const component of registryData.components) {
@@ -104,7 +108,7 @@ describe("Registry Schema Validation", () => {
 	})
 
 	test("all internal dependencies reference existing components", async () => {
-		const registryFile = Bun.file("../../registry/src/kdco/registry.json")
+		const registryFile = Bun.file(REGISTRY_PATH)
 		const registryData = JSON.parse(await registryFile.text())
 
 		const componentNames = new Set(registryData.components.map((c: { name: string }) => c.name))
