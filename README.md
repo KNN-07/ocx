@@ -11,6 +11,7 @@ OCX is a lightweight CLI for installing agents, skills, and plugins into OpenCod
 - **Fail-Fast Validation**: Strict Zod schemas ensure registries and configurations are always valid.
 - **Enterprise Ready**: Support for lockfiles (`ocx.lock`), registry locking, and version pinning.
 - **Single Binary**: Zero dependencies, distributed as a standalone executable.
+- **Create Registries**: Scaffold your own registry with `ocx init --registry`.
 
 ## Installation
 
@@ -44,10 +45,34 @@ ocx add kdco/workspace
 
 After installation, OCX will manage components in your `.opencode/` directory, where you can freely customize them to match your project's needs.
 
+### Create Your Own Registry
+
+Scaffold a complete registry with one-click deploy support:
+
+```bash
+npx ocx init --registry my-registry
+```
+
+| Option | Description |
+|--------|-------------|
+| `--namespace <name>` | Registry namespace (default: directory name) |
+| `--author <name>` | Author name (default: git user.name) |
+| `--local <path>` | Use custom local template |
+| `--canary` | Use latest from main branch |
+| `--yes` | Skip confirmation prompts |
+
+See [examples/registry-starter](./examples/registry-starter) for the full template with deploy buttons for Cloudflare, Vercel, and Netlify.
+
 ## CLI Commands
 
 ### `ocx init`
-Initialize OCX configuration. Creates `ocx.jsonc` in your project root.
+
+Initialize OCX in your project, or scaffold a new registry:
+
+```bash
+ocx init                      # Initialize OCX in current project
+ocx init --registry my-reg    # Scaffold a new registry project
+```
 
 ### `ocx registry add <url>`
 Add a component registry source. Registries are version-controlled and prefix-enforced.
@@ -71,7 +96,7 @@ Compare your local project files against the upstream registry version.
 ### `ocx build [path]`
 A tool for registry authors to validate component source files and generate registry indexes and packuments.
 
-**Want to create your own registry?** See [Creating OCX Registries](workers/kdco-registry/README.md) for the complete guide.
+**Looking for the KDCO registry?** See [workers/kdco-registry](./workers/kdco-registry) for components like `kdco/workspace`, `kdco/librarian`, and more.
 
 ## Project structure
 
