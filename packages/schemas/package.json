@@ -1,6 +1,6 @@
 {
 	"name": "ocx-schemas",
-	"version": "1.0.11",
+	"version": "1.0.12",
 	"description": "Zod schemas and types for the OpenCode extension ecosystem",
 	"type": "module",
 	"main": "./dist/index.js",
