@@ -2,7 +2,25 @@
 
 OCX registries are collections of components (agents, skills, plugins, commands) distributed as JSON packuments. This guide covers how to build and distribute your own registry.
 
-> **See also:** [Registry Protocol Specification](../docs/REGISTRY_PROTOCOL.md) for the HTTP API that registries must implement.
+> **See also:** [Registry Protocol Specification](../../docs/REGISTRY_PROTOCOL.md) for the HTTP API that registries must implement.
+
+## Quick Start (Cloudflare Workers)
+
+This folder is a reference implementation of an OCX registry hosted on Cloudflare Workers with static assets.
+
+```bash
+# Build the registry (generates dist/)
+bun run build
+
+# Deploy to Cloudflare Workers
+bun run deploy
+```
+
+The build step runs `ocx build . -o dist` which:
+1. Validates `registry.json` against the schema
+2. Generates `index.json` and component packuments
+3. Copies component files to `dist/components/`
+4. Generates `.well-known/ocx.json` for discovery
 
 ## Registry Philosophy
 
@@ -164,19 +182,35 @@ This command will:
 
 ## Distribution
 
-OCX registries are static JSON files. You can host them on GitHub Pages, Vercel, Cloudflare Workers, or any static file host.
+OCX registries are static JSON files served via Cloudflare Workers static assets, or any static file host (Vercel, Netlify, GitHub Pages, etc.).
 
-Example structure for a hosted registry:
+### Hosted Registry Structure
+
+After running `ocx build`, your `dist/` folder contains:
+
 ```
-https://example.com/
-├── .well-known/ocx.json   # Optional: enables auto-discovery
+dist/
+├── .well-known/
+│   └── ocx.json           # Discovery endpoint
 ├── index.json             # Registry index
-├── components/
-│   ├── cool-plugin.json   # Component packument
-│   └── cool-plugin/
-│       └── plugin.ts      # Raw file content
-└── ...
+└── components/
+    ├── cool-plugin.json   # Component packument
+    └── cool-plugin/
+        └── plugin.ts      # Raw file content
 ```
+
+### Cloudflare Workers (Recommended)
+
+This registry uses Cloudflare Workers with static assets. The `wrangler.jsonc` config points to `dist/` as the assets directory:
+
+```jsonc
+{
+  "name": "kdco-registry",
+  "assets": { "directory": "./dist" }
+}
+```
+
+Deploy with `wrangler deploy` after building.
 
 ### Registry Discovery (Optional)
 

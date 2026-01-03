@@ -129,6 +129,12 @@ export function registerBuildCommand(program: Command): void {
 
 				await Bun.write(join(outPath, "index.json"), JSON.stringify(index, null, 2))
 
+				// Generate .well-known/ocx.json for registry discovery
+				const wellKnownDir = join(outPath, ".well-known")
+				await mkdir(wellKnownDir, { recursive: true })
+				const discovery = { registry: "/index.json" }
+				await Bun.write(join(wellKnownDir, "ocx.json"), JSON.stringify(discovery, null, 2))
+
 				if (!options.json) {
 					const msg = `Built ${registry.components.length} components to ${relative(options.cwd, outPath)}`
 					spinner.succeed(msg)

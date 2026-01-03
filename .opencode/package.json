@@ -1,13 +1,13 @@
 {
-  "name": "opencode-plugins",
-  "private": true,
-  "type": "module",
-  "devDependencies": {
-    "unique-names-generator": "4.7.1",
-    "node-notifier": "10.0.1",
-    "detect-terminal": "2.0.0"
-  },
-  "dependencies": {
-    "@opencode-ai/plugin": "1.0.220"
-  }
+	"name": "opencode-plugins",
+	"private": true,
+	"type": "module",
+	"devDependencies": {
+		"unique-names-generator": "4.7.1",
+		"node-notifier": "10.0.1",
+		"detect-terminal": "2.0.0"
+	},
+	"dependencies": {
+		"@opencode-ai/plugin": "1.0.220"
+	}
 }

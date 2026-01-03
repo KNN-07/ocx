@@ -66,6 +66,13 @@ describe("ocx build", () => {
 		expect(existsSync(join(fullOutDir, "index.json"))).toBe(true)
 		expect(existsSync(join(fullOutDir, "components", "comp-1.json"))).toBe(true)
 		expect(existsSync(join(fullOutDir, "components", "comp-2.json"))).toBe(true)
+		expect(existsSync(join(fullOutDir, ".well-known", "ocx.json"))).toBe(true)
+
+		// Verify .well-known/ocx.json content (discovery endpoint)
+		const discovery = JSON.parse(
+			await readFile(join(fullOutDir, ".well-known", "ocx.json"), "utf-8"),
+		)
+		expect(discovery.registry).toBe("/index.json")
 
 		// Verify index.json content
 		const index = JSON.parse(await readFile(join(fullOutDir, "index.json"), "utf-8"))

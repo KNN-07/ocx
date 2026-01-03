@@ -108,7 +108,7 @@ function extractMarkdownParts(content: string): ExtractedParts {
 	// Extract phases (no validation - just extraction)
 	const phases: ExtractedParts["phases"] = []
 	const phaseRegex =
-		/## Phase (\d+): ([^\[]+)\[([^\]]+)\]\n([\s\S]*?)(?=## Phase \d+:|## Notes|## Blockers|$)/g
+		/## Phase (\d+): ([^[]+)\[([^\]]+)\]\n([\s\S]*?)(?=## Phase \d+:|## Notes|## Blockers|$)/g
 
 	let phaseMatch = phaseRegex.exec(content)
 	while (phaseMatch !== null) {

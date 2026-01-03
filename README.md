@@ -71,6 +71,8 @@ Compare your local project files against the upstream registry version.
 ### `ocx build [path]`
 A tool for registry authors to validate component source files and generate registry indexes and packuments.
 
+**Want to create your own registry?** See [Creating OCX Registries](workers/kdco-registry/README.md) for the complete guide.
+
 ## Project structure
 
 OCX manages components within the `.opencode/` directory of your project:

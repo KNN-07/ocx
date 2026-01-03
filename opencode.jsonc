@@ -42,7 +42,5 @@
 			"enabled": true
 		}
 	},
-	"plugin": [
-		"@tarquinen/opencode-dcp@1.1.2"
-	]
+	"plugin": ["@tarquinen/opencode-dcp@1.1.2"]
 }

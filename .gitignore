@@ -8,3 +8,4 @@ dist/
 
 # Build artifacts
 .turbo/
+workers/kdco-registry/dist/
