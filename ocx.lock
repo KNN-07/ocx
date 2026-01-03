@@ -4,11 +4,63 @@
     "kdco/background-agents": {
       "registry": "kdco",
       "version": "1.0.0",
-      "hash": "d9a5ff61868da2ebf8f92b022224e18024bb759e15223c3d5f5573b6f477b7b7",
+      "hash": "845de591129d00aa8eb786d3cbed7821611bc8aff29b23f8fceff494b11cf105",
       "files": [
         ".opencode/plugin/background-agents.ts"
       ],
-      "installedAt": "2026-01-03T21:52:14.172Z"
+      "installedAt": "2026-01-03T23:29:30.508Z"
+    },
+    "kdco/workspace-plugin": {
+      "registry": "kdco",
+      "version": "1.0.0",
+      "hash": "7785f4ff5832a5fec9276abd44f44546f35d2f7fe05d7a1bb7f7a2a69ca6a24c",
+      "files": [
+        ".opencode/plugin/workspace-plugin.ts"
+      ],
+      "installedAt": "2026-01-03T23:29:30.509Z"
+    },
+    "kdco/plan-protocol": {
+      "registry": "kdco",
+      "version": "1.0.0",
+      "hash": "4add2d62bfa7a310084a063f3e9adaa78e6b7c77f660b5c23b9f28aa36a0b164",
+      "files": [
+        ".opencode/skill/plan-protocol/SKILL.md"
+      ],
+      "installedAt": "2026-01-03T23:29:30.509Z"
+    },
+    "kdco/librarian": {
+      "registry": "kdco",
+      "version": "1.0.0",
+      "hash": "0d916c278a7784163843b823e18f43815dacb71c108c08a992ee84bd6235fa3a",
+      "files": [
+        ".opencode/agent/librarian.md"
+      ],
+      "installedAt": "2026-01-03T23:29:30.510Z"
+    },
+    "kdco/writer": {
+      "registry": "kdco",
+      "version": "1.0.0",
+      "hash": "550ef872a2fb7bc08fee0b0b369463dade59baa16b85290b65212d7ccd841991",
+      "files": [
+        ".opencode/agent/writer.md"
+      ],
+      "installedAt": "2026-01-03T23:29:30.510Z"
+    },
+    "kdco/notify": {
+      "registry": "kdco",
+      "version": "1.0.0",
+      "hash": "b852a3a1759e6595f80fbb9e94a3582f658d1f9872612f111485e74bfddf9239",
+      "files": [
+        ".opencode/plugin/notify.ts"
+      ],
+      "installedAt": "2026-01-03T23:29:30.510Z"
+    },
+    "kdco/workspace": {
+      "registry": "kdco",
+      "version": "1.0.0",
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "files": [],
+      "installedAt": "2026-01-03T23:29:30.510Z"
     }
   }
 }
