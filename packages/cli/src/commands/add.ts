@@ -14,7 +14,8 @@ import type { ResolvedComponent } from "../registry/resolver.js"
 import { type ResolvedDependencies, resolveDependencies } from "../registry/resolver.js"
 import { type OcxLock, readOcxConfig, readOcxLock } from "../schemas/config.js"
 import type { ComponentFileObject } from "../schemas/registry.js"
-import { updateOpencodeConfig } from "../updaters/update-opencode-config.js"
+import { updateOpencodeJsonConfig } from "../updaters/update-opencode-config.js"
+import { isContentIdentical } from "../utils/content.js"
 import { ConfigError, ConflictError, IntegrityError, ValidationError } from "../utils/errors.js"
 import { createSpinner, handleError, logger } from "../utils/index.js"
 
@@ -87,9 +88,16 @@ async function runAdd(componentNames: string[], options: AddOptions): Promise<vo
 			return
 		}
 
-		// Install components
-		const installSpin = options.quiet ? null : createSpinner({ text: "Installing components..." })
-		installSpin?.start()
+		// Phase 1: Fetch all files and perform pre-flight checks (Law 4: Fail Fast)
+		// We check ALL conflicts BEFORE writing ANY files to ensure atomic behavior
+		const fetchSpin = options.quiet ? null : createSpinner({ text: "Fetching components..." })
+		fetchSpin?.start()
+
+		const componentBundles: {
+			component: ResolvedComponent
+			files: { path: string; content: Buffer }[]
+			computedHash: string
+		}[] = []
 
 		for (const component of resolved.components) {
 			// Fetch component files and compute bundle hash
@@ -104,6 +112,7 @@ async function runAdd(componentNames: string[], options: AddOptions): Promise<vo
 			// Verify integrity if already in lock (use qualifiedName as key)
 			const existingEntry = lock.installed[component.qualifiedName]
 			if (existingEntry && existingEntry.hash !== computedHash) {
+				fetchSpin?.fail("Integrity check failed")
 				throw new IntegrityError(component.qualifiedName, existingEntry.hash, computedHash)
 			}
 
@@ -114,6 +123,7 @@ async function runAdd(componentNames: string[], options: AddOptions): Promise<vo
 					// File exists - check if it's from the same component (re-install) or different (conflict)
 					const conflictingComponent = findComponentByFile(lock, file.target)
 					if (conflictingComponent && conflictingComponent !== component.qualifiedName) {
+						fetchSpin?.fail("File conflict detected")
 						throw new ConflictError(
 							`File conflict: ${file.target} already exists (installed by '${conflictingComponent}').\n\n` +
 								`To resolve:\n` +
@@ -125,8 +135,70 @@ async function runAdd(componentNames: string[], options: AddOptions): Promise<vo
 				}
 			}
 
+			componentBundles.push({ component, files, computedHash })
+		}
+
+		fetchSpin?.succeed(`Fetched ${resolved.components.length} components`)
+
+		// Phase 2: Pre-flight conflict detection (check ALL files before writing ANY)
+		// This ensures atomic behavior: either all files install or none do
+		const allConflicts: string[] = []
+
+		for (const { component, files } of componentBundles) {
+			for (const file of files) {
+				const componentFile = component.files.find((f: ComponentFileObject) => f.path === file.path)
+				if (!componentFile) continue
+
+				const targetPath = join(cwd, componentFile.target)
+				if (existsSync(targetPath)) {
+					const existingContent = await Bun.file(targetPath).text()
+					const incomingContent = file.content.toString("utf-8")
+
+					if (!isContentIdentical(existingContent, incomingContent) && !options.yes) {
+						allConflicts.push(componentFile.target)
+					}
+				}
+			}
+		}
+
+		// Fail fast on conflicts BEFORE any writes (Law 4)
+		if (allConflicts.length > 0) {
+			logger.error("")
+			logger.error("File conflicts detected:")
+			for (const conflict of allConflicts) {
+				logger.error(`  ✗ ${conflict}`)
+			}
+			logger.error("")
+			logger.error("These files have been modified since installation.")
+			logger.error("Use --yes to overwrite, or review the changes first.")
+			throw new ConflictError(
+				`${allConflicts.length} file(s) have conflicts. Use --yes to overwrite.`,
+			)
+		}
+
+		// Phase 3: Install all components (no conflicts possible at this point)
+		const installSpin = options.quiet ? null : createSpinner({ text: "Installing components..." })
+		installSpin?.start()
+
+		for (const { component, files, computedHash } of componentBundles) {
 			// Install component
-			await installComponent(component, files, cwd)
+			const installResult = await installComponent(component, files, cwd, {
+				yes: options.yes,
+				verbose: options.verbose,
+			})
+
+			// Log results in verbose mode
+			if (options.verbose) {
+				for (const f of installResult.skipped) {
+					logger.info(`  ○ Skipped ${f} (unchanged)`)
+				}
+				for (const f of installResult.overwritten) {
+					logger.info(`  ✓ Overwrote ${f}`)
+				}
+				for (const f of installResult.written) {
+					logger.info(`  ✓ Wrote ${f}`)
+				}
+			}
 
 			// Fetch registry index to get version for lockfile
 			const index = await fetchRegistryIndex(component.baseUrl)
@@ -143,59 +215,16 @@ async function runAdd(componentNames: string[], options: AddOptions): Promise<vo
 
 		installSpin?.succeed(`Installed ${resolved.components.length} components`)
 
-		// Apply opencode.json changes (MCP servers, plugins, agent configs, instructions, disabled tools)
-		const hasMcpChanges =
-			Object.keys(resolved.mcpServers).length > 0 || resolved.agentMcpBindings.length > 0
-		const hasDisabledTools = resolved.disabledTools.length > 0
-		const hasPlugins = resolved.plugins.length > 0
-		const hasAgentConfigs = Object.keys(resolved.agentConfigs).length > 0
-		const hasInstructions = resolved.instructions.length > 0
+		// Apply opencode.json changes (ShadCN-style: component wins, user uses git)
+		if (resolved.opencode && Object.keys(resolved.opencode).length > 0) {
+			const result = await updateOpencodeJsonConfig(cwd, resolved.opencode)
 
-		if (hasMcpChanges || hasDisabledTools || hasPlugins || hasAgentConfigs || hasInstructions) {
-			const result = await updateOpencodeConfig(cwd, {
-				mcpServers: resolved.mcpServers,
-				agentMcpBindings: resolved.agentMcpBindings,
-				disabledTools: resolved.disabledTools,
-				plugins: resolved.plugins,
-				agentConfigs: resolved.agentConfigs,
-				instructions: resolved.instructions,
-			})
-
-			if (result.mcpSkipped.length > 0 && !options.quiet) {
-				for (const name of result.mcpSkipped) {
-					logger.warn(`MCP server "${name}" already configured, skipped`)
+			if (!options.quiet && result.changed) {
+				if (result.created) {
+					logger.info("Created opencode.jsonc")
+				} else {
+					logger.info("Updated opencode.jsonc")
 				}
-			}
-
-			if (!options.quiet && result.mcpAdded.length > 0) {
-				logger.info(`Configured ${result.mcpAdded.length} MCP servers`)
-
-				// Log agent-scoped bindings
-				for (const binding of resolved.agentMcpBindings) {
-					logger.info(`  Scoped to agent "${binding.agentName}": ${binding.serverNames.join(", ")}`)
-				}
-			}
-
-			if (!options.quiet && result.toolsDisabled.length > 0) {
-				logger.info(
-					`Disabled ${result.toolsDisabled.length} tools: ${result.toolsDisabled.join(", ")}`,
-				)
-			}
-
-			if (!options.quiet && result.pluginsAdded.length > 0) {
-				logger.info(
-					`Added ${result.pluginsAdded.length} plugins: ${result.pluginsAdded.join(", ")}`,
-				)
-			}
-
-			if (!options.quiet && result.agentsConfigured.length > 0) {
-				logger.info(
-					`Configured ${result.agentsConfigured.length} agents: ${result.agentsConfigured.join(", ")}`,
-				)
-			}
-
-			if (!options.quiet && result.instructionsAdded.length > 0) {
-				logger.info(`Added ${result.instructionsAdded.length} instructions`)
 			}
 		}
 
@@ -232,7 +261,7 @@ async function runAdd(componentNames: string[], options: AddOptions): Promise<vo
 					{
 						success: true,
 						installed: resolved.installOrder,
-						mcpServers: Object.keys(resolved.mcpServers),
+						opencode: !!resolved.opencode,
 					},
 					null,
 					2,
@@ -243,22 +272,58 @@ async function runAdd(componentNames: string[], options: AddOptions): Promise<vo
 			logger.success(`Done! Installed ${resolved.components.length} components.`)
 		}
 	} catch (error) {
-		spin?.fail("Failed to resolve dependencies")
+		// Only fail the resolve spinner if it's still running (error during resolution)
+		// Other spinners handle their own failures
+		if (spin && !spin.isSpinning) {
+			// Spinner already stopped - error happened after resolution
+		} else {
+			spin?.fail("Failed to add components")
+		}
 		throw error
 	}
 }
 
+/**
+ * Writes component files to disk.
+ * Pre-flight conflict detection happens before this function is called,
+ * so we can safely write all files without additional conflict checks.
+ */
 async function installComponent(
 	component: ResolvedComponent,
 	files: { path: string; content: Buffer }[],
 	cwd: string,
-): Promise<void> {
+	_options: { yes?: boolean; verbose?: boolean },
+): Promise<{ written: string[]; skipped: string[]; overwritten: string[] }> {
+	const result = {
+		written: [] as string[],
+		skipped: [] as string[],
+		overwritten: [] as string[],
+	}
+
 	for (const file of files) {
 		const componentFile = component.files.find((f: ComponentFileObject) => f.path === file.path)
 		if (!componentFile) continue
 
 		const targetPath = join(cwd, componentFile.target)
 		const targetDir = dirname(targetPath)
+
+		// Check if file exists
+		if (existsSync(targetPath)) {
+			// Read existing content and compare
+			const existingContent = await Bun.file(targetPath).text()
+			const incomingContent = file.content.toString("utf-8")
+
+			if (isContentIdentical(existingContent, incomingContent)) {
+				// Content is identical - skip silently
+				result.skipped.push(componentFile.target)
+				continue
+			}
+
+			// Content differs - overwrite (conflicts already checked in pre-flight)
+			result.overwritten.push(componentFile.target)
+		} else {
+			result.written.push(componentFile.target)
+		}
 
 		// Create directory if needed
 		if (!existsSync(targetDir)) {
@@ -267,6 +332,8 @@ async function installComponent(
 
 		await writeFile(targetPath, file.content)
 	}
+
+	return result
 }
 
 async function hashContent(content: string | Buffer): Promise<string> {
@@ -295,11 +362,11 @@ function logResolved(resolved: ResolvedDependencies): void {
 		logger.info(`  ${component.name} (${component.type}) from ${component.registryName}`)
 	}
 
-	if (Object.keys(resolved.mcpServers).length > 0) {
+	if (resolved.opencode && Object.keys(resolved.opencode).length > 0) {
 		logger.info("")
-		logger.info("Would configure MCP servers:")
-		for (const name of Object.keys(resolved.mcpServers)) {
-			logger.info(`  ${name}`)
+		logger.info("Would update opencode.json with:")
+		for (const key of Object.keys(resolved.opencode)) {
+			logger.info(`  ${key}`)
 		}
 	}
 

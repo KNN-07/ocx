@@ -20,8 +20,3 @@ export const isTTY = Boolean(process.stdout.isTTY && !isCI)
 export const supportsColor = Boolean(
 	isTTY && process.env.FORCE_COLOR !== "0" && process.env.NO_COLOR === undefined,
 )
-
-/** Get terminal width, default to 80 */
-export function getTerminalWidth(): number {
-	return process.stdout.columns || 80
-}

@@ -28,6 +28,10 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Build schemas package
+        run: bun run build
+        working-directory: packages/schemas
+
       - name: Build CLI
         run: bun run build
         working-directory: packages/cli
@@ -80,7 +84,21 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Tokenless npm publish using OIDC
+      # Requires trusted publisher configured at npmjs.com/package/ocx-schemas/access
+      - name: Publish ocx-schemas to npm
+        run: npm publish --provenance --access public
+        working-directory: packages/schemas
+
+      # Resolve workspace:* to actual version before publishing
+      # npm doesn't understand workspace protocol, so we replace it with the actual version
+      - name: Resolve workspace protocol for CLI
+        run: |
+          SCHEMAS_VERSION=$(jq -r .version packages/schemas/package.json)
+          jq --arg v "$SCHEMAS_VERSION" '.dependencies["ocx-schemas"] = $v' packages/cli/package.json > tmp.json
+          mv tmp.json packages/cli/package.json
+
+      # Tokenless npm publish using OIDC
       # Requires trusted publisher configured at npmjs.com/package/ocx/access
-      - name: Publish to npm
-        run: npm publish --access public
+      - name: Publish ocx to npm
+        run: npm publish --provenance --access public
         working-directory: packages/cli

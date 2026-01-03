@@ -2,10 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test"
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { parse as parseJsonc } from "jsonc-parser"
-import type { McpServer } from "../src/schemas/registry"
-import { type AgentMcpBinding, updateOpencodeConfig } from "../src/updaters/update-opencode-config"
+import { updateOpencodeJsonConfig } from "../src/updaters/update-opencode-config"
 
-describe("updateOpencodeConfig", () => {
+describe("updateOpencodeJsonConfig", () => {
 	let testDir: string
 
 	beforeEach(async () => {
@@ -21,19 +20,16 @@ describe("updateOpencodeConfig", () => {
 		await rm(testDir, { recursive: true, force: true })
 	})
 
-	it("should create opencode.json if it does not exist", async () => {
-		const mcpServers: Record<string, McpServer> = {
-			"test-mcp": { type: "remote", url: "https://mcp.test.com", enabled: true },
-		}
-
-		const result = await updateOpencodeConfig(testDir, {
-			mcpServers,
-			agentMcpBindings: [],
+	it("should create opencode.jsonc if it does not exist", async () => {
+		const result = await updateOpencodeJsonConfig(testDir, {
+			mcp: {
+				"test-mcp": { type: "remote", url: "https://mcp.test.com", enabled: true },
+			},
 		})
 
-		expect(result.mcpAdded).toContain("test-mcp")
+		expect(result.changed).toBe(true)
 
-		const configPath = join(testDir, "opencode.json")
+		const configPath = join(testDir, "opencode.jsonc")
 		const content = await readFile(configPath, "utf-8")
 		const config = parseJsonc(content)
 
@@ -44,94 +40,60 @@ describe("updateOpencodeConfig", () => {
 		})
 	})
 
-	it("should add global MCP (mcpScope: global) without tool restrictions", async () => {
-		const mcpServers: Record<string, McpServer> = {
-			"global-mcp": { type: "remote", url: "https://mcp.global.com", enabled: true },
-		}
-
-		const result = await updateOpencodeConfig(testDir, {
-			mcpServers,
-			agentMcpBindings: [], // No agent bindings = global scope
+	it("should add MCP servers via opencode.mcp", async () => {
+		const result = await updateOpencodeJsonConfig(testDir, {
+			mcp: {
+				"global-mcp": { type: "remote", url: "https://mcp.global.com", enabled: true },
+			},
 		})
 
-		expect(result.mcpAdded).toContain("global-mcp")
+		expect(result.changed).toBe(true)
 
-		const configPath = join(testDir, "opencode.json")
+		const configPath = join(testDir, "opencode.jsonc")
 		const config = parseJsonc(await readFile(configPath, "utf-8"))
 
-		// MCP should be added
 		expect(config.mcp["global-mcp"]).toBeDefined()
-
-		// No global tool disable (global MCPs are available to all)
-		expect(config.tools?.["global-mcp_*"]).toBeUndefined()
 	})
 
-	it("should scope agent MCP: add globally, disable globally, enable per-agent", async () => {
-		const mcpServers: Record<string, McpServer> = {
-			context7: { type: "remote", url: "https://mcp.context7.com", enabled: true },
-			gh_grep: { type: "remote", url: "https://mcp.grep.app", enabled: true },
-		}
-
-		const agentMcpBindings: AgentMcpBinding[] = [
-			{ agentName: "librarian", serverNames: ["context7", "gh_grep"] },
-		]
-
-		const result = await updateOpencodeConfig(testDir, {
-			mcpServers,
-			agentMcpBindings,
+	it("should deep merge opencode config", async () => {
+		const result = await updateOpencodeJsonConfig(testDir, {
+			mcp: {
+				context7: { type: "remote", url: "https://mcp.context7.com", enabled: true },
+				gh_grep: { type: "remote", url: "https://mcp.grep.app", enabled: true },
+			},
+			tools: {
+				"context7_*": false,
+				"gh_grep_*": false,
+			},
+			agent: {
+				librarian: {
+					tools: {
+						"context7_*": true,
+						"gh_grep_*": true,
+					},
+				},
+			},
 		})
 
-		expect(result.mcpAdded).toContain("context7")
-		expect(result.mcpAdded).toContain("gh_grep")
+		expect(result.changed).toBe(true)
 
-		const configPath = join(testDir, "opencode.json")
+		const configPath = join(testDir, "opencode.jsonc")
 		const config = parseJsonc(await readFile(configPath, "utf-8"))
 
-		// MCPs should be added globally
+		// MCPs should be added
 		expect(config.mcp.context7).toBeDefined()
 		expect(config.mcp.gh_grep).toBeDefined()
 
-		// Tools should be disabled globally
+		// Tools should be set
 		expect(config.tools["context7_*"]).toBe(false)
 		expect(config.tools["gh_grep_*"]).toBe(false)
 
-		// Tools should be enabled for the owning agent
+		// Agent tools should be set
 		expect(config.agent.librarian.tools["context7_*"]).toBe(true)
 		expect(config.agent.librarian.tools["gh_grep_*"]).toBe(true)
 	})
 
-	it("should handle multiple agents with different MCPs", async () => {
-		const mcpServers: Record<string, McpServer> = {
-			context7: { type: "remote", url: "https://mcp.context7.com", enabled: true },
-			exa: { type: "remote", url: "https://mcp.exa.ai", enabled: true },
-		}
-
-		const agentMcpBindings: AgentMcpBinding[] = [
-			{ agentName: "librarian", serverNames: ["context7"] },
-			{ agentName: "researcher", serverNames: ["exa"] },
-		]
-
-		await updateOpencodeConfig(testDir, {
-			mcpServers,
-			agentMcpBindings,
-		})
-
-		const configPath = join(testDir, "opencode.json")
-		const config = parseJsonc(await readFile(configPath, "utf-8"))
-
-		// Both MCPs disabled globally
-		expect(config.tools["context7_*"]).toBe(false)
-		expect(config.tools["exa_*"]).toBe(false)
-
-		// Each agent gets only their own MCPs enabled
-		expect(config.agent.librarian.tools["context7_*"]).toBe(true)
-		expect(config.agent.librarian.tools["exa_*"]).toBeUndefined()
-
-		expect(config.agent.researcher.tools["exa_*"]).toBe(true)
-		expect(config.agent.researcher.tools["context7_*"]).toBeUndefined()
-	})
-
-	it("should preserve existing config (non-destructive merge)", async () => {
+	it("should preserve existing config (deep merge)", async () => {
 		// Create existing config
 		const existingConfig = {
 			$schema: "https://opencode.ai/config.json",
@@ -151,17 +113,18 @@ describe("updateOpencodeConfig", () => {
 		}
 		await writeFile(join(testDir, "opencode.json"), JSON.stringify(existingConfig, null, 2))
 
-		const mcpServers: Record<string, McpServer> = {
-			"new-mcp": { type: "remote", url: "https://new-mcp.com", enabled: true },
-		}
-
-		const agentMcpBindings: AgentMcpBinding[] = [
-			{ agentName: "new-agent", serverNames: ["new-mcp"] },
-		]
-
-		await updateOpencodeConfig(testDir, {
-			mcpServers,
-			agentMcpBindings,
+		await updateOpencodeJsonConfig(testDir, {
+			mcp: {
+				"new-mcp": { type: "remote", url: "https://new-mcp.com", enabled: true },
+			},
+			tools: {
+				webfetch: false,
+			},
+			agent: {
+				"new-agent": {
+					tools: { "new-mcp_*": true },
+				},
+			},
 		})
 
 		const configPath = join(testDir, "opencode.json")
@@ -176,11 +139,11 @@ describe("updateOpencodeConfig", () => {
 
 		// New config added
 		expect(config.mcp["new-mcp"]).toBeDefined()
-		expect(config.tools["new-mcp_*"]).toBe(false)
+		expect(config.tools.webfetch).toBe(false)
 		expect(config.agent["new-agent"].tools["new-mcp_*"]).toBe(true)
 	})
 
-	it("should skip existing MCP servers", async () => {
+	it("should overwrite existing values (component wins)", async () => {
 		// Create existing config with MCP already defined
 		const existingConfig = {
 			mcp: {
@@ -189,21 +152,15 @@ describe("updateOpencodeConfig", () => {
 		}
 		await writeFile(join(testDir, "opencode.json"), JSON.stringify(existingConfig, null, 2))
 
-		const mcpServers: Record<string, McpServer> = {
-			context7: { type: "remote", url: "https://new-url.com", enabled: true },
-		}
-
-		const result = await updateOpencodeConfig(testDir, {
-			mcpServers,
-			agentMcpBindings: [],
+		await updateOpencodeJsonConfig(testDir, {
+			mcp: {
+				context7: { type: "remote", url: "https://new-url.com", enabled: true },
+			},
 		})
 
-		expect(result.mcpSkipped).toContain("context7")
-		expect(result.mcpAdded).not.toContain("context7")
-
-		// Original URL should be preserved
+		// New URL should overwrite (ShadCN-style: component wins)
 		const config = parseJsonc(await readFile(join(testDir, "opencode.json"), "utf-8"))
-		expect(config.mcp.context7.url).toBe("https://old-url.com")
+		expect(config.mcp.context7.url).toBe("https://new-url.com")
 	})
 
 	it("should preserve JSONC comments", async () => {
@@ -218,13 +175,10 @@ describe("updateOpencodeConfig", () => {
 }`
 		await writeFile(join(testDir, "opencode.json"), existingContent)
 
-		const mcpServers: Record<string, McpServer> = {
-			"new-mcp": { type: "remote", url: "https://new.com", enabled: true },
-		}
-
-		await updateOpencodeConfig(testDir, {
-			mcpServers,
-			agentMcpBindings: [],
+		await updateOpencodeJsonConfig(testDir, {
+			mcp: {
+				"new-mcp": { type: "remote", url: "https://new.com", enabled: true },
+			},
 		})
 
 		const content = await readFile(join(testDir, "opencode.json"), "utf-8")
@@ -244,13 +198,10 @@ describe("updateOpencodeConfig", () => {
 		const existingConfig = { theme: "opencode" }
 		await writeFile(join(testDir, "opencode.jsonc"), JSON.stringify(existingConfig, null, 2))
 
-		const mcpServers: Record<string, McpServer> = {
-			"test-mcp": { type: "remote", url: "https://test.com", enabled: true },
-		}
-
-		await updateOpencodeConfig(testDir, {
-			mcpServers,
-			agentMcpBindings: [],
+		await updateOpencodeJsonConfig(testDir, {
+			mcp: {
+				"test-mcp": { type: "remote", url: "https://test.com", enabled: true },
+			},
 		})
 
 		// Should update the .jsonc file
@@ -259,34 +210,29 @@ describe("updateOpencodeConfig", () => {
 		expect(config.mcp["test-mcp"]).toBeDefined()
 	})
 
-	it("should disable specified tools globally", async () => {
-		const result = await updateOpencodeConfig(testDir, {
-			mcpServers: {},
-			agentMcpBindings: [],
-			disabledTools: ["WebFetch", "SomeOtherTool"],
+	it("should configure tools", async () => {
+		await updateOpencodeJsonConfig(testDir, {
+			tools: { webfetch: false, "some-tool": true },
 		})
 
-		expect(result.toolsDisabled).toContain("WebFetch")
-		expect(result.toolsDisabled).toContain("SomeOtherTool")
-
-		const config = parseJsonc(await readFile(join(testDir, "opencode.json"), "utf-8"))
-		expect(config.tools.WebFetch).toBe(false)
-		expect(config.tools.SomeOtherTool).toBe(false)
+		const config = parseJsonc(await readFile(join(testDir, "opencode.jsonc"), "utf-8"))
+		expect(config.tools.webfetch).toBe(false)
+		expect(config.tools["some-tool"]).toBe(true)
 	})
 
 	it("should write local MCP with environment variables", async () => {
-		const mcpServers: Record<string, McpServer> = {
-			"local-mcp": {
-				type: "local",
-				command: ["uvx", "some-mcp"],
-				environment: { API_KEY: "{env:API_KEY}" },
-				enabled: false,
+		await updateOpencodeJsonConfig(testDir, {
+			mcp: {
+				"local-mcp": {
+					type: "local",
+					command: ["uvx", "some-mcp"],
+					environment: { API_KEY: "{env:API_KEY}" },
+					enabled: false,
+				},
 			},
-		}
+		})
 
-		await updateOpencodeConfig(testDir, { mcpServers, agentMcpBindings: [] })
-
-		const config = parseJsonc(await readFile(join(testDir, "opencode.json"), "utf-8"))
+		const config = parseJsonc(await readFile(join(testDir, "opencode.jsonc"), "utf-8"))
 		expect(config.mcp["local-mcp"].type).toBe("local")
 		expect(config.mcp["local-mcp"].command).toEqual(["uvx", "some-mcp"])
 		expect(config.mcp["local-mcp"].environment).toEqual({ API_KEY: "{env:API_KEY}" })
@@ -294,22 +240,85 @@ describe("updateOpencodeConfig", () => {
 	})
 
 	it("should write all optional MCP fields", async () => {
-		const mcpServers: Record<string, McpServer> = {
-			"full-mcp": {
-				type: "remote",
-				url: "https://mcp.example.com",
-				headers: { "X-Custom": "value" },
-				args: ["--verbose", "--debug"],
-				oauth: true,
-				enabled: true,
+		await updateOpencodeJsonConfig(testDir, {
+			mcp: {
+				"full-mcp": {
+					type: "remote",
+					url: "https://mcp.example.com",
+					headers: { "X-Custom": "value" },
+					args: ["--verbose", "--debug"],
+					oauth: true,
+					enabled: true,
+				},
 			},
-		}
+		})
 
-		await updateOpencodeConfig(testDir, { mcpServers, agentMcpBindings: [] })
-
-		const config = parseJsonc(await readFile(join(testDir, "opencode.json"), "utf-8"))
+		const config = parseJsonc(await readFile(join(testDir, "opencode.jsonc"), "utf-8"))
 		expect(config.mcp["full-mcp"].headers).toEqual({ "X-Custom": "value" })
 		expect(config.mcp["full-mcp"].args).toEqual(["--verbose", "--debug"])
 		expect(config.mcp["full-mcp"].oauth).toBe(true)
+	})
+
+	it("should add plugins", async () => {
+		await updateOpencodeJsonConfig(testDir, {
+			plugin: ["@some/plugin@1.0.0", "@another/plugin"],
+		})
+
+		const config = parseJsonc(await readFile(join(testDir, "opencode.jsonc"), "utf-8"))
+		expect(config.plugin).toContain("@some/plugin@1.0.0")
+		expect(config.plugin).toContain("@another/plugin")
+	})
+
+	it("should add instructions", async () => {
+		await updateOpencodeJsonConfig(testDir, {
+			instructions: [".opencode/instructions.md", ".opencode/**/*.md"],
+		})
+
+		const config = parseJsonc(await readFile(join(testDir, "opencode.jsonc"), "utf-8"))
+		expect(config.instructions).toContain(".opencode/instructions.md")
+		expect(config.instructions).toContain(".opencode/**/*.md")
+	})
+
+	it("should configure agent settings", async () => {
+		await updateOpencodeJsonConfig(testDir, {
+			agent: {
+				librarian: {
+					temperature: 0.7,
+					prompt: "You are a knowledge architect",
+					tools: {
+						bash: true,
+						edit: false,
+					},
+				},
+			},
+		})
+
+		const config = parseJsonc(await readFile(join(testDir, "opencode.jsonc"), "utf-8"))
+		expect(config.agent.librarian.temperature).toBe(0.7)
+		expect(config.agent.librarian.prompt).toBe("You are a knowledge architect")
+		expect(config.agent.librarian.tools.bash).toBe(true)
+		expect(config.agent.librarian.tools.edit).toBe(false)
+	})
+
+	it("should configure permissions", async () => {
+		await updateOpencodeJsonConfig(testDir, {
+			permission: {
+				bash: "allow",
+				edit: { "*.md": "allow", "*.ts": "ask" },
+				mcp: { "dangerous-mcp": "deny" },
+			},
+		})
+
+		const config = parseJsonc(await readFile(join(testDir, "opencode.jsonc"), "utf-8"))
+		expect(config.permission.bash).toBe("allow")
+		expect(config.permission.edit["*.md"]).toBe("allow")
+		expect(config.permission.edit["*.ts"]).toBe("ask")
+		expect(config.permission.mcp["dangerous-mcp"]).toBe("deny")
+	})
+
+	it("should return changed=false when no opencode config provided", async () => {
+		const result = await updateOpencodeJsonConfig(testDir, {})
+
+		expect(result.changed).toBe(false)
 	})
 })

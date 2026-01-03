@@ -92,7 +92,7 @@ import { parseConfig } from "./parser"
  * @param name - Description of parameter
  * @returns Description of return value
  */
-export async function fetchComponent(name: string): Promise<Component> {
+export async function fetchComponent(baseUrl: string, name: string): Promise<ComponentManifest> {
   // Implementation
 }
 ```
@@ -158,13 +158,13 @@ import { z } from "zod"
 
 // Define schema with JSDoc
 /** Configuration for a component */
-export const ComponentSchema = z.object({
+export const componentManifestSchema = z.object({
   name: z.string(),
   version: z.string().optional(),
 })
 
 // Export inferred type
-export type Component = z.infer<typeof ComponentSchema>
+export type ComponentManifest = z.infer<typeof componentManifestSchema>
 ```
 
 ### CLI Commands (Commander)

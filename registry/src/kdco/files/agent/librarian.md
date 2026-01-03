@@ -151,7 +151,7 @@ export async function renderToHTMLOrFlight(
 OpenCode supports per-agent tool configuration using wildcard patterns. Tools can be disabled globally and enabled for specific agents.
 
 \`\`\`typescript
-// opencode.json configuration
+// opencode.jsonc configuration
 {
   // Disable MCP tools globally
   "tools": {
@@ -190,7 +190,7 @@ export function matchWildcard(pattern: string, value: string): boolean {
 ### Bad Output (What NOT To Return)
 
 ```markdown
-OpenCode has per-agent configuration. You can configure tools in opencode.json.
+OpenCode has per-agent configuration. You can configure tools in opencode.jsonc.
 Check the docs for more details.
 ```
 

@@ -36,6 +36,7 @@ OCX automatically generates an `ocx.lock` file. This file acts as an audit log a
 | `registry` | Tracks exactly which source provided the component. |
 | `version` | Records the specific version installed. |
 | `hash` | SHA-256 hash of the component files. OCX uses this to detect manual tampering during `ocx diff`. |
+| `files` | Array of file paths installed by this component. |
 | `installedAt` | ISO timestamp of the installation. |
 
 ## Integrity Verification

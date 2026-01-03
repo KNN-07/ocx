@@ -1,152 +1,26 @@
 /**
- * Config & Lockfile Schemas
+ * Config & Lockfile Helpers
  *
- * Schemas for ocx.jsonc (user config) and ocx.lock (auto-generated lockfile).
+ * Re-exports schemas from ocx-schemas and provides Bun-specific I/O helpers.
  */
 
 import { parse as parseJsonc } from "jsonc-parser"
-import { z } from "zod"
-import { mcpServerRefSchema, qualifiedComponentSchema } from "./registry.js"
+import { type OcxConfig, type OcxLock, ocxConfigSchema, ocxLockSchema } from "ocx-schemas"
+
+// Re-export schemas and types from ocx-schemas
+export {
+	type InstalledComponent,
+	installedComponentSchema,
+	type OcxConfig,
+	type OcxLock,
+	ocxConfigSchema,
+	ocxLockSchema,
+	type RegistryConfig,
+	registryConfigSchema,
+} from "ocx-schemas"
 
 // =============================================================================
-// OCX CONFIG SCHEMA (ocx.jsonc)
-// =============================================================================
-
-/**
- * Registry configuration in ocx.jsonc
- */
-export const registryConfigSchema = z.object({
-	/** Registry URL */
-	url: z.string().url("Registry URL must be a valid URL"),
-
-	/** Optional version pin */
-	version: z.string().optional(),
-
-	/** Optional auth headers (supports ${ENV_VAR} expansion) */
-	headers: z.record(z.string()).optional(),
-})
-
-export type RegistryConfig = z.infer<typeof registryConfigSchema>
-
-/**
- * Main OCX config schema (ocx.jsonc)
- */
-export const ocxConfigSchema = z.object({
-	/** Schema URL for IDE support */
-	$schema: z.string().optional(),
-
-	/** Configured registries */
-	registries: z.record(registryConfigSchema).default({}),
-
-	/** Lock registries - prevent adding/removing (enterprise feature) */
-	lockRegistries: z.boolean().default(false),
-})
-
-export type OcxConfig = z.infer<typeof ocxConfigSchema>
-
-// =============================================================================
-// OCX LOCKFILE SCHEMA (ocx.lock)
-// =============================================================================
-
-/**
- * Installed component entry in lockfile
- * Key format: "namespace/component" (e.g., "kdco/librarian")
- */
-export const installedComponentSchema = z.object({
-	/** Registry namespace this was installed from */
-	registry: z.string(),
-
-	/** Version at time of install */
-	version: z.string(),
-
-	/** SHA-256 hash of installed files for integrity */
-	hash: z.string(),
-
-	/** Target files where installed (clean paths, no namespace prefix) */
-	files: z.array(z.string()),
-
-	/** ISO timestamp of installation */
-	installedAt: z.string(),
-
-	/** Optional alias if installed with --as flag */
-	alias: z.string().optional(),
-})
-
-export type InstalledComponent = z.infer<typeof installedComponentSchema>
-
-/**
- * OCX lockfile schema (ocx.lock)
- * Keys are qualified component refs: "namespace/component"
- */
-export const ocxLockSchema = z.object({
-	/** Lockfile format version */
-	lockVersion: z.literal(1),
-
-	/** Installed components, keyed by "namespace/component" */
-	installed: z.record(qualifiedComponentSchema, installedComponentSchema).default({}),
-})
-
-export type OcxLock = z.infer<typeof ocxLockSchema>
-
-// =============================================================================
-// OPENCODE.JSON MODIFICATION SCHEMAS
-// =============================================================================
-
-/**
- * MCP server config for opencode.json
- */
-export const opencodeMcpSchema = z.record(mcpServerRefSchema)
-
-/**
- * Agent config for opencode.json
- */
-export const opencodeAgentSchema = z.object({
-	disable: z.boolean().optional(),
-	tools: z.record(z.boolean()).optional(),
-	temperature: z.number().min(0).max(2).optional(),
-	prompt: z.string().optional(),
-	permission: z.record(z.enum(["allow", "deny"])).optional(),
-})
-
-/**
- * Partial opencode.json schema (what OCX modifies)
- */
-export const opencodeConfigPatchSchema = z.object({
-	/** Default agent */
-	default_agent: z.string().optional(),
-
-	/** MCP servers */
-	mcp: opencodeMcpSchema.optional(),
-
-	/** Tool configuration */
-	tools: z.record(z.boolean()).optional(),
-
-	/** Agent configuration */
-	agent: z.record(opencodeAgentSchema).optional(),
-
-	/** NPM plugins */
-	plugin: z.array(z.string()).optional(),
-
-	/** Global instructions */
-	instructions: z.array(z.string()).optional(),
-})
-
-export type OpencodeConfigPatch = z.infer<typeof opencodeConfigPatchSchema>
-
-// =============================================================================
-// SCHEMA INDEX
-// =============================================================================
-
-export const schemas = {
-	config: ocxConfigSchema,
-	lock: ocxLockSchema,
-	registryConfig: registryConfigSchema,
-	installedComponent: installedComponentSchema,
-	opencodeConfigPatch: opencodeConfigPatchSchema,
-} as const
-
-// =============================================================================
-// CONFIG FILE HELPERS
+// CONFIG FILE HELPERS (Bun-specific I/O)
 // =============================================================================
 
 const CONFIG_FILE = "ocx.jsonc"

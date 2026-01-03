@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { registrySchema } from "ocx-schemas"
 import { buildFileUrl, buildGitHubRawUrl, buildRegistryUrl } from "./index"
 
 const mockEnv = {
@@ -57,5 +58,64 @@ describe("URL Construction", () => {
 			)
 			expect(url).not.toContain("agent/agent/")
 		})
+	})
+})
+
+describe("Registry Schema Validation", () => {
+	test("kdco/registry.json validates against Zod schema", async () => {
+		// Read the registry.json file
+		const registryFile = Bun.file("../../registry/src/kdco/registry.json")
+		const registryContent = await registryFile.text()
+		const registryData = JSON.parse(registryContent)
+
+		// Validate against the schema - this catches drift between registry data and schema
+		const result = registrySchema.safeParse(registryData)
+
+		if (!result.success) {
+			// Provide detailed error message for debugging
+			console.error("Schema validation errors:", JSON.stringify(result.error.format(), null, 2))
+		}
+
+		expect(result.success).toBe(true)
+	})
+
+	test("registry.json has all required fields", async () => {
+		const registryFile = Bun.file("../../registry/src/kdco/registry.json")
+		const registryData = JSON.parse(await registryFile.text())
+
+		expect(registryData.name).toBeDefined()
+		expect(registryData.namespace).toBeDefined()
+		expect(registryData.version).toBeDefined()
+		expect(registryData.author).toBeDefined()
+		expect(registryData.components).toBeArray()
+	})
+
+	test("all components have valid structure", async () => {
+		const registryFile = Bun.file("../../registry/src/kdco/registry.json")
+		const registryData = JSON.parse(await registryFile.text())
+
+		for (const component of registryData.components) {
+			expect(component.name).toBeDefined()
+			expect(component.type).toMatch(/^ocx:/)
+			expect(component.description).toBeDefined()
+			expect(component.files).toBeArray()
+			expect(component.dependencies).toBeArray()
+		}
+	})
+
+	test("all internal dependencies reference existing components", async () => {
+		const registryFile = Bun.file("../../registry/src/kdco/registry.json")
+		const registryData = JSON.parse(await registryFile.text())
+
+		const componentNames = new Set(registryData.components.map((c: { name: string }) => c.name))
+
+		for (const component of registryData.components) {
+			for (const dep of component.dependencies) {
+				// Only validate bare dependencies (same namespace)
+				if (!dep.includes("/")) {
+					expect(componentNames.has(dep)).toBe(true)
+				}
+			}
+		}
 	})
 })

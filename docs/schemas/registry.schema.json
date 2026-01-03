@@ -1,0 +1,256 @@
+{
+	"$id": "https://ocx.kdco.dev/registry.schema.json",
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "OCX Registry Schema",
+	"description": "Schema for registry.json files that define OCX component registries",
+	"type": "object",
+	"required": ["name", "namespace", "version", "author", "components"],
+	"additionalProperties": false,
+	"properties": {
+		"name": {
+			"type": "string",
+			"minLength": 1,
+			"description": "Human-readable registry name"
+		},
+		"namespace": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 64,
+			"pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+			"description": "Registry namespace identifier (lowercase alphanumeric with hyphens)"
+		},
+		"version": {
+			"type": "string",
+			"pattern": "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9.-]+)?(\\+[a-zA-Z0-9.-]+)?$",
+			"description": "Registry version (semver format)"
+		},
+		"author": {
+			"type": "string",
+			"minLength": 1,
+			"description": "Registry author or organization"
+		},
+		"components": {
+			"type": "array",
+			"description": "Components provided by this registry",
+			"items": {
+				"$ref": "#/definitions/component"
+			}
+		}
+	},
+	"definitions": {
+		"component": {
+			"type": "object",
+			"required": ["name", "type", "description", "files"],
+			"additionalProperties": false,
+			"properties": {
+				"name": {
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 64,
+					"pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+					"description": "Component name (lowercase alphanumeric with hyphens)"
+				},
+				"type": {
+					"type": "string",
+					"enum": ["ocx:agent", "ocx:skill", "ocx:plugin", "ocx:command", "ocx:tool", "ocx:bundle"],
+					"description": "Component type"
+				},
+				"description": {
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 1024,
+					"description": "Human-readable component description"
+				},
+				"files": {
+					"type": "array",
+					"description": "Files to install (string path or object with path/target)",
+					"items": {
+						"oneOf": [
+							{
+								"type": "string",
+								"minLength": 1,
+								"description": "Source path (target auto-inferred as .opencode/<path>)"
+							},
+							{
+								"type": "object",
+								"required": ["path", "target"],
+								"additionalProperties": false,
+								"properties": {
+									"path": {
+										"type": "string",
+										"minLength": 1,
+										"description": "Source path in registry"
+									},
+									"target": {
+										"type": "string",
+										"pattern": "^\\.opencode/(agent|skill|plugin|command|tool|philosophy)/",
+										"description": "Target path in project (must start with .opencode/{agent|skill|plugin|command|tool|philosophy}/)"
+									}
+								}
+							}
+						]
+					}
+				},
+				"dependencies": {
+					"type": "array",
+					"default": [],
+					"description": "Component dependencies (bare name for same namespace, qualified for cross-namespace)",
+					"items": {
+						"type": "string",
+						"pattern": "^[a-z0-9]+(-[a-z0-9]+)*(\\/[a-z0-9]+(-[a-z0-9]+)*)?$"
+					}
+				},
+				"opencode": {
+					"$ref": "#/definitions/opencodeConfig"
+				},
+				"npmDependencies": {
+					"type": "array",
+					"description": "NPM packages to install as dependencies",
+					"items": { "type": "string" }
+				},
+				"npmDevDependencies": {
+					"type": "array",
+					"description": "NPM packages to install as dev dependencies",
+					"items": { "type": "string" }
+				}
+			}
+		},
+		"opencodeConfig": {
+			"type": "object",
+			"description": "OpenCode configuration to merge into opencode.json (1:1 mapping)",
+			"additionalProperties": false,
+			"properties": {
+				"mcp": {
+					"type": "object",
+					"description": "MCP servers (URL string or full config object)",
+					"additionalProperties": {
+						"oneOf": [
+							{
+								"type": "string",
+								"format": "uri",
+								"description": "Remote MCP server URL"
+							},
+							{
+								"type": "object",
+								"required": ["type"],
+								"allOf": [
+									{
+										"if": { "properties": { "type": { "const": "remote" } } },
+										"then": { "required": ["url"] }
+									},
+									{
+										"if": { "properties": { "type": { "const": "local" } } },
+										"then": { "required": ["command"] }
+									}
+								],
+								"properties": {
+									"type": {
+										"type": "string",
+										"enum": ["remote", "local"]
+									},
+									"url": {
+										"type": "string",
+										"format": "uri"
+									},
+									"command": {
+										"type": "array",
+										"items": { "type": "string" }
+									},
+									"args": {
+										"type": "array",
+										"items": { "type": "string" }
+									},
+									"environment": {
+										"type": "object",
+										"additionalProperties": { "type": "string" }
+									},
+									"headers": {
+										"type": "object",
+										"additionalProperties": { "type": "string" }
+									},
+									"oauth": {
+										"type": "boolean"
+									},
+									"enabled": {
+										"type": "boolean",
+										"default": true
+									}
+								}
+							}
+						]
+					}
+				},
+				"plugin": {
+					"type": "array",
+					"description": "NPM plugin packages to add",
+					"items": { "type": "string" }
+				},
+				"tools": {
+					"type": "object",
+					"description": "Tool enable/disable patterns",
+					"additionalProperties": { "type": "boolean" }
+				},
+				"instructions": {
+					"type": "array",
+					"description": "Global instructions file paths/globs",
+					"items": { "type": "string" }
+				},
+				"permission": {
+					"type": "object",
+					"description": "Permission settings for bash/edit/mcp",
+					"properties": {
+						"bash": {
+							"oneOf": [
+								{ "type": "string", "enum": ["ask", "allow", "deny"] },
+								{
+									"type": "object",
+									"additionalProperties": { "type": "string", "enum": ["ask", "allow", "deny"] }
+								}
+							]
+						},
+						"edit": {
+							"oneOf": [
+								{ "type": "string", "enum": ["ask", "allow", "deny"] },
+								{
+									"type": "object",
+									"additionalProperties": { "type": "string", "enum": ["ask", "allow", "deny"] }
+								}
+							]
+						},
+						"mcp": {
+							"type": "object",
+							"additionalProperties": { "type": "string", "enum": ["ask", "allow", "deny"] }
+						}
+					}
+				},
+				"agent": {
+					"type": "object",
+					"description": "Per-agent configuration",
+					"additionalProperties": {
+						"type": "object",
+						"additionalProperties": false,
+						"properties": {
+							"tools": {
+								"type": "object",
+								"additionalProperties": { "type": "boolean" }
+							},
+							"temperature": {
+								"type": "number",
+								"minimum": 0,
+								"maximum": 2
+							},
+							"prompt": { "type": "string" },
+							"permission": {
+								"type": "object",
+								"additionalProperties": {
+									"type": "string",
+									"enum": ["allow", "deny"]
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}

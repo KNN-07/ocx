@@ -96,7 +96,7 @@ Before pushing changes, test the full CLI flow using local registry sources.
 
 ```bash
 # 1. Clean slate - wipe all generated files
-rm -rf .opencode opencode.json ocx.lock ocx.jsonc
+rm -rf .opencode opencode.jsonc ocx.lock ocx.jsonc
 
 # 2. Rebuild the CLI
 cd packages/cli && bun run build && cd ../..
@@ -114,35 +114,39 @@ cd packages/cli && bun run build && cd ../..
 ./packages/cli/dist/index.js add kdco/philosophy kdco/workspace --yes
 
 # 7. Verify the result
-cat opencode.json
+cat opencode.jsonc
 ```
 
 #### Expected Output
 
-After installation, `opencode.json` should contain:
+After installation, `opencode.jsonc` should contain the component's `opencode` block merged in:
 - `mcp` section with MCP server definitions
-- `tools` section with globally disabled MCP tools (`"context7_*": false`, etc.)
-- `agent` section with per-agent tool overrides (`"context7_*": true`, etc.)
+- `plugin` array with npm packages
+- `tools` section with tool configurations
+- `agent` section with per-agent settings
 
 Example structure:
 ```json
 {
   "mcp": { "context7": { ... }, "gh_grep": { ... }, "exa": { ... } },
-  "tools": { "context7_*": false, "gh_grep_*": false, "exa_*": false },
-  "agent": { "librarian": { "tools": { "context7_*": true, ... } } }
+  "plugin": ["@tarquinen/opencode-dcp@1.1.2"],
+  "tools": { "webfetch": false },
+  "agent": { "writer": { "tools": { "bash": true, ... } } }
 }
 ```
+
+**Note:** OCX follows the ShadCN model - component config is deep-merged directly into your `opencode.jsonc`. You own the file, use git to review changes.
 
 #### Quick Reset Script
 
 For repeated testing (assumes registry is already built):
 
 ```bash
-rm -rf .opencode opencode.json ocx.lock ocx.jsonc && \
+rm -rf .opencode opencode.jsonc ocx.lock ocx.jsonc && \
 ./packages/cli/dist/index.js init && \
 ./packages/cli/dist/index.js registry add "file://$(pwd)/registry/src/kdco/dist" --name kdco && \
 ./packages/cli/dist/index.js add kdco/workspace --yes && \
-cat opencode.json
+cat opencode.jsonc
 ```
 
 ## Code Philosophy

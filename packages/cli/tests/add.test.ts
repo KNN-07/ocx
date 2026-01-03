@@ -65,12 +65,161 @@ describe("ocx add", () => {
 		expect(lock.installed["kdco/test-skill"]).toBeDefined()
 		expect(lock.installed["kdco/test-plugin"]).toBeDefined()
 
-		// Verify opencode.json patching
-		const opencodePath = join(testDir, "opencode.json")
+		// Verify opencode.jsonc patching (new files default to .jsonc)
+		const opencodePath = join(testDir, "opencode.jsonc")
 		expect(existsSync(opencodePath)).toBe(true)
-		const opencode = JSON.parse(await readFile(opencodePath, "utf-8"))
+		const opencode = parseJsonc(await readFile(opencodePath, "utf-8"))
 		expect(opencode.mcp["test-mcp"]).toBeDefined()
 		expect(opencode.mcp["test-mcp"].url).toBe("https://mcp.test.com")
+	})
+
+	it("should skip files with identical content", async () => {
+		testDir = await createTempDir("add-skip-identical")
+
+		// Init and add registry
+		await runCLI(["init", "--yes"], testDir)
+
+		const configPath = join(testDir, "ocx.jsonc")
+		const config = parseJsonc(await readFile(configPath, "utf-8"))
+		config.registries = {
+			kdco: { url: registry.url },
+		}
+		await writeFile(configPath, JSON.stringify(config, null, 2))
+
+		// Install component first time
+		const { exitCode: firstExitCode } = await runCLI(["add", "kdco/test-plugin", "--yes"], testDir)
+		expect(firstExitCode).toBe(0)
+
+		// Install same component again (should skip, not fail)
+		const { exitCode } = await runCLI(["add", "kdco/test-plugin", "--yes"], testDir)
+		expect(exitCode).toBe(0)
+		// File should still exist
+		expect(existsSync(join(testDir, ".opencode/plugin/test-plugin.ts"))).toBe(true)
+	})
+
+	it("should fail on conflict without --yes flag", async () => {
+		testDir = await createTempDir("add-conflict-no-yes")
+
+		// Init and add registry
+		await runCLI(["init", "--yes"], testDir)
+
+		const configPath = join(testDir, "ocx.jsonc")
+		const config = parseJsonc(await readFile(configPath, "utf-8"))
+		config.registries = {
+			kdco: { url: registry.url },
+		}
+		await writeFile(configPath, JSON.stringify(config, null, 2))
+
+		// Install component first time
+		await runCLI(["add", "kdco/test-plugin", "--yes"], testDir)
+
+		// Modify the file to create a conflict
+		const filePath = join(testDir, ".opencode/plugin/test-plugin.ts")
+		await writeFile(filePath, "// Modified by user")
+
+		// Try to install again WITHOUT --yes (should fail with conflict)
+		const { exitCode, output } = await runCLI(["add", "kdco/test-plugin"], testDir)
+		expect(exitCode).not.toBe(0)
+		expect(output).toContain("conflict")
+		expect(output).toContain("--yes")
+	})
+
+	it("should overwrite conflicting files with --yes flag", async () => {
+		testDir = await createTempDir("add-overwrite-yes")
+
+		// Init and add registry
+		await runCLI(["init", "--yes"], testDir)
+
+		const configPath = join(testDir, "ocx.jsonc")
+		const config = parseJsonc(await readFile(configPath, "utf-8"))
+		config.registries = {
+			kdco: { url: registry.url },
+		}
+		await writeFile(configPath, JSON.stringify(config, null, 2))
+
+		// Install component first time
+		await runCLI(["add", "kdco/test-plugin", "--yes"], testDir)
+
+		// Modify the file to create a conflict
+		const filePath = join(testDir, ".opencode/plugin/test-plugin.ts")
+		await writeFile(filePath, "// Modified by user")
+
+		// Install again WITH --yes (should overwrite)
+		const { exitCode } = await runCLI(["add", "kdco/test-plugin", "--yes"], testDir)
+		expect(exitCode).toBe(0)
+
+		// File should be restored to original content
+		const content = await readFile(filePath, "utf-8")
+		expect(content).not.toContain("Modified by user")
+	})
+
+	it("should preserve mcp from dependencies when main component has no mcp (regression)", async () => {
+		testDir = await createTempDir("add-mcp-regression")
+
+		// Init and add registry
+		await runCLI(["init", "--yes"], testDir)
+
+		const configPath = join(testDir, "ocx.jsonc")
+		const config = parseJsonc(await readFile(configPath, "utf-8"))
+		config.registries = {
+			kdco: { url: registry.url },
+		}
+		await writeFile(configPath, JSON.stringify(config, null, 2))
+
+		// Install test-no-mcp which depends on test-mcp-provider
+		// test-mcp-provider has MCP config, test-no-mcp does not
+		// This tests the regression where MCP was lost due to undefined overwriting
+		const { exitCode, output } = await runCLI(["add", "kdco/test-no-mcp", "--yes"], testDir)
+
+		if (exitCode !== 0) {
+			console.log(output)
+		}
+		expect(exitCode).toBe(0)
+
+		// Verify opencode.jsonc has MCP from dependency
+		const opencodePath = join(testDir, "opencode.jsonc")
+		expect(existsSync(opencodePath)).toBe(true)
+		const opencode = parseJsonc(await readFile(opencodePath, "utf-8"))
+
+		// MCP from test-mcp-provider should be preserved
+		expect(opencode.mcp).toBeDefined()
+		expect(opencode.mcp["provider-mcp"]).toBeDefined()
+		expect(opencode.mcp["provider-mcp"].url).toBe("https://mcp.provider.com")
+
+		// Tools from test-no-mcp should also be present
+		expect(opencode.tools).toBeDefined()
+		expect(opencode.tools["some-tool"]).toBe(true)
+	})
+
+	it("should concatenate plugin arrays from multiple components", async () => {
+		testDir = await createTempDir("add-plugin-concat")
+
+		// Init and add registry
+		await runCLI(["init", "--yes"], testDir)
+
+		const configPath = join(testDir, "ocx.jsonc")
+		const config = parseJsonc(await readFile(configPath, "utf-8"))
+		config.registries = {
+			kdco: { url: registry.url },
+		}
+		await writeFile(configPath, JSON.stringify(config, null, 2))
+
+		// Install test-no-mcp which depends on test-mcp-provider
+		// Both have plugin arrays that should be concatenated
+		const { exitCode, output } = await runCLI(["add", "kdco/test-no-mcp", "--yes"], testDir)
+
+		if (exitCode !== 0) {
+			console.log(output)
+		}
+		expect(exitCode).toBe(0)
+
+		// Verify opencode.jsonc has plugins from both components
+		const opencodePath = join(testDir, "opencode.jsonc")
+		const opencode = parseJsonc(await readFile(opencodePath, "utf-8"))
+
+		expect(opencode.plugin).toBeDefined()
+		expect(opencode.plugin).toContain("provider-plugin")
+		expect(opencode.plugin).toContain("no-mcp-plugin")
 	})
 
 	it("should fail if integrity check fails", async () => {

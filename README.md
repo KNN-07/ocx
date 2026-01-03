@@ -81,6 +81,7 @@ OCX manages components within the `.opencode/` directory of your project:
 ├── plugin/           # Project plugins (workspace tools, rule injection)
 ├── skill/            # Reusable instructions (protocols, philosophies)
 ├── command/          # Custom TUI commands
+├── tool/             # Custom tool implementations
 └── philosophy/       # Mandatory project rules
 ```
 
@@ -114,10 +115,10 @@ OCX supports the full range of OpenCode configuration options:
 | Agents (`.opencode/agent/*.md`) | ✅ | Full support |
 | Skills (`.opencode/skill/<name>/SKILL.md`) | ✅ | Full support |
 | Plugins (file-based `.opencode/plugin/*.ts`) | ✅ | Full support |
-| Plugins (npm packages) | ✅ | Via `opencode.plugins` |
+| Plugins (npm packages) | ✅ | Via `opencode.plugin` |
 | Commands (`.opencode/command/*.md`) | ✅ | Full support |
 | Bundles (meta-components) | ✅ | Full support |
-| **opencode.json Config** |||
+| **opencode.jsonc Config** |||
 | `plugin` (npm package array) | ✅ | Full support |
 | `mcp` (MCP servers) | ✅ | URL shorthand + full objects |
 | `tools` (enable/disable patterns) | ✅ | Full support |

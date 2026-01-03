@@ -3,18 +3,19 @@
  * Based on: https://github.com/shadcn-ui/ui/blob/main/packages/shadcn/src/registry/resolver.ts
  */
 
-import { mergeDeep } from "remeda"
 import type { RegistryConfig } from "../schemas/config.js"
 import {
 	type ComponentManifest,
 	createQualifiedComponent,
-	type McpServer,
 	type NormalizedComponentManifest,
+	type NormalizedOpencodeConfig,
 	normalizeComponentManifest,
+	type OpencodeConfig,
 	parseQualifiedComponent,
 } from "../schemas/registry.js"
 import { ConfigError, OCXError, ValidationError } from "../utils/errors.js"
 import { fetchComponent } from "./fetcher.js"
+import { mergeOpencodeConfig } from "./merge.js"
 
 /**
  * Parse a component reference into namespace and component name.
@@ -49,35 +50,17 @@ export interface ResolvedComponent extends NormalizedComponentManifest {
 	qualifiedName: string
 }
 
-/** Binding between an agent and its scoped MCP servers */
-export interface AgentMcpBinding {
-	/** Agent component name (e.g., "librarian") */
-	agentName: string
-	/** MCP server names scoped to this agent */
-	serverNames: string[]
-}
-
 export interface ResolvedDependencies {
 	/** All components in dependency order (dependencies first) */
 	components: ResolvedComponent[]
 	/** Install order (component names) */
 	installOrder: string[]
-	/** Aggregated MCP servers from all components (normalized to objects) */
-	mcpServers: Record<string, McpServer>
-	/** Agent-to-MCP bindings for agent-scoped servers */
-	agentMcpBindings: AgentMcpBinding[]
 	/** Aggregated npm dependencies from all components */
 	npmDependencies: string[]
 	/** Aggregated npm dev dependencies from all components */
 	npmDevDependencies: string[]
-	/** Tools to disable globally */
-	disabledTools: string[]
-	/** OpenCode plugins (npm packages) to add to opencode.json plugin array */
-	plugins: string[]
-	/** Agent configurations to merge into opencode.json agent key */
-	agentConfigs: Record<string, Record<string, unknown>>
-	/** Global instructions to append to opencode.json instructions array */
-	instructions: string[]
+	/** Merged opencode configuration from all components (deep merged) */
+	opencode: OpencodeConfig
 }
 
 /**
@@ -90,14 +73,9 @@ export async function resolveDependencies(
 ): Promise<ResolvedDependencies> {
 	const resolved = new Map<string, ResolvedComponent>()
 	const visiting = new Set<string>()
-	const mcpServers: Record<string, McpServer> = {}
-	const agentMcpBindings: AgentMcpBinding[] = []
 	const npmDeps = new Set<string>()
 	const npmDevDeps = new Set<string>()
-	const disabledTools = new Set<string>()
-	const plugins = new Set<string>()
-	const agentConfigs: Record<string, Record<string, unknown>> = {}
-	const instructionsSet = new Set<string>()
+	let opencode: NormalizedOpencodeConfig = {}
 
 	async function resolve(
 		componentNamespace: string,
@@ -158,25 +136,6 @@ export async function resolveDependencies(
 		})
 		visiting.delete(qualifiedName)
 
-		// Collect MCP servers and track agent bindings
-		if (normalizedComponent.mcpServers) {
-			const serverNames: string[] = []
-			for (const [serverName, config] of Object.entries(normalizedComponent.mcpServers)) {
-				// Use already-normalized MCP server from normalizeComponentManifest
-				mcpServers[serverName] = config
-				serverNames.push(serverName)
-			}
-
-			// Track agent-scoped MCP bindings (default scope is "agent")
-			const scope = component.mcpScope ?? "agent"
-			if (component.type === "ocx:agent" && scope === "agent" && serverNames.length > 0) {
-				agentMcpBindings.push({
-					agentName: component.name,
-					serverNames,
-				})
-			}
-		}
-
 		// Collect npm dependencies
 		if (component.npmDependencies) {
 			for (const dep of component.npmDependencies) {
@@ -189,45 +148,13 @@ export async function resolveDependencies(
 			}
 		}
 
-		// Collect disabled tools
-		if (component.disabledTools) {
-			for (const tool of component.disabledTools) {
-				disabledTools.add(tool)
-			}
-		}
-
-		// Collect opencode config: plugins, agent configs, instructions
-		if (component.opencode) {
-			// Collect plugins (npm packages for opencode.json plugin array)
-			if (component.opencode.plugins) {
-				for (const plugin of component.opencode.plugins) {
-					plugins.add(plugin)
-				}
-			}
-
-			// Collect agent configurations
-			if (component.opencode.agent) {
-				for (const [agentName, config] of Object.entries(component.opencode.agent)) {
-					// Deep merge agent configs (later components override earlier ones)
-					agentConfigs[agentName] = mergeDeep(agentConfigs[agentName] ?? {}, config)
-				}
-			}
-
-			// Collect instructions
-			if (component.opencode.instructions) {
-				for (const instruction of component.opencode.instructions) {
-					instructionsSet.add(instruction)
-				}
-			}
-
-			// Collect tools config (converts to disabledTools for false values)
-			if (component.opencode.tools) {
-				for (const [tool, enabled] of Object.entries(component.opencode.tools)) {
-					if (enabled === false) {
-						disabledTools.add(tool)
-					}
-				}
-			}
+		// Deep merge opencode config (component takes precedence - ShadCN style)
+		// Use normalizedComponent to ensure MCP servers are converted from string URLs to full objects
+		if (normalizedComponent.opencode) {
+			opencode = mergeOpencodeConfig(
+				opencode,
+				normalizedComponent.opencode as NormalizedOpencodeConfig,
+			)
 		}
 	}
 
@@ -245,29 +172,8 @@ export async function resolveDependencies(
 	return {
 		components,
 		installOrder,
-		mcpServers,
-		agentMcpBindings,
 		npmDependencies: Array.from(npmDeps),
 		npmDevDependencies: Array.from(npmDevDeps),
-		disabledTools: Array.from(disabledTools),
-		plugins: Array.from(plugins),
-		agentConfigs,
-		instructions: Array.from(instructionsSet),
+		opencode,
 	}
-}
-
-/**
- * Check if installing components would create conflicts
- */
-export function checkConflicts(existing: string[], toInstall: string[]): string[] {
-	const conflicts: string[] = []
-	const existingSet = new Set(existing)
-
-	for (const name of toInstall) {
-		if (existingSet.has(name)) {
-			conflicts.push(name)
-		}
-	}
-
-	return conflicts
 }

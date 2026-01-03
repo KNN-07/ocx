@@ -34,11 +34,43 @@ export function startMockRegistry(): MockRegistry {
 			description: "A test agent",
 			files: [{ path: "agent.md", target: ".opencode/agent/test-agent.md" }],
 			dependencies: ["test-skill"],
-			mcpServers: {
-				"test-mcp": {
-					type: "remote",
-					url: "https://mcp.test.com",
+			opencode: {
+				mcp: {
+					"test-mcp": {
+						type: "remote",
+						url: "https://mcp.test.com",
+					},
 				},
+			},
+		},
+		// Components for testing MCP merge regression
+		"test-mcp-provider": {
+			name: "test-mcp-provider",
+			type: "ocx:plugin",
+			description: "A component that provides MCP servers",
+			files: [{ path: "index.ts", target: ".opencode/plugin/test-mcp-provider.ts" }],
+			dependencies: [],
+			opencode: {
+				mcp: {
+					"provider-mcp": {
+						type: "remote",
+						url: "https://mcp.provider.com",
+					},
+				},
+				plugin: ["provider-plugin"],
+			},
+		},
+		"test-no-mcp": {
+			name: "test-no-mcp",
+			type: "ocx:plugin",
+			description: "A component without MCP that depends on test-mcp-provider",
+			files: [{ path: "index.ts", target: ".opencode/plugin/test-no-mcp.ts" }],
+			dependencies: ["test-mcp-provider"],
+			opencode: {
+				tools: {
+					"some-tool": true,
+				},
+				plugin: ["no-mcp-plugin"],
 			},
 		},
 	}

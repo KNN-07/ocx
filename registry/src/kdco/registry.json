@@ -38,10 +38,26 @@
 			"description": "Knowledge architect for external research",
 			"files": ["agent/librarian.md"],
 			"dependencies": ["background-agents"],
-			"mcpServers": {
-				"context7": "https://mcp.context7.com/mcp",
-				"exa": "https://mcp.exa.ai/mcp",
-				"gh_grep": "https://mcp.grep.app"
+			"opencode": {
+				"mcp": {
+					"context7": "https://mcp.context7.com/mcp",
+					"exa": "https://mcp.exa.ai/mcp",
+					"gh_grep": "https://mcp.grep.app"
+				},
+				"tools": {
+					"context7_*": false,
+					"exa_*": false,
+					"gh_grep_*": false
+				},
+				"agent": {
+					"librarian": {
+						"tools": {
+							"context7_*": true,
+							"exa_*": true,
+							"gh_grep_*": true
+						}
+					}
+				}
 			}
 		},
 		{
@@ -87,7 +103,7 @@
 			"files": [],
 			"dependencies": ["workspace-plugin", "plan-protocol", "librarian", "writer", "notify"],
 			"opencode": {
-				"plugins": ["@tarquinen/opencode-dcp@1.1.2"],
+				"plugin": ["@tarquinen/opencode-dcp@1.1.2"],
 				"tools": {
 					"webfetch": false
 				}

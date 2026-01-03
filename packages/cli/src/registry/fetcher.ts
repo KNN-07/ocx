@@ -46,13 +46,6 @@ async function fetchWithCache<T>(url: string, parse: (data: unknown) => T): Prom
 }
 
 /**
- * Clear the fetch cache
- */
-export function clearCache(): void {
-	cache.clear()
-}
-
-/**
  * Fetch registry index
  */
 export async function fetchRegistryIndex(baseUrl: string): Promise<RegistryIndex> {
@@ -102,46 +95,6 @@ export async function fetchComponent(baseUrl: string, name: string): Promise<Com
 
 		return manifestResult.data
 	})
-}
-
-/**
- * Fetch multiple components in parallel
- */
-export async function fetchComponents(
-	baseUrl: string,
-	names: string[],
-): Promise<ComponentManifest[]> {
-	const results = await Promise.allSettled(names.map((name) => fetchComponent(baseUrl, name)))
-
-	const components: ComponentManifest[] = []
-	const errors: string[] = []
-
-	for (const [i, result] of results.entries()) {
-		if (result.status === "fulfilled") {
-			components.push(result.value)
-		} else {
-			const name = names[i] ?? "unknown"
-			errors.push(`${name}: ${result.reason.message}`)
-		}
-	}
-
-	if (errors.length > 0) {
-		throw new NetworkError(`Failed to fetch components:\n${errors.join("\n")}`)
-	}
-
-	return components
-}
-
-/**
- * Check if a component exists in registry
- */
-export async function componentExists(baseUrl: string, name: string): Promise<boolean> {
-	try {
-		await fetchComponent(baseUrl, name)
-		return true
-	} catch {
-		return false
-	}
 }
 
 /**

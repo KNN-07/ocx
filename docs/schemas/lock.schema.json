@@ -11,7 +11,11 @@
 		},
 		"installed": {
 			"type": "object",
-			"description": "Map of installed components",
+			"description": "Map of installed components keyed by namespace/component",
+			"propertyNames": {
+				"pattern": "^[a-z0-9]+(-[a-z0-9]+)*/[a-z0-9]+(-[a-z0-9]+)*$"
+			},
+			"default": {},
 			"additionalProperties": {
 				"type": "object",
 				"properties": {
@@ -27,17 +31,18 @@
 						"type": "string",
 						"description": "SHA-256 hash of the actual file content for integrity verification. For multi-file components, this is a deterministic hash of the file bundle."
 					},
-					"target": {
-						"type": "string",
-						"description": "The project-relative path where the component was installed"
+					"files": {
+						"type": "array",
+						"items": { "type": "string" },
+						"description": "Array of project-relative paths where the component files were installed"
 					},
 					"installedAt": {
 						"type": "string",
-						"format": "date-time",
-						"description": "The timestamp when the component was installed"
+						"description": "The timestamp when the component was installed (ISO format)"
 					}
 				},
-				"required": ["registry", "version", "hash", "target", "installedAt"]
+				"required": ["registry", "version", "hash", "files", "installedAt"],
+				"additionalProperties": false
 			}
 		}
 	},

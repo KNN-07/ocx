@@ -5,82 +5,31 @@ import { etag } from "hono/etag"
 import { logger } from "hono/logger"
 import { secureHeaders } from "hono/secure-headers"
 import { trimTrailingSlash } from "hono/trailing-slash"
+import {
+	type NormalizedComponentManifest,
+	normalizeComponentManifest,
+	type Registry,
+	type RegistryIndex,
+	registrySchema,
+} from "ocx-schemas"
 
 // =============================================================================
-// Types
+// Types (derived from ocx-schemas)
 // =============================================================================
 
-// Cargo-style unions: accept string shorthand or full object
-type ComponentFile = string | { path: string; target: string }
-type ComponentFileObject = { path: string; target: string }
-
-interface ComponentManifestRaw {
-	name: string
-	type: string
-	description: string
-	files: ComponentFile[]
-	dependencies: string[]
-	mcpServers?: Record<string, unknown>
-	mcpScope?: string
-	opencode?: Record<string, unknown>
-}
-
-interface ComponentManifest {
-	name: string
-	type: string
-	description: string
-	files: ComponentFileObject[]
-	dependencies: string[]
-	mcpServers?: Record<string, unknown>
-	mcpScope?: string
-	opencode?: Record<string, unknown>
-}
-
-interface RegistryDataRaw {
+/** Registry data with all components normalized (Cargo-style shorthands expanded) */
+interface NormalizedRegistry {
 	name: string
 	namespace: string
 	version: string
 	author: string
-	components: ComponentManifestRaw[]
-}
-
-interface RegistryData {
-	name: string
-	namespace: string
-	version: string
-	author: string
-	components: ComponentManifest[]
-}
-
-// =============================================================================
-// Normalization (Cargo-style shorthand → canonical objects)
-// =============================================================================
-
-function normalizeFile(file: ComponentFile): ComponentFileObject {
-	if (typeof file === "string") {
-		return { path: file, target: `.opencode/${file}` }
-	}
-	return file
-}
-
-function normalizeComponent(component: ComponentManifestRaw): ComponentManifest {
-	return {
-		...component,
-		files: component.files.map(normalizeFile),
-	}
-}
-
-function normalizeRegistry(raw: RegistryDataRaw): RegistryData {
-	return {
-		...raw,
-		components: raw.components.map(normalizeComponent),
-	}
+	components: NormalizedComponentManifest[]
 }
 
 type AppEnv = {
 	Bindings: Env
 	Variables: {
-		registry: RegistryData
+		registry: NormalizedRegistry
 	}
 }
 
@@ -145,7 +94,21 @@ export function buildFileUrl(
 // Data Fetching (Law 2: Parse at Boundary, Then Trust)
 // =============================================================================
 
-async function fetchRegistryData(env: Env): Promise<RegistryData> {
+/**
+ * Normalize all components in a validated registry
+ */
+function normalizeRegistry(registry: Registry): NormalizedRegistry {
+	return {
+		...registry,
+		components: registry.components.map(normalizeComponentManifest),
+	}
+}
+
+/**
+ * Fetch and validate registry data from GitHub
+ * Uses Zod schema validation at the boundary (Law 2: Parse, Don't Validate)
+ */
+async function fetchRegistryData(env: Env): Promise<NormalizedRegistry> {
 	const url = buildRegistryUrl(env)
 
 	const response = await fetch(url)
@@ -157,8 +120,19 @@ async function fetchRegistryData(env: Env): Promise<RegistryData> {
 		)
 	}
 
-	const raw = (await response.json()) as RegistryDataRaw
-	return normalizeRegistry(raw)
+	const raw = await response.json()
+
+	// Validate at the boundary using Zod (Law 2: Parse, Don't Validate)
+	const parseResult = registrySchema.safeParse(raw)
+	if (!parseResult.success) {
+		throw new RegistryError(
+			"INVALID_REGISTRY",
+			500,
+			`Registry validation failed: ${parseResult.error.message}`,
+		)
+	}
+
+	return normalizeRegistry(parseResult.data)
 }
 
 // =============================================================================
@@ -209,7 +183,7 @@ app.get("/", (c) => {
 app.get("/index.json", async (c) => {
 	const registry = await fetchRegistryData(c.env)
 
-	const index = {
+	const index: RegistryIndex = {
 		name: registry.name,
 		namespace: registry.namespace,
 		version: registry.version,
@@ -271,7 +245,7 @@ app.get("/components/:name/:path{.+}", async (c) => {
 	}
 
 	// Validate the requested file exists in the component's files array
-	const fileEntry = component.files.find((f) => f.path === filePath)
+	const fileEntry = component.files.find((f: { path: string }) => f.path === filePath)
 	if (!fileEntry) {
 		throw new RegistryError(
 			"FILE_NOT_FOUND",

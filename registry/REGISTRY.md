@@ -74,29 +74,32 @@ Use string shorthand when the target can be auto-inferred from the path:
 
 ### MCP Servers
 
-Use URL shorthand for remote servers:
+MCP servers are configured inside the `opencode` block using URL shorthand for remote servers:
 
 ```json
-// String shorthand (recommended for remote servers)
-"mcpServers": {
-  "context7": "https://mcp.context7.com/mcp"
+"opencode": {
+  "mcp": {
+    "context7": "https://mcp.context7.com/mcp"
+  }
 }
 // Expands to: { "type": "remote", "url": "https://...", "enabled": true }
 
 // Full object (for local servers or advanced config)
-"mcpServers": {
-  "local-mcp": {
-    "type": "local",
-    "command": ["node", "server.js"],
-    "args": ["--port", "3000"],
-    "environment": { "DEBUG": "true" }
+"opencode": {
+  "mcp": {
+    "local-mcp": {
+      "type": "local",
+      "command": ["node", "server.js"],
+      "args": ["--port", "3000"],
+      "environment": { "DEBUG": "true" }
+    }
   }
 }
 ```
 
 ### OpenCode Config Block
 
-Components can specify settings to merge into the user's `opencode.json`:
+Components can specify settings to merge into the user's `opencode.jsonc`:
 
 ```json
 {
@@ -105,7 +108,7 @@ Components can specify settings to merge into the user's `opencode.json`:
   "files": ["agent/my-agent.md"],
   "dependencies": [],
   "opencode": {
-    "plugins": ["@some-org/opencode-plugin"],
+    "plugin": ["@some-org/opencode-plugin"],
     "tools": {
       "webfetch": false
     },
@@ -126,9 +129,11 @@ Components can specify settings to merge into the user's `opencode.json`:
 
 | Field | Description |
 |-------|-------------|
-| `opencode.plugins` | npm packages added to `opencode.json` plugin array |
+| `opencode.mcp` | MCP servers (URL shorthand or full config) |
+| `opencode.plugin` | npm packages added to `opencode.jsonc` plugin array |
 | `opencode.tools` | Global tool enable/disable settings |
 | `opencode.agent` | Per-agent configuration (tools, temperature, permission, prompt) |
+| `opencode.permission` | Permission settings for bash/edit/mcp |
 | `opencode.instructions` | Global instructions appended to config |
 
 ## Component Types
@@ -139,6 +144,7 @@ Components can specify settings to merge into the user's `opencode.json`:
 | `ocx:skill` | `skill/` | Instruction sets (must follow `.opencode/skill/<name>/SKILL.md`). |
 | `ocx:plugin` | `plugin/` | TypeScript/JavaScript extensions for tools and hooks. |
 | `ocx:command` | `command/` | Markdown templates for TUI commands. |
+| `ocx:tool` | `tool/` | Custom tool implementations. |
 | `ocx:bundle` | N/A | Virtual components that install multiple other components. |
 
 ## Building
