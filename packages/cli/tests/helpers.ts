@@ -1,9 +1,6 @@
-import { existsSync } from "node:fs"
 import { mkdir, rm } from "node:fs/promises"
 import { join } from "node:path"
-import { parse as parseJsonc } from "jsonc-parser"
-
-export { parseJsonc }
+import { parse } from "jsonc-parser"
 
 export interface CLIResult {
 	stdout: string
@@ -12,37 +9,30 @@ export interface CLIResult {
 	exitCode: number
 }
 
-export async function createTempDir(prefix: string): Promise<string> {
-	const path = join(
-		import.meta.dir,
-		"fixtures",
-		`tmp-${prefix}-${Math.random().toString(36).slice(2)}`,
-	)
-	await mkdir(path, { recursive: true })
-	return path
-}
-
-export async function cleanupTempDir(path: string): Promise<void> {
-	if (existsSync(path)) {
-		await rm(path, { recursive: true, force: true })
-	}
-}
-
+/**
+ * Run the CLI with the given arguments.
+ * Uses Bun.spawn with explicit argument array for reliable parsing.
+ */
 export async function runCLI(args: string[], cwd: string): Promise<CLIResult> {
 	const indexPath = join(import.meta.dir, "..", "src/index.ts")
 
+	// Ensure cwd exists
+	await mkdir(cwd, { recursive: true })
+
+	// Use Bun.spawn with explicit argument array (not shell string interpolation)
 	const proc = Bun.spawn(["bun", "run", indexPath, ...args], {
 		cwd,
-		env: {
-			...process.env,
-			FORCE_COLOR: "0",
-		},
+		env: { ...process.env, NO_COLOR: "1", FORCE_COLOR: "0" },
 		stdout: "pipe",
 		stderr: "pipe",
 	})
 
-	const stdout = await new Response(proc.stdout).text()
-	const stderr = await new Response(proc.stderr).text()
+	// Read stdout and stderr in parallel
+	const [stdout, stderr] = await Promise.all([
+		new Response(proc.stdout).text(),
+		new Response(proc.stderr).text(),
+	])
+
 	const exitCode = await proc.exited
 
 	return {
@@ -51,4 +41,27 @@ export async function runCLI(args: string[], cwd: string): Promise<CLIResult> {
 		output: stdout + stderr,
 		exitCode,
 	}
+}
+
+/**
+ * Create a temporary directory for tests.
+ */
+export async function createTempDir(name: string): Promise<string> {
+	const dir = join(import.meta.dir, "fixtures", `tmp-${name}-${Date.now()}`)
+	await mkdir(dir, { recursive: true })
+	return dir
+}
+
+/**
+ * Clean up a temporary directory.
+ */
+export async function cleanupTempDir(dir: string): Promise<void> {
+	await rm(dir, { recursive: true, force: true })
+}
+
+/**
+ * Parse JSONC content (JSON with comments).
+ */
+export function parseJsonc(content: string): unknown {
+	return parse(content)
 }

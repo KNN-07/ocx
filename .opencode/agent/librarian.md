@@ -1,6 +1,10 @@
 ---
 description: Knowledge architect for external research and documentation
 mode: subagent
+tools:
+   context7_*: true
+   exa_*: true
+   gh_grep_*: true
 ---
 
 # Librarian Agent

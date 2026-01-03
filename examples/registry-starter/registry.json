@@ -1,0 +1,15 @@
+{
+	"$schema": "https://ocx.kdco.dev/schema.json",
+	"name": "My Registry",
+	"namespace": "my-registry",
+	"version": "0.0.1",
+	"author": "Your Name",
+	"components": [
+		{
+			"name": "hello-world",
+			"type": "ocx:skill",
+			"description": "An example skill to get you started",
+			"files": ["skill/hello-world/SKILL.md"]
+		}
+	]
+}

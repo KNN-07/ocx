@@ -1,0 +1,45 @@
+name: Examples
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "examples/**"
+      - "packages/cli/**"
+  pull_request:
+    paths:
+      - "examples/**"
+      - "packages/cli/**"
+
+jobs:
+  validate-examples:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build CLI
+        run: bun run build
+        working-directory: packages/cli
+
+      - name: Validate registry-starter example
+        run: |
+          cd examples/registry-starter
+          bun install
+          bunx ocx build . --out dist
+
+      - name: Verify build output
+        run: |
+          cd examples/registry-starter/dist
+          # Check required files exist
+          test -f index.json
+          test -f .well-known/ocx.json
+          test -f skill/hello-world/index.json
+          test -f skill/hello-world/SKILL.md
+          echo "✓ All required files present"
