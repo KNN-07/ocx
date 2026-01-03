@@ -1,11 +1,11 @@
 {
 	"$schema": "https://opencode.ai/config.json",
 	"tools": {
+		"task": false,
 		"context7_*": false,
 		"exa_*": false,
 		"gh_grep_*": false,
-		"webfetch": false,
-		"task": false
+		"webfetch": false
 	},
 	"agent": {
 		"librarian": {

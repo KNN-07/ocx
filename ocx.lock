@@ -4,29 +4,29 @@
     "kdco/background-agents": {
       "registry": "kdco",
       "version": "1.0.0",
-      "hash": "1f82a2819664f7e257fcac2e9ff3bd7112473fadcc8f67fe4c8038dddb142e53",
+      "hash": "e18a5398b3332be8e5e800333124e98cfebad9a4cabd16c23884005cc6d80624",
       "files": [
         ".opencode/plugin/background-agents.ts"
       ],
-      "installedAt": "2026-01-03T02:20:00.542Z"
+      "installedAt": "2026-01-03T13:47:51.215Z"
     },
     "kdco/workspace-plugin": {
       "registry": "kdco",
       "version": "1.0.0",
-      "hash": "68bc46a47095b6e6f94b70f58df390c8299c4372ceb75b5074e92f4c99a8e12c",
+      "hash": "9831fe34848a545be71228b7f69c00cfbb205f4f1f8bcfada75e68d2e4f4c763",
       "files": [
         ".opencode/plugin/workspace-plugin.ts"
       ],
-      "installedAt": "2026-01-03T02:20:00.545Z"
+      "installedAt": "2026-01-03T13:47:51.216Z"
     },
     "kdco/plan-protocol": {
       "registry": "kdco",
       "version": "1.0.0",
-      "hash": "f300dfb2f7b67c76cbe42cc6218f0c6711fd1309906a6c2517abeb449b7b30c1",
+      "hash": "4add2d62bfa7a310084a063f3e9adaa78e6b7c77f660b5c23b9f28aa36a0b164",
       "files": [
         ".opencode/skill/plan-protocol/SKILL.md"
       ],
-      "installedAt": "2026-01-03T02:20:00.545Z"
+      "installedAt": "2026-01-03T13:47:51.216Z"
     },
     "kdco/librarian": {
       "registry": "kdco",
@@ -35,7 +35,7 @@
       "files": [
         ".opencode/agent/librarian.md"
       ],
-      "installedAt": "2026-01-03T02:20:00.546Z"
+      "installedAt": "2026-01-03T13:47:51.216Z"
     },
     "kdco/writer": {
       "registry": "kdco",
@@ -44,7 +44,7 @@
       "files": [
         ".opencode/agent/writer.md"
       ],
-      "installedAt": "2026-01-03T02:20:00.546Z"
+      "installedAt": "2026-01-03T13:47:51.216Z"
     },
     "kdco/notify": {
       "registry": "kdco",
@@ -53,14 +53,14 @@
       "files": [
         ".opencode/plugin/notify.ts"
       ],
-      "installedAt": "2026-01-03T02:20:00.546Z"
+      "installedAt": "2026-01-03T13:47:51.216Z"
     },
     "kdco/workspace": {
       "registry": "kdco",
       "version": "1.0.0",
       "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "files": [],
-      "installedAt": "2026-01-03T02:20:00.546Z"
+      "installedAt": "2026-01-03T13:47:51.216Z"
     }
   }
 }
