@@ -40,6 +40,6 @@ jobs:
           # Check required files exist
           test -f index.json
           test -f .well-known/ocx.json
-          test -f skill/hello-world/index.json
-          test -f skill/hello-world/SKILL.md
+          test -f components/hello-world.json
+          test -f components/hello-world/skill/hello-world/SKILL.md
           echo "✓ All required files present"
