@@ -86,7 +86,12 @@
 			"description": "Background agent execution - run async tasks while you work",
 			"files": ["plugin/background-agents.ts"],
 			"dependencies": [],
-			"npmDevDependencies": ["unique-names-generator@4.7.1"]
+			"npmDevDependencies": ["unique-names-generator@4.7.1"],
+			"opencode": {
+				"tools": {
+					"task": false
+				}
+			}
 		},
 		{
 			"name": "notify",

@@ -4,7 +4,8 @@
 		"context7_*": false,
 		"exa_*": false,
 		"gh_grep_*": false,
-		"webfetch": false
+		"webfetch": false,
+		"task": false
 	},
 	"agent": {
 		"librarian": {
@@ -41,5 +42,7 @@
 			"enabled": true
 		}
 	},
-	"plugin": ["@tarquinen/opencode-dcp@1.1.2"]
+	"plugin": [
+		"@tarquinen/opencode-dcp@1.1.2"
+	]
 }

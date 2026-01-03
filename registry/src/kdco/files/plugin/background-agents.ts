@@ -978,10 +978,6 @@ export const BackgroundAgentsPlugin: Plugin = async (ctx) => {
 	await manager.debugLog("BackgroundAgentsPlugin initialized with delegation system")
 
 	return {
-		// Disable native task tool - delegate replaces it
-		tools: {
-			task: false,
-		},
 		tool: {
 			delegate: createDelegate(manager),
 			delegation_read: createDelegationRead(manager),
