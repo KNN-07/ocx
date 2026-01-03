@@ -2,6 +2,8 @@
 
 OCX registries are collections of components (agents, skills, plugins, commands) distributed as JSON packuments. This guide covers how to build and distribute your own registry.
 
+> **See also:** [Registry Protocol Specification](../docs/REGISTRY_PROTOCOL.md) for the HTTP API that registries must implement.
+
 ## Registry Philosophy
 
 OCX follows the **Cargo + ShadCN model**:
@@ -162,17 +164,41 @@ This command will:
 
 ## Distribution
 
-OCX registries are static JSON files. You can host them on GitHub Pages, Vercel, or any static file host.
+OCX registries are static JSON files. You can host them on GitHub Pages, Vercel, Cloudflare Workers, or any static file host.
 
 Example structure for a hosted registry:
 ```
-https://example.com/registry/
-├── index.json
-├── cool-plugin.json
+https://example.com/
+├── .well-known/ocx.json   # Optional: enables auto-discovery
+├── index.json             # Registry index
+├── components/
+│   ├── cool-plugin.json   # Component packument
+│   └── cool-plugin/
+│       └── plugin.ts      # Raw file content
 └── ...
 ```
 
-Users can then add your registry using:
+### Registry Discovery (Optional)
+
+Add a `/.well-known/ocx.json` endpoint to enable automatic discovery:
+
+```json
+{
+  "version": 1,
+  "registry": "/index.json"
+}
+```
+
+This allows users to register using just the domain:
+```bash
+ocx registry add https://example.com --name my
+```
+
+Without discovery, users must specify the full index URL.
+
+### Adding and Using Registries
+
+Users can add your registry using:
 ```bash
 ocx registry add https://example.com/registry --name my
 ```

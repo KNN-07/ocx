@@ -177,6 +177,17 @@ app.get("/", (c) => {
 })
 
 /**
+ * GET /.well-known/ocx.json - Registry discovery endpoint
+ * Enables automatic registry discovery from a domain URL
+ */
+app.get("/.well-known/ocx.json", (c) => {
+	return c.json({
+		version: 1,
+		registry: "/index.json",
+	})
+})
+
+/**
  * GET /index.json - Registry index with component summaries
  * Returns: { name, namespace, version, author, components: [{name, type, description}] }
  */
