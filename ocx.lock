@@ -4,63 +4,11 @@
     "kdco/background-agents": {
       "registry": "kdco",
       "version": "1.0.0",
-      "hash": "e18a5398b3332be8e5e800333124e98cfebad9a4cabd16c23884005cc6d80624",
+      "hash": "d9a5ff61868da2ebf8f92b022224e18024bb759e15223c3d5f5573b6f477b7b7",
       "files": [
         ".opencode/plugin/background-agents.ts"
       ],
-      "installedAt": "2026-01-03T16:00:51.131Z"
-    },
-    "kdco/workspace-plugin": {
-      "registry": "kdco",
-      "version": "1.0.0",
-      "hash": "b5a27cd767413d37e4d56ac3873f6e63a3ab634c99b15882287092b152c1a11a",
-      "files": [
-        ".opencode/plugin/workspace-plugin.ts"
-      ],
-      "installedAt": "2026-01-03T16:00:51.131Z"
-    },
-    "kdco/plan-protocol": {
-      "registry": "kdco",
-      "version": "1.0.0",
-      "hash": "4add2d62bfa7a310084a063f3e9adaa78e6b7c77f660b5c23b9f28aa36a0b164",
-      "files": [
-        ".opencode/skill/plan-protocol/SKILL.md"
-      ],
-      "installedAt": "2026-01-03T16:00:51.132Z"
-    },
-    "kdco/librarian": {
-      "registry": "kdco",
-      "version": "1.0.0",
-      "hash": "0d916c278a7784163843b823e18f43815dacb71c108c08a992ee84bd6235fa3a",
-      "files": [
-        ".opencode/agent/librarian.md"
-      ],
-      "installedAt": "2026-01-03T16:00:51.132Z"
-    },
-    "kdco/writer": {
-      "registry": "kdco",
-      "version": "1.0.0",
-      "hash": "550ef872a2fb7bc08fee0b0b369463dade59baa16b85290b65212d7ccd841991",
-      "files": [
-        ".opencode/agent/writer.md"
-      ],
-      "installedAt": "2026-01-03T16:00:51.132Z"
-    },
-    "kdco/notify": {
-      "registry": "kdco",
-      "version": "1.0.0",
-      "hash": "b852a3a1759e6595f80fbb9e94a3582f658d1f9872612f111485e74bfddf9239",
-      "files": [
-        ".opencode/plugin/notify.ts"
-      ],
-      "installedAt": "2026-01-03T16:00:51.132Z"
-    },
-    "kdco/workspace": {
-      "registry": "kdco",
-      "version": "1.0.0",
-      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "files": [],
-      "installedAt": "2026-01-03T16:00:51.132Z"
+      "installedAt": "2026-01-03T21:52:14.172Z"
     }
   }
 }
