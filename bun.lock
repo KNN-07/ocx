@@ -13,7 +13,7 @@
     },
     "packages/cli": {
       "name": "ocx",
-      "version": "1.0.11",
+      "version": "1.0.12",
       "bin": {
         "ocx": "./dist/index.js",
       },
@@ -23,7 +23,6 @@
         "fuzzysort": "^3.1.0",
         "jsonc-parser": "3.3.1",
         "kleur": "^4.1.5",
-        "ocx-schemas": "workspace:*",
         "ora": "^8.2.0",
         "remeda": "^2.33.0",
         "zod": "^3.24.0",
@@ -31,16 +30,6 @@
       "devDependencies": {
         "@types/bun": "latest",
         "@types/diff": "^8.0.0",
-      },
-    },
-    "packages/schemas": {
-      "name": "ocx-schemas",
-      "version": "1.0.11",
-      "dependencies": {
-        "zod": "^3.25.67",
-      },
-      "peerDependencies": {
-        "zod": "^3.0.0",
       },
     },
     "workers/kdco-registry": {
@@ -279,8 +268,6 @@
     "miniflare": ["miniflare@4.20251210.0", "", { "dependencies": { "@cspotcode/source-map-support": "0.8.1", "acorn": "8.14.0", "acorn-walk": "8.3.2", "exit-hook": "2.2.1", "glob-to-regexp": "0.4.1", "sharp": "^0.33.5", "stoppable": "1.1.0", "undici": "7.14.0", "workerd": "1.20251210.0", "ws": "8.18.0", "youch": "4.1.0-beta.10", "zod": "3.22.3" }, "bin": { "miniflare": "bootstrap.js" } }, "sha512-k6kIoXwGVqlPZb0hcn+X7BmnK+8BjIIkusQPY22kCo2RaQJ/LzAjtxHQdGXerlHSnJyQivDQsL6BJHMpQfUFyw=="],
 
     "ocx": ["ocx@workspace:packages/cli"],
-
-    "ocx-schemas": ["ocx-schemas@workspace:packages/schemas"],
 
     "ocx-worker": ["ocx-worker@workspace:workers/ocx"],
 

@@ -2,7 +2,7 @@
 	"name": "kdco-registry",
 	"private": true,
 	"scripts": {
-		"build": "ocx build . --out dist",
+		"build": "bun scripts/build.ts",
 		"deploy": "bun run build && wrangler deploy"
 	},
 	"devDependencies": {

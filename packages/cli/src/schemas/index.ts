@@ -1,11 +1,71 @@
 /**
  * Schemas Barrel Export
  *
- * Re-exports from ocx-schemas plus Bun-specific I/O helpers.
+ * Exports all schemas and Bun-specific I/O helpers.
  */
 
-// Re-export everything from ocx-schemas
-export * from "ocx-schemas"
+// Config & lockfile schemas + I/O helpers
+export {
+	type InstalledComponent,
+	installedComponentSchema,
+	type OcxConfig,
+	type OcxLock,
+	ocxConfigSchema,
+	ocxLockSchema,
+	// Types
+	type RegistryConfig,
+	// I/O helpers
+	readOcxConfig,
+	readOcxLock,
+	// Schemas
+	registryConfigSchema,
+	writeOcxConfig,
+	writeOcxLock,
+} from "./config.js"
 
-// Re-export Bun-specific I/O helpers
-export { readOcxConfig, readOcxLock, writeOcxConfig, writeOcxLock } from "./config.js"
+// Registry & component schemas
+export {
+	type AgentConfig,
+	agentConfigSchema,
+	type ComponentFile,
+	type ComponentFileObject,
+	type ComponentManifest,
+	// Types
+	type ComponentType,
+	componentFileObjectSchema,
+	componentFileSchema,
+	componentManifestSchema,
+	// Component schemas
+	componentTypeSchema,
+	createQualifiedComponent,
+	dependencyRefSchema,
+	// Normalizer functions
+	inferTargetPath,
+	type McpServer,
+	type McpServerRef,
+	mcpServerObjectSchema,
+	mcpServerRefSchema,
+	type NormalizedComponentManifest,
+	type NormalizedOpencodeConfig,
+	namespaceSchema,
+	normalizeComponentManifest,
+	normalizeFile,
+	normalizeMcpServer,
+	type OpencodeConfig,
+	// Name schemas
+	openCodeNameSchema,
+	opencodeConfigSchema,
+	type Packument,
+	type PermissionConfig,
+	packumentSchema,
+	// Helper functions
+	parseQualifiedComponent,
+	permissionConfigSchema,
+	qualifiedComponentSchema,
+	type Registry,
+	type RegistryIndex,
+	registryIndexSchema,
+	// Registry schemas
+	registrySchema,
+	targetPathSchema,
+} from "./registry.js"

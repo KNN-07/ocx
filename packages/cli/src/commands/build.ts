@@ -1,14 +1,13 @@
 /**
  * Build Command (for Registry Authors)
  *
- * Validate and build a registry from source.
+ * CLI wrapper around the buildRegistry library function.
  */
 
-import { mkdir } from "node:fs/promises"
-import { dirname, join, relative } from "node:path"
+import { join, relative } from "node:path"
 import type { Command } from "commander"
 import kleur from "kleur"
-import { normalizeFile, registrySchema } from "../schemas/registry.js"
+import { BuildRegistryError, buildRegistry } from "../lib/build-registry.js"
 import { createSpinner, handleError, logger, outputJson } from "../utils/index.js"
 
 interface BuildOptions {
@@ -38,108 +37,16 @@ export function registerBuildCommand(program: Command): void {
 				})
 				if (!options.json) spinner.start()
 
-				// Read registry.json from source
-				const registryFile = Bun.file(join(sourcePath, "registry.json"))
-				if (!(await registryFile.exists())) {
-					if (!options.json) spinner.fail("No registry.json found in source directory")
-					process.exit(1)
-				}
-
-				const registryData = await registryFile.json()
-
-				// Validate registry schema
-				const parseResult = registrySchema.safeParse(registryData)
-				if (!parseResult.success) {
-					if (!options.json) {
-						spinner.fail("Registry validation failed")
-						const errors = parseResult.error.errors.map(
-							(e) => `  ${e.path.join(".")}: ${e.message}`,
-						)
-						for (const err of errors) {
-							console.log(kleur.red(err))
-						}
-					}
-					process.exit(1)
-				}
-
-				const registry = parseResult.data
-				const validationErrors: string[] = []
-
-				// Create output directory structure
-				const componentsDir = join(outPath, "components")
-				await mkdir(componentsDir, { recursive: true })
-
-				// Generate packument and copy files for each component
-				for (const component of registry.components) {
-					const packument = {
-						name: component.name,
-						versions: {
-							[registry.version]: component,
-						},
-						"dist-tags": {
-							latest: registry.version,
-						},
-					}
-
-					// Write manifest to components/[name].json
-					const packumentPath = join(componentsDir, `${component.name}.json`)
-					await Bun.write(packumentPath, JSON.stringify(packument, null, 2))
-
-					// Copy files to components/[name]/[path]
-					for (const rawFile of component.files) {
-						const file = normalizeFile(rawFile)
-						const sourceFilePath = join(sourcePath, "files", file.path)
-						const destFilePath = join(componentsDir, component.name, file.path)
-						const destFileDir = dirname(destFilePath)
-
-						if (!(await Bun.file(sourceFilePath).exists())) {
-							validationErrors.push(`${component.name}: Source file not found at ${sourceFilePath}`)
-							continue
-						}
-
-						await mkdir(destFileDir, { recursive: true })
-						const sourceFile = Bun.file(sourceFilePath)
-						await Bun.write(destFilePath, sourceFile)
-					}
-				}
-
-				// Fail fast if source files were missing during copy
-				if (validationErrors.length > 0) {
-					if (!options.json) {
-						spinner.fail(`Build failed with ${validationErrors.length} errors`)
-						for (const err of validationErrors) {
-							console.log(kleur.red(`  ${err}`))
-						}
-					}
-					process.exit(1)
-				}
-
-				// Generate index.json at the root
-				const index = {
-					name: registry.name,
-					namespace: registry.namespace,
-					version: registry.version,
-					author: registry.author,
-					components: registry.components.map((c) => ({
-						name: c.name,
-						type: c.type,
-						description: c.description,
-					})),
-				}
-
-				await Bun.write(join(outPath, "index.json"), JSON.stringify(index, null, 2))
-
-				// Generate .well-known/ocx.json for registry discovery
-				const wellKnownDir = join(outPath, ".well-known")
-				await mkdir(wellKnownDir, { recursive: true })
-				const discovery = { registry: "/index.json" }
-				await Bun.write(join(wellKnownDir, "ocx.json"), JSON.stringify(discovery, null, 2))
+				const result = await buildRegistry({
+					source: sourcePath,
+					out: outPath,
+				})
 
 				if (!options.json) {
-					const msg = `Built ${registry.components.length} components to ${relative(options.cwd, outPath)}`
+					const msg = `Built ${result.componentsCount} components to ${relative(options.cwd, outPath)}`
 					spinner.succeed(msg)
 					if (process.env.NODE_ENV === "test" || !process.stdout.isTTY) {
-						logger.success(`Built ${registry.components.length} components`)
+						logger.success(`Built ${result.componentsCount} components`)
 					}
 				}
 
@@ -147,14 +54,23 @@ export function registerBuildCommand(program: Command): void {
 					outputJson({
 						success: true,
 						data: {
-							name: registry.name,
-							version: registry.version,
-							components: registry.components.length,
-							output: outPath,
+							name: result.name,
+							version: result.version,
+							components: result.componentsCount,
+							output: result.outputPath,
 						},
 					})
 				}
 			} catch (error) {
+				if (error instanceof BuildRegistryError) {
+					if (!options.json) {
+						logger.error(error.message)
+						for (const err of error.errors) {
+							console.log(kleur.red(`  ${err}`))
+						}
+					}
+					process.exit(1)
+				}
 				handleError(error, { json: options.json })
 			}
 		})

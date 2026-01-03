@@ -37,6 +37,28 @@ async function main() {
 	await program.parseAsync(process.argv)
 }
 
-main().catch((err) => {
-	handleError(err)
-})
+// Only run CLI when executed directly, not when imported as a library
+if (import.meta.main) {
+	main().catch((err) => {
+		handleError(err)
+	})
+}
+
+// Library exports - for programmatic use
+export { type BuildRegistryOptions, type BuildRegistryResult, buildRegistry } from "./lib/index.js"
+
+// Schema exports - for validation
+export {
+	type ComponentManifest,
+	componentManifestSchema,
+	type OcxConfig,
+	type OcxLock,
+	// Config schemas
+	ocxConfigSchema,
+	ocxLockSchema,
+	type Packument,
+	packumentSchema,
+	type Registry,
+	// Registry schemas
+	registrySchema,
+} from "./schemas/index.js"

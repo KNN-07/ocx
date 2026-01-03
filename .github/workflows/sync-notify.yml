@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'registry/src/kdco/files/plugin/notify.ts'
+      - 'workers/kdco-registry/files/plugin/notify.ts'
 
 jobs:
   sync:
@@ -28,7 +28,7 @@ jobs:
         run: |
           # Sync plugin file (rsync for consistency with other sync workflows)
           rsync -av \
-            ocx/registry/src/kdco/files/plugin/notify.ts \
+            ocx/workers/kdco-registry/files/plugin/notify.ts \
             notify/src/notify.ts
 
       - name: Commit and Push
