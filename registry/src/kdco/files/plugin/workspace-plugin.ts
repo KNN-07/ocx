@@ -50,43 +50,48 @@ const PlanSchema = z.object({
 	phases: z.array(PhaseSchema).min(1, "Plan must have at least one phase"),
 })
 
-type ValidationLevel = "ERROR" | "WARNING"
+/**
+ * Result type for plan parsing - either valid data or descriptive error.
+ * Follows Law 2: Parse Don't Validate - boundary parsing returns trusted types.
+ */
+type ParseResult =
+	| { ok: true; data: z.infer<typeof PlanSchema>; warnings: string[] }
+	| { ok: false; error: string; hint: string }
 
-interface ValidationIssue {
-	level: ValidationLevel
-	path: string
-	message: string
-}
-
-interface ValidationReport {
-	valid: boolean
-	issues: ValidationIssue[]
-	summary: { errors: number; warnings: number }
-}
-
-const VALIDATION_MESSAGES = {
-	FRONTMATTER_MISSING:
-		"Plan must have YAML frontmatter. Expected format:\n```\n---\nstatus: in-progress\nphase: 2\nupdated: 2026-01-02\n---\n```",
-	GOAL_MISSING:
-		"Plan must have a ## Goal section. Add after frontmatter:\n```\n## Goal\nOne sentence describing the desired outcome\n```",
-	MULTIPLE_CURRENT:
-		"Only one task may be marked CURRENT. Remove ← CURRENT marker from all but the active task.",
-	PHASE_EMPTY: "Phase must have at least one task.",
-	TASK_ID_FORMAT: "Task ID must be hierarchical (phase.task). Example: '2.1' for Phase 2, Task 1.",
+/**
+ * Raw extracted parts from markdown (no validation).
+ * Used as intermediate type before Zod validation.
+ */
+interface ExtractedParts {
+	frontmatter: Record<string, string | number> | null
+	goal: string | null
+	phases: Array<{
+		number: number
+		name: string
+		status: string
+		tasks: Array<{
+			id: string
+			checked: boolean
+			content: string
+			isCurrent: boolean
+			citation?: string
+		}>
+	}>
 }
 
 /**
- * Parse markdown plan into structured data.
- * Returns null if parsing fails.
+ * Extract all parts from markdown without validation (Law 2: Parse Don't Validate).
+ * Returns raw extracted data - validation happens in parsePlanMarkdown.
+ * This is a pure extraction function (Law 3: Purity).
  */
-function parsePlanMarkdown(content: string): z.infer<typeof PlanSchema> | null {
-	try {
-		// Extract frontmatter
-		const fmMatch = content.match(/^---\n([\s\S]*?)\n---/)
-		if (!fmMatch) return null
+function extractMarkdownParts(content: string): ExtractedParts {
+	// Extract frontmatter (no validation - just extraction)
+	const fmMatch = content.match(/^---\n([\s\S]*?)\n---/)
+	let frontmatter: Record<string, string | number> | null = null
 
+	if (fmMatch) {
+		frontmatter = {}
 		const fmLines = fmMatch[1].split("\n")
-		const frontmatter: Record<string, string | number> = {}
 		for (const line of fmLines) {
 			const [key, ...valueParts] = line.split(":")
 			if (key && valueParts.length > 0) {
@@ -94,129 +99,157 @@ function parsePlanMarkdown(content: string): z.infer<typeof PlanSchema> | null {
 				frontmatter[key.trim()] = key.trim() === "phase" ? parseInt(value, 10) : value
 			}
 		}
+	}
 
-		// Extract goal
-		const goalMatch = content.match(/## Goal\n([^\n#]+)/)
-		const goal = goalMatch?.[1]?.trim() || ""
+	// Extract goal (no validation - just extraction)
+	const goalMatch = content.match(/## Goal\n([^\n#]+)/)
+	const goal = goalMatch?.[1]?.trim() || null
 
-		// Extract phases
-		const phases: z.infer<typeof PhaseSchema>[] = []
-		const phaseRegex =
-			/## Phase (\d+): ([^\[]+)\[([^\]]+)\]\n([\s\S]*?)(?=## Phase \d+:|## Notes|## Blockers|$)/g
+	// Extract phases (no validation - just extraction)
+	const phases: ExtractedParts["phases"] = []
+	const phaseRegex =
+		/## Phase (\d+): ([^\[]+)\[([^\]]+)\]\n([\s\S]*?)(?=## Phase \d+:|## Notes|## Blockers|$)/g
 
-		let phaseMatch = phaseRegex.exec(content)
-		while (phaseMatch !== null) {
-			const phaseNum = parseInt(phaseMatch[1], 10)
-			const phaseName = phaseMatch[2].trim()
-			const phaseStatus = phaseMatch[3].trim() as z.infer<typeof PhaseStatus>
-			const phaseContent = phaseMatch[4]
+	let phaseMatch = phaseRegex.exec(content)
+	while (phaseMatch !== null) {
+		const phaseNum = parseInt(phaseMatch[1], 10)
+		const phaseName = phaseMatch[2].trim()
+		const phaseStatus = phaseMatch[3].trim()
+		const phaseContent = phaseMatch[4]
 
-			const tasks: z.infer<typeof TaskSchema>[] = []
-			const taskRegex =
-				/- \[([ x])\] (\*\*)?(\d+\.\d+) ([^←\n]+)(← CURRENT)?.*?(`ref:[a-z]+-[a-z]+-[a-z]+`)?/g
+		const tasks: ExtractedParts["phases"][0]["tasks"] = []
+		const taskRegex =
+			/- \[([ x])\] (\*\*)?(\d+\.\d+) ([^←\n]+)(← CURRENT)?.*?(`ref:[a-z]+-[a-z]+-[a-z]+`)?/g
 
-			let taskMatch = taskRegex.exec(phaseContent)
-			while (taskMatch !== null) {
-				tasks.push({
-					id: taskMatch[3],
-					checked: taskMatch[1] === "x",
-					content: taskMatch[4].trim().replace(/\*\*/g, ""),
-					isCurrent: !!taskMatch[5],
-					citation: taskMatch[6]?.replace(/`/g, ""),
-				})
-				taskMatch = taskRegex.exec(phaseContent)
-			}
-
-			if (tasks.length > 0) {
-				phases.push({
-					number: phaseNum,
-					name: phaseName,
-					status: phaseStatus,
-					tasks,
-				})
-			}
-			phaseMatch = phaseRegex.exec(content)
+		let taskMatch = taskRegex.exec(phaseContent)
+		while (taskMatch !== null) {
+			tasks.push({
+				id: taskMatch[3],
+				checked: taskMatch[1] === "x",
+				content: taskMatch[4].trim().replace(/\*\*/g, ""),
+				isCurrent: !!taskMatch[5],
+				citation: taskMatch[6]?.replace(/`/g, ""),
+			})
+			taskMatch = taskRegex.exec(phaseContent)
 		}
 
+		// Include phase even if no tasks (let Zod validate)
+		phases.push({
+			number: phaseNum,
+			name: phaseName,
+			status: phaseStatus,
+			tasks,
+		})
+		phaseMatch = phaseRegex.exec(content)
+	}
+
+	return { frontmatter, goal, phases }
+}
+
+/**
+ * Format Zod validation errors into human-readable messages (Law 4: Fail Loud).
+ * Shows ALL errors at once with clear paths.
+ */
+function formatZodErrors(error: z.ZodError): string {
+	const errorMessages: string[] = []
+
+	for (const issue of error.issues) {
+		const path = issue.path.length > 0 ? `[${issue.path.join(".")}]` : "[root]"
+
+		// Provide helpful context based on error type
+		let message = issue.message
+		if (issue.code === "invalid_enum_value" && "options" in issue) {
+			message = `Invalid value. Expected: ${(issue.options as string[]).join(" | ")}`
+		} else if (issue.code === "invalid_type" && issue.received === "null") {
+			message = "Required field missing"
+		}
+
+		errorMessages.push(`${path}: ${message}`)
+	}
+
+	return errorMessages.join("\n")
+}
+
+/**
+ * Parse and validate markdown plan in a single boundary operation.
+ * Returns ParseResult: either trusted data or descriptive error with hint.
+ *
+ * Follows all 5 Laws:
+ * - Law 1 (Early Exit): Guard at top for empty content
+ * - Law 2 (Parse Don't Validate): Extract all → validate once at end
+ * - Law 3 (Purity): No side effects, same input = same output
+ * - Law 4 (Fail Loud): Shows ALL validation errors with clear paths
+ * - Law 5 (Intentional Naming): Self-documenting function names
+ */
+function parsePlanMarkdown(content: string): ParseResult {
+	const skillHint = "Load skill('plan-protocol') for the full format spec."
+
+	// Guard: Empty content (Law 1: Early Exit)
+	if (!content.trim()) {
 		return {
-			frontmatter: frontmatter as z.infer<typeof FrontmatterSchema>,
-			goal,
-			phases,
+			ok: false,
+			error: "Empty content provided",
+			hint: skillHint,
 		}
-	} catch {
-		return null
 	}
-}
 
-/**
- * Validate parsed plan against schema and business rules.
- */
-function validatePlan(parsed: unknown): ValidationReport {
-	const issues: ValidationIssue[] = []
+	// Extract all parts without validation (Law 2: Parse Don't Validate)
+	const parts = extractMarkdownParts(content)
 
-	// Tier 1: Schema validation (ERRORs)
-	const result = PlanSchema.safeParse(parsed)
+	// Build candidate object for validation
+	const candidate = {
+		frontmatter: parts.frontmatter,
+		goal: parts.goal,
+		phases: parts.phases,
+	}
+
+	// Single validation point: Zod schema (Law 2: Parse Don't Validate)
+	const result = PlanSchema.safeParse(candidate)
 	if (!result.success) {
-		for (const error of result.error.errors) {
-			issues.push({
-				level: "ERROR",
-				path: error.path.join("."),
-				message: error.message,
-			})
+		return {
+			ok: false,
+			error: formatZodErrors(result.error),
+			hint: skillHint,
 		}
 	}
 
-	// Tier 2: Business rules (WARNINGs)
-	if (result.success) {
-		const plan = result.data
-		let currentCount = 0
-		let inProgressCount = 0
+	// Business rules validation (still part of single boundary)
+	const warnings: string[] = []
+	let currentCount = 0
+	let inProgressCount = 0
 
-		for (const phase of plan.phases) {
-			if (phase.status === "IN PROGRESS") inProgressCount++
-			for (const task of phase.tasks) {
-				if (task.isCurrent) currentCount++
-			}
-		}
-
-		if (currentCount > 1) {
-			issues.push({
-				level: "ERROR",
-				path: "phases.*.tasks.*.isCurrent",
-				message: VALIDATION_MESSAGES.MULTIPLE_CURRENT,
-			})
-		}
-
-		if (inProgressCount > 1) {
-			issues.push({
-				level: "WARNING",
-				path: "phases.*.status",
-				message: "Multiple phases marked IN PROGRESS. Consider focusing on one phase at a time.",
-			})
+	for (const phase of result.data.phases) {
+		if (phase.status === "IN PROGRESS") inProgressCount++
+		for (const task of phase.tasks) {
+			if (task.isCurrent) currentCount++
 		}
 	}
 
-	return {
-		valid: issues.filter((i) => i.level === "ERROR").length === 0,
-		issues,
-		summary: {
-			errors: issues.filter((i) => i.level === "ERROR").length,
-			warnings: issues.filter((i) => i.level === "WARNING").length,
-		},
+	if (currentCount > 1) {
+		return {
+			ok: false,
+			error: `Multiple tasks marked ← CURRENT (found ${currentCount}). Only one task may be current.`,
+			hint: skillHint,
+		}
 	}
+
+	if (inProgressCount > 1) {
+		warnings.push("Multiple phases marked IN PROGRESS. Consider focusing on one phase at a time.")
+	}
+
+	return { ok: true, data: result.data, warnings }
 }
 
 /**
- * Format validation errors for AI self-correction.
+ * Format parse error with actionable guidance (Law 4: Fail Loud).
+ * Includes error message, example, and skill hint.
  */
-function formatValidationErrors(report: ValidationReport): string {
-	const lines = ["❌ Plan validation failed:", ""]
-	for (const issue of report.issues) {
-		const prefix = issue.level === "ERROR" ? "ERROR" : "WARNING"
-		lines.push(`${prefix} [${issue.path}]: ${issue.message}`)
-	}
-	lines.push("", "Fix the errors above and try again.")
-	return lines.join("\n")
+function formatParseError(error: string, hint: string): string {
+	return `❌ Plan validation failed:
+
+${error}
+
+💡 ${hint}`
 }
 
 /**
@@ -282,6 +315,7 @@ Wrong: Use grep/glob directly
 
 <philosophy>
 Load relevant skills before finalizing plan:
+- Planning work → \`skill\` load \`plan-protocol\` (REQUIRED before using plan_save)
 - Backend/logic work → \`skill\` load \`code-philosophy\`
 - UI/frontend work → \`skill\` load \`frontend-philosophy\`
 </philosophy>
@@ -321,6 +355,7 @@ updated: YYYY-MM-DD
 1. **One CURRENT task** - Only one task may have ← CURRENT
 2. **Cite decisions** - Use \`ref:delegation-id\` for research-informed choices
 3. **Update immediately** - Mark tasks complete right after finishing
+4. **Auto-save after approval** - When user approves your plan, immediately call \`plan_save\`. Do NOT wait for user to remind you or switch modes.
 </plan-format>
 </system-reminder>`
 
@@ -408,32 +443,40 @@ export const WorkspacePlugin: Plugin = async (ctx) => {
 					content: tool.schema.string().describe("The full plan in markdown format"),
 				},
 				async execute(args, toolCtx) {
-					if (!toolCtx?.sessionID) throw new Error("plan_save requires sessionID")
+					// Guard 1: Session required (Law 1: Early Exit)
+					if (!toolCtx?.sessionID) {
+						return "❌ plan_save requires sessionID. This is a system error."
+					}
+
 					const rootID = await getRootSessionID(toolCtx.sessionID)
 					const sessionDir = path.join(baseDir, rootID)
 					await fs.mkdir(sessionDir, { recursive: true })
 
-					// Parse and validate
-					const parsed = parsePlanMarkdown(args.content)
-					if (!parsed) {
-						return `❌ Failed to parse plan markdown.\n\n${VALIDATION_MESSAGES.FRONTMATTER_MISSING}`
+					// Guard 2: Parse and validate at boundary (Law 2: Parse Don't Validate)
+					const result = parsePlanMarkdown(args.content)
+					if (!result.ok) {
+						return formatParseError(result.error, result.hint)
 					}
 
-					const report = validatePlan(parsed)
-					if (!report.valid) {
-						return formatValidationErrors(report)
-					}
-
+					// Happy path: save
 					await fs.writeFile(path.join(sessionDir, "plan.md"), args.content, "utf8")
-					return `Plan saved. (${report.summary.warnings} warnings)`
+					const warningCount = result.warnings?.length ?? 0
+					return `Plan saved.${warningCount > 0 ? ` (${warningCount} warnings: ${result.warnings?.join(", ")})` : ""}`
 				},
 			}),
 
 			plan_read: tool({
 				description: "Read the current implementation plan for this session.",
-				args: {},
+				args: {
+					reason: tool.schema
+						.string()
+						.describe("Brief explanation of why you are calling this tool"),
+				},
 				async execute(_args, toolCtx) {
-					if (!toolCtx?.sessionID) throw new Error("plan_read requires sessionID")
+					// Guard: Session required (Law 1: Early Exit)
+					if (!toolCtx?.sessionID) {
+						return "❌ plan_read requires sessionID. This is a system error."
+					}
 					const rootID = await getRootSessionID(toolCtx.sessionID)
 					const planPath = path.join(baseDir, rootID, "plan.md")
 					try {
