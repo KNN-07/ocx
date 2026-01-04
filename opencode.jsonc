@@ -12,16 +12,26 @@
 			"tools": {
 				"context7_*": true,
 				"exa_*": true,
-				"gh_grep_*": true
+				"gh_grep_*": true,
+				"write": false,
+				"edit": false,
+				"bash": false
 			}
 		},
 		"writer": {
 			"tools": {
-				"bash": true,
+				"bash": false,
 				"edit": true,
 				"glob": true,
 				"read": true,
 				"write": true
+			}
+		},
+		"explore": {
+			"tools": {
+				"write": false,
+				"edit": false,
+				"bash": false
 			}
 		}
 	},

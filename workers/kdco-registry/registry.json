@@ -54,7 +54,10 @@
 						"tools": {
 							"context7_*": true,
 							"exa_*": true,
-							"gh_grep_*": true
+							"gh_grep_*": true,
+							"write": false,
+							"edit": false,
+							"bash": false
 						}
 					}
 				}
@@ -70,7 +73,7 @@
 				"agent": {
 					"writer": {
 						"tools": {
-							"bash": true,
+							"bash": false,
 							"edit": true,
 							"glob": true,
 							"read": true,
@@ -111,6 +114,15 @@
 				"plugin": ["@tarquinen/opencode-dcp@1.1.2"],
 				"tools": {
 					"webfetch": false
+				},
+				"agent": {
+					"explore": {
+						"tools": {
+							"write": false,
+							"edit": false,
+							"bash": false
+						}
+					}
 				}
 			}
 		},

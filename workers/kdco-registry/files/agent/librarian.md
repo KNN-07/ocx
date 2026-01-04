@@ -65,6 +65,7 @@ This follows the "Completed Staff Work" doctrine: your response should be so com
 
 - NEVER write files or create directories
 - NEVER use Write, Edit, or file creation tools
+- NEVER use Bash to execute commands
 - NEVER save research manually - the delegation system handles persistence
 - NEVER return summaries without code - include full implementation details
 - NEVER omit citations - every finding needs a source
