@@ -42,12 +42,21 @@
 				"mcp": {
 					"context7": "https://mcp.context7.com/mcp",
 					"exa": "https://mcp.exa.ai/mcp",
-					"gh_grep": "https://mcp.grep.app"
+					"gh_grep": "https://mcp.grep.app",
+					"kagi": {
+						"type": "local",
+						"command": ["npx", "-y", "github:czottmann/kagi-ken-mcp"],
+						"environment": {
+							"KAGI_SESSION_TOKEN": "{file:~/.secrets/kagi-session-token}"
+						},
+						"enabled": false
+					}
 				},
 				"tools": {
 					"context7_*": false,
 					"exa_*": false,
-					"gh_grep_*": false
+					"gh_grep_*": false,
+					"kagi_*": false
 				},
 				"agent": {
 					"researcher": {
@@ -55,6 +64,7 @@
 							"context7_*": true,
 							"exa_*": true,
 							"gh_grep_*": true,
+							"kagi_*": false,
 							"write": false,
 							"edit": false,
 							"bash": false

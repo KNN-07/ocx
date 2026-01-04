@@ -5,27 +5,16 @@
 		"context7_*": false,
 		"exa_*": false,
 		"gh_grep_*": false,
+		"kagi_*": false,
 		"webfetch": false
 	},
 	"agent": {
-		"coder": {
-			"tools": {
-				"context7_*": false,
-				"exa_*": false,
-				"gh_grep_*": false,
-				"read": true,
-				"write": true,
-				"edit": true,
-				"glob": true,
-				"grep": true,
-				"bash": true
-			}
-		},
 		"researcher": {
 			"tools": {
 				"context7_*": true,
-				"exa_*": true,
+				"exa_*": false,
 				"gh_grep_*": true,
+				"kagi_*": true,
 				"write": false,
 				"edit": false,
 				"bash": false
@@ -38,6 +27,19 @@
 				"glob": true,
 				"read": true,
 				"write": true
+			}
+		},
+		"coder": {
+			"tools": {
+				"context7_*": false,
+				"exa_*": false,
+				"gh_grep_*": false,
+				"read": true,
+				"write": true,
+				"edit": true,
+				"glob": true,
+				"grep": true,
+				"bash": true
 			}
 		},
 		"plan": {
@@ -74,15 +76,21 @@
 		"exa": {
 			"type": "remote",
 			"url": "https://mcp.exa.ai/mcp",
-			"enabled": true
+			"enabled": false
 		},
 		"gh_grep": {
 			"type": "remote",
 			"url": "https://mcp.grep.app",
 			"enabled": true
+		},
+		"kagi": {
+			"type": "local",
+			"command": ["npx", "-y", "github:czottmann/kagi-ken-mcp"],
+			"environment": {
+				"KAGI_SESSION_TOKEN": "{file:~/.secrets/kagi-session-token}"
+			},
+			"enabled": true
 		}
 	},
-	"plugin": [
-		"@tarquinen/opencode-dcp@1.1.2"
-	]
+	"plugin": ["@tarquinen/opencode-dcp@1.1.2"]
 }
