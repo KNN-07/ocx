@@ -84,6 +84,30 @@
 			}
 		},
 		{
+			"name": "coder",
+			"type": "ocx:agent",
+			"description": "Technical implementation specialist for writing and modifying code",
+			"files": ["agent/coder.md"],
+			"dependencies": ["background-agents"],
+			"opencode": {
+				"agent": {
+					"coder": {
+						"tools": {
+							"context7_*": false,
+							"exa_*": false,
+							"gh_grep_*": false,
+							"read": true,
+							"write": true,
+							"edit": true,
+							"glob": true,
+							"grep": true,
+							"bash": true
+						}
+					}
+				}
+			}
+		},
+		{
 			"name": "background-agents",
 			"type": "ocx:plugin",
 			"description": "Background agent execution - run async tasks while you work",
@@ -109,7 +133,14 @@
 			"type": "ocx:bundle",
 			"description": "Full KDCO Workspace experience",
 			"files": [],
-			"dependencies": ["workspace-plugin", "plan-protocol", "researcher", "scribe", "notify"],
+			"dependencies": [
+				"workspace-plugin",
+				"plan-protocol",
+				"researcher",
+				"scribe",
+				"coder",
+				"notify"
+			],
 			"opencode": {
 				"plugin": ["@tarquinen/opencode-dcp@1.1.2"],
 				"tools": {
