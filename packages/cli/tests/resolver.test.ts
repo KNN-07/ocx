@@ -9,8 +9,8 @@ import { parseComponentRef } from "../src/registry/resolver"
 describe("resolver", () => {
 	describe("parseComponentRef", () => {
 		it("should parse qualified component reference with namespace", () => {
-			const result = parseComponentRef("kdco/librarian")
-			expect(result).toEqual({ namespace: "kdco", component: "librarian" })
+			const result = parseComponentRef("kdco/researcher")
+			expect(result).toEqual({ namespace: "kdco", component: "researcher" })
 		})
 
 		it("should parse qualified reference with hyphenated names", () => {
@@ -19,13 +19,13 @@ describe("resolver", () => {
 		})
 
 		it("should use default namespace for bare component name", () => {
-			const result = parseComponentRef("librarian", "kdco")
-			expect(result).toEqual({ namespace: "kdco", component: "librarian" })
+			const result = parseComponentRef("researcher", "kdco")
+			expect(result).toEqual({ namespace: "kdco", component: "researcher" })
 		})
 
 		it("should throw ValidationError for bare name without default namespace", () => {
-			expect(() => parseComponentRef("librarian")).toThrow(
-				"Component 'librarian' must include a namespace",
+			expect(() => parseComponentRef("researcher")).toThrow(
+				"Component 'researcher' must include a namespace",
 			)
 		})
 

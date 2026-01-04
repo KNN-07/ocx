@@ -8,7 +8,7 @@
 		"webfetch": false
 	},
 	"agent": {
-		"librarian": {
+		"researcher": {
 			"tools": {
 				"context7_*": true,
 				"exa_*": true,
@@ -18,7 +18,7 @@
 				"bash": false
 			}
 		},
-		"writer": {
+		"scribe": {
 			"tools": {
 				"bash": false,
 				"edit": true,

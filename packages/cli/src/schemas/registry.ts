@@ -43,7 +43,7 @@ export const qualifiedComponentSchema = z
 	.string()
 	.regex(/^[a-z0-9]+(-[a-z0-9]+)*\/[a-z0-9]+(-[a-z0-9]+)*$/, {
 		message:
-			'Must be in format "namespace/component" (e.g., "kdco/librarian"). Both parts must be lowercase alphanumeric with hyphens.',
+			'Must be in format "namespace/component" (e.g., "kdco/researcher"). Both parts must be lowercase alphanumeric with hyphens.',
 	})
 
 /**
@@ -403,7 +403,7 @@ export const registrySchema = z
 		/** Registry name */
 		name: z.string().min(1, "Registry name cannot be empty"),
 
-		/** Registry namespace - used in qualified component references (e.g., kdco/librarian) */
+		/** Registry namespace - used in qualified component references (e.g., kdco/researcher) */
 		namespace: namespaceSchema,
 
 		/** Registry version (semver) */

@@ -82,7 +82,7 @@ Install components into `.opencode/`. Dependencies are resolved automatically.
 
 ```bash
 # Install from a configured registry
-ocx add kdco/librarian
+ocx add kdco/researcher
 ```
 
 Components are referenced as `namespace/component`. The namespace must match a registry configured in your `ocx.jsonc`.
@@ -96,7 +96,7 @@ Compare your local project files against the upstream registry version.
 ### `ocx build [path]`
 A tool for registry authors to validate component source files and generate registry indexes and packuments.
 
-**Looking for the KDCO registry?** See [workers/kdco-registry](./workers/kdco-registry) for components like `kdco/workspace`, `kdco/librarian`, and more.
+**Looking for the KDCO registry?** See [workers/kdco-registry](./workers/kdco-registry) for components like `kdco/workspace`, `kdco/researcher`, and more.
 
 ## Project structure
 
@@ -104,7 +104,7 @@ OCX manages components within the `.opencode/` directory of your project:
 
 ```
 .opencode/
-├── agent/            # Subagents (librarian, writer)
+├── agent/            # Subagents (researcher, scribe)
 ├── plugin/           # Project plugins (workspace tools, rule injection)
 ├── skill/            # Reusable instructions (protocols, philosophies)
 ├── command/          # Custom TUI commands

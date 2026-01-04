@@ -4,15 +4,15 @@ Before executing any task, route work to the appropriate agent:
 
 | Agent | Scope | When to Use |
 |-------|-------|-------------|
-| **librarian** | External research | Documentation, APIs, open-source patterns, best practices |
+| **researcher** | External research | Documentation, APIs, open-source patterns, best practices |
 | **@explore** | Internal codebase | Finding files, understanding code structure, searching content |
-| **writer** | Content creation | Commits, PRs, documentation, technical writing |
+| **scribe** | Content creation | Commits, PRs, documentation, technical writing |
 
 ### Routing Rules
 
-1. **External research → librarian**: ALWAYS delegate via `delegate` tool. Never use MCP servers directly.
+1. **External research → researcher**: ALWAYS delegate via `delegate` tool. Never use MCP servers directly.
 2. **Internal exploration → @explore**: Use for codebase questions, file discovery, pattern finding.
-3. **Content creation → writer**: Use for commits, documentation, PR descriptions.
+3. **Content creation → scribe**: Use for commits, documentation, PR descriptions.
 
 ### Delegation Best Practices
 

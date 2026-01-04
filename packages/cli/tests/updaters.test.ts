@@ -66,7 +66,7 @@ describe("updateOpencodeJsonConfig", () => {
 				"gh_grep_*": false,
 			},
 			agent: {
-				librarian: {
+				researcher: {
 					tools: {
 						"context7_*": true,
 						"gh_grep_*": true,
@@ -89,8 +89,8 @@ describe("updateOpencodeJsonConfig", () => {
 		expect(config.tools["gh_grep_*"]).toBe(false)
 
 		// Agent tools should be set
-		expect(config.agent.librarian.tools["context7_*"]).toBe(true)
-		expect(config.agent.librarian.tools["gh_grep_*"]).toBe(true)
+		expect(config.agent.researcher.tools["context7_*"]).toBe(true)
+		expect(config.agent.researcher.tools["gh_grep_*"]).toBe(true)
 	})
 
 	it("should preserve existing config (deep merge)", async () => {
@@ -282,7 +282,7 @@ describe("updateOpencodeJsonConfig", () => {
 	it("should configure agent settings", async () => {
 		await updateOpencodeJsonConfig(testDir, {
 			agent: {
-				librarian: {
+				researcher: {
 					temperature: 0.7,
 					prompt: "You are a knowledge architect",
 					tools: {
@@ -294,10 +294,10 @@ describe("updateOpencodeJsonConfig", () => {
 		})
 
 		const config = parseJsonc(await readFile(join(testDir, "opencode.jsonc"), "utf-8"))
-		expect(config.agent.librarian.temperature).toBe(0.7)
-		expect(config.agent.librarian.prompt).toBe("You are a knowledge architect")
-		expect(config.agent.librarian.tools.bash).toBe(true)
-		expect(config.agent.librarian.tools.edit).toBe(false)
+		expect(config.agent.researcher.temperature).toBe(0.7)
+		expect(config.agent.researcher.prompt).toBe("You are a knowledge architect")
+		expect(config.agent.researcher.tools.bash).toBe(true)
+		expect(config.agent.researcher.tools.edit).toBe(false)
 	})
 
 	it("should configure permissions", async () => {

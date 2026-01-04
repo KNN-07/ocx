@@ -290,18 +290,18 @@ const PLAN_RULES = `<system-reminder>
 | When you need to... | Delegate to |
 |---------------------|-------------|
 | Search THIS codebase (files, patterns, structure) | \`explore\` |
-| Research OUTSIDE this codebase (docs, APIs, other repos, web) | \`librarian\` |
-| Write human-facing content (commits, PRs, docs) | \`writer\` |
+| Research OUTSIDE this codebase (docs, APIs, other repos, web) | \`researcher\` |
+| Write human-facing content (commits, PRs, docs) | \`scribe\` |
 
 ## Critical Constraints
 
 **NEVER search the codebase yourself** - delegate to \`explore\`.
-**NEVER research external sources yourself** - delegate to \`librarian\`.
-**NEVER write commits/PRs/docs yourself** - delegate to \`writer\`.
+**NEVER research external sources yourself** - delegate to \`researcher\`.
+**NEVER write commits/PRs/docs yourself** - delegate to \`scribe\`.
 
 <example>
-User: "What does the OpenAI API say about function calling?"
-Correct: delegate to librarian (external research)
+User: \"What does the OpenAI API say about function calling?\"
+Correct: delegate to researcher (external research)
 Wrong: Try to answer from memory or use MCP tools directly
 </example>
 
@@ -367,14 +367,14 @@ const BUILD_RULES = `<system-reminder>
 | When you need to... | Delegate to |
 |---------------------|-------------|
 | Search THIS codebase (files, patterns, structure) | \`explore\` |
-| Research OUTSIDE this codebase (docs, APIs, other repos, web) | \`librarian\` |
-| Write human-facing content (commits, PRs, docs) | \`writer\` |
+| Research OUTSIDE this codebase (docs, APIs, other repos, web) | \`researcher\` |
+| Write human-facing content (commits, PRs, docs) | \`scribe\` |
 
 ## Critical Constraints
 
 **NEVER search the codebase yourself** - delegate to \`explore\`.
-**NEVER research external sources yourself** - delegate to \`librarian\`.
-**NEVER write commits/PRs/docs yourself** - delegate to \`writer\`.
+**NEVER research external sources yourself** - delegate to \`researcher\`.
+**NEVER write commits/PRs/docs yourself** - delegate to \`scribe\`.
 
 </workspace-routing>
 
@@ -384,7 +384,7 @@ const BUILD_RULES = `<system-reminder>
 1. Call \`plan_read\` to get the current plan
 2. Call \`delegation_list\` ONCE to see available research
 3. Call \`delegation_read\` for relevant findings
-4. **REUSE code snippets from librarian research** - they are production-ready
+4. **REUSE code snippets from researcher research** - they are production-ready
 
 ### Philosophy Loading
 Load the relevant skill BEFORE implementation:

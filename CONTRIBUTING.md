@@ -131,7 +131,7 @@ Example structure:
   "mcp": { "context7": { ... }, "gh_grep": { ... }, "exa": { ... } },
   "plugin": ["@tarquinen/opencode-dcp@1.1.2"],
   "tools": { "webfetch": false },
-  "agent": { "writer": { "tools": { "bash": true, ... } } }
+  "agent": { "scribe": { "tools": { "bash": true, ... } } }
 }
 ```
 

@@ -33,10 +33,10 @@
 			"dependencies": []
 		},
 		{
-			"name": "librarian",
+			"name": "researcher",
 			"type": "ocx:agent",
 			"description": "Knowledge architect for external research",
-			"files": ["agent/librarian.md"],
+			"files": ["agent/researcher.md"],
 			"dependencies": ["background-agents"],
 			"opencode": {
 				"mcp": {
@@ -50,7 +50,7 @@
 					"gh_grep_*": false
 				},
 				"agent": {
-					"librarian": {
+					"researcher": {
 						"tools": {
 							"context7_*": true,
 							"exa_*": true,
@@ -64,14 +64,14 @@
 			}
 		},
 		{
-			"name": "writer",
+			"name": "scribe",
 			"type": "ocx:agent",
 			"description": "Human-facing content specialist",
-			"files": ["agent/writer.md"],
+			"files": ["agent/scribe.md"],
 			"dependencies": [],
 			"opencode": {
 				"agent": {
-					"writer": {
+					"scribe": {
 						"tools": {
 							"bash": false,
 							"edit": true,
@@ -109,7 +109,7 @@
 			"type": "ocx:bundle",
 			"description": "Full KDCO Workspace experience",
 			"files": [],
-			"dependencies": ["workspace-plugin", "plan-protocol", "librarian", "writer", "notify"],
+			"dependencies": ["workspace-plugin", "plan-protocol", "researcher", "scribe", "notify"],
 			"opencode": {
 				"plugin": ["@tarquinen/opencode-dcp@1.1.2"],
 				"tools": {

@@ -19,9 +19,9 @@ import { mergeOpencodeConfig } from "./merge.js"
 
 /**
  * Parse a component reference into namespace and component name.
- * - "kdco/librarian" -> { namespace: "kdco", component: "librarian" }
- * - "librarian" (with defaultNamespace) -> { namespace: defaultNamespace, component: "librarian" }
- * - "librarian" (without defaultNamespace) -> throws error
+ * - "kdco/researcher" -> { namespace: "kdco", component: "researcher" }
+ * - "researcher" (with defaultNamespace) -> { namespace: defaultNamespace, component: "researcher" }
+ * - "researcher" (without defaultNamespace) -> throws error
  */
 export function parseComponentRef(
 	ref: string,

@@ -26,8 +26,8 @@ The build step runs `ocx build . -o dist` which:
 
 OCX follows the **Cargo + ShadCN model**:
 
-1. **Namespace as Identity**: Every registry declares a `namespace` (e.g., `kdco`). Components are referenced as `namespace/component` (e.g., `kdco/librarian`).
-2. **Clean Component Names**: Components within a registry use clean names (`librarian`, not `kdco-librarian`). The namespace provides provenance.
+1. **Namespace as Identity**: Every registry declares a `namespace` (e.g., `kdco`). Components are referenced as `namespace/component` (e.g., `kdco/researcher`).
+2. **Clean Component Names**: Components within a registry use clean names (`researcher`, not `kdco-researcher`). The namespace provides provenance.
 3. **Explicit Trust**: Cross-namespace dependencies require the user to have that registry configured. No auto-fetching from unknown sources.
 4. **Own Your Code**: Components are copied into your project with clean filenames. The lockfile tracks provenance.
 
@@ -250,7 +250,7 @@ Use bare component names for dependencies within the same registry:
 
 ```json
 {
-  "name": "librarian",
+  "name": "researcher",
   "dependencies": ["background-agents", "utils"]
 }
 ```
@@ -263,7 +263,7 @@ Use qualified names for dependencies from other registries:
 
 ```json
 {
-  "name": "librarian",
+  "name": "researcher",
   "dependencies": ["background-agents", "acme/shared-utils"]
 }
 ```
@@ -275,12 +275,12 @@ The user must have the `acme` registry configured in their `ocx.jsonc` for cross
 If a user tries to install a component that would overwrite an existing file from a different component:
 
 ```bash
-$ ocx add acme/librarian
+$ ocx add acme/researcher
 Error: File conflict detected
-  .opencode/agent/librarian.md already exists (installed from kdco/librarian)
+  .opencode/agent/researcher.md already exists (installed from kdco/researcher)
 
 To resolve:
   1. Remove existing file and update ocx.lock
   2. Or rename existing file manually
-  3. Then retry: ocx add acme/librarian
+  3. Then retry: ocx add acme/researcher
 ```

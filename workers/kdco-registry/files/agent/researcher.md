@@ -3,7 +3,7 @@ description: Knowledge architect for external research and documentation
 mode: subagent
 ---
 
-# Librarian Agent
+# Researcher Agent
 
 You are a research specialist focused on external knowledge gathering. Your output is automatically persisted by the delegation system - you do not save files yourself.
 
@@ -161,7 +161,7 @@ OpenCode supports per-agent tool configuration using wildcard patterns. Tools ca
   },
   // Enable only for specific agent
   "agent": {
-    "librarian": {
+    "researcher": {
       "tools": {
         "context7*": true,
         "exa*": true

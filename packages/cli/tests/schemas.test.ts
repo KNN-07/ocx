@@ -20,7 +20,7 @@ import {
 describe("schemas", () => {
 	describe("openCodeNameSchema", () => {
 		it("should accept valid lowercase names", () => {
-			expect(() => openCodeNameSchema.parse("librarian")).not.toThrow()
+			expect(() => openCodeNameSchema.parse("researcher")).not.toThrow()
 			expect(() => openCodeNameSchema.parse("my-component")).not.toThrow()
 			expect(() => openCodeNameSchema.parse("a")).not.toThrow()
 			expect(() => openCodeNameSchema.parse("a1")).not.toThrow()
@@ -82,12 +82,12 @@ describe("schemas", () => {
 
 	describe("qualifiedComponentSchema", () => {
 		it("should accept valid namespace/component format", () => {
-			expect(() => qualifiedComponentSchema.parse("kdco/librarian")).not.toThrow()
+			expect(() => qualifiedComponentSchema.parse("kdco/researcher")).not.toThrow()
 			expect(() => qualifiedComponentSchema.parse("my-ns/my-comp")).not.toThrow()
 		})
 
 		it("should reject bare component names", () => {
-			expect(() => qualifiedComponentSchema.parse("librarian")).toThrow()
+			expect(() => qualifiedComponentSchema.parse("researcher")).toThrow()
 		})
 
 		it("should reject invalid namespace part", () => {
@@ -152,8 +152,8 @@ describe("schemas", () => {
 
 	describe("parseQualifiedComponent", () => {
 		it("should parse valid qualified reference", () => {
-			const result = parseQualifiedComponent("kdco/librarian")
-			expect(result).toEqual({ namespace: "kdco", component: "librarian" })
+			const result = parseQualifiedComponent("kdco/researcher")
+			expect(result).toEqual({ namespace: "kdco", component: "researcher" })
 		})
 
 		it("should parse hyphenated names", () => {
@@ -162,8 +162,8 @@ describe("schemas", () => {
 		})
 
 		it("should throw for bare component name", () => {
-			expect(() => parseQualifiedComponent("librarian")).toThrow(
-				'Invalid component reference: "librarian"',
+			expect(() => parseQualifiedComponent("researcher")).toThrow(
+				'Invalid component reference: "researcher"',
 			)
 		})
 
@@ -188,7 +188,7 @@ describe("schemas", () => {
 
 	describe("createQualifiedComponent", () => {
 		it("should create qualified reference from parts", () => {
-			expect(createQualifiedComponent("kdco", "librarian")).toBe("kdco/librarian")
+			expect(createQualifiedComponent("kdco", "researcher")).toBe("kdco/researcher")
 		})
 
 		it("should handle hyphenated names", () => {

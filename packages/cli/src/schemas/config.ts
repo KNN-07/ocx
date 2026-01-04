@@ -51,7 +51,7 @@ export type OcxConfig = z.infer<typeof ocxConfigSchema>
 
 /**
  * Installed component entry in lockfile
- * Key format: "namespace/component" (e.g., "kdco/librarian")
+ * Key format: "namespace/component" (e.g., "kdco/researcher")
  */
 export const installedComponentSchema = z.object({
 	/** Registry namespace this was installed from */
