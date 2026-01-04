@@ -1,28 +1,3 @@
-## Agent Routing - MANDATORY
-
-Before executing any task, route work to the appropriate agent:
-
-| Agent | Scope | When to Use |
-|-------|-------|-------------|
-| **researcher** | External research | Documentation, APIs, open-source patterns, best practices |
-| **@explore** | Internal codebase | Finding files, understanding code structure, searching content |
-| **scribe** | Content creation | Commits, PRs, documentation, technical writing |
-
-### Routing Rules
-
-1. **External research → researcher**: ALWAYS delegate via `delegate` tool. Never use MCP servers directly.
-2. **Internal exploration → @explore**: Use for codebase questions, file discovery, pattern finding.
-3. **Content creation → scribe**: Use for commits, documentation, PR descriptions.
-
-### Delegation Best Practices
-
-- Launch MULTIPLE delegations in a SINGLE message for parallel research
-- You will be AUTOMATICALLY NOTIFIED when delegations complete
-- Do NOT poll or check status - continue working until notification arrives
-- Use `delegation_read` ONLY when you need the result (blocks if still running)
-
----
-
 ## Code Philosophy - MANDATORY
 
 Before writing or modifying any code, you MUST:
