@@ -64,9 +64,22 @@ export async function fetchRegistryIndex(baseUrl: string): Promise<RegistryIndex
  * Fetch a component from registry and return the latest manifest
  */
 export async function fetchComponent(baseUrl: string, name: string): Promise<ComponentManifest> {
+	const result = await fetchComponentVersion(baseUrl, name)
+	return result.manifest
+}
+
+/**
+ * Fetch a component from registry with specific or latest version.
+ * Returns both the manifest and the resolved version.
+ */
+export async function fetchComponentVersion(
+	baseUrl: string,
+	name: string,
+	version?: string,
+): Promise<{ manifest: ComponentManifest; version: string }> {
 	const url = `${baseUrl.replace(/\/$/, "")}/components/${name}.json`
 
-	return fetchWithCache(url, (data) => {
+	return fetchWithCache(`${url}#v=${version ?? "latest"}`, (data) => {
 		// 1. Parse as packument
 		const packumentResult = packumentSchema.safeParse(data)
 		if (!packumentResult.success) {
@@ -76,24 +89,32 @@ export async function fetchComponent(baseUrl: string, name: string): Promise<Com
 		}
 
 		const packument = packumentResult.data
-		const latestVersion = packument["dist-tags"].latest
-		const manifest = packument.versions[latestVersion]
+
+		// 2. Resolve version (specific or latest)
+		const resolvedVersion = version ?? packument["dist-tags"].latest
+		const manifest = packument.versions[resolvedVersion]
 
 		if (!manifest) {
+			if (version) {
+				const availableVersions = Object.keys(packument.versions).join(", ")
+				throw new ValidationError(
+					`Component "${name}" has no version "${version}". Available: ${availableVersions}`,
+				)
+			}
 			throw new ValidationError(
-				`Component "${name}" has no manifest for latest version ${latestVersion}`,
+				`Component "${name}" has no manifest for latest version ${resolvedVersion}`,
 			)
 		}
 
-		// 2. Validate manifest
+		// 3. Validate manifest
 		const manifestResult = componentManifestSchema.safeParse(manifest)
 		if (!manifestResult.success) {
 			throw new ValidationError(
-				`Invalid component manifest for "${name}@${latestVersion}": ${manifestResult.error.message}`,
+				`Invalid component manifest for "${name}@${resolvedVersion}": ${manifestResult.error.message}`,
 			)
 		}
 
-		return manifestResult.data
+		return { manifest: manifestResult.data, version: resolvedVersion }
 	})
 }
 

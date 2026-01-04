@@ -74,7 +74,7 @@ export class IntegrityError extends OCXError {
 			`  Expected: ${expected}\n` +
 			`  Found:    ${found}\n\n` +
 			`The registry content has changed since this component was locked.\n` +
-			`This could indicate tampering or an unauthorized update.`
+			`Use 'ocx update ${component}' to intentionally update this component.`
 		super(message, "INTEGRITY_ERROR", EXIT_CODES.INTEGRITY)
 		this.name = "IntegrityError"
 	}

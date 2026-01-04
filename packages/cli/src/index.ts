@@ -13,6 +13,7 @@ import { registerDiffCommand } from "./commands/diff.js"
 import { registerInitCommand } from "./commands/init.js"
 import { registerRegistryCommand } from "./commands/registry.js"
 import { registerSearchCommand } from "./commands/search.js"
+import { registerUpdateCommand } from "./commands/update.js"
 import { handleError } from "./utils/index.js"
 
 // Version injected at build time
@@ -28,6 +29,7 @@ async function main() {
 	// Register all commands using the registration pattern
 	registerInitCommand(program)
 	registerAddCommand(program)
+	registerUpdateCommand(program)
 	registerDiffCommand(program)
 	registerSearchCommand(program)
 	registerRegistryCommand(program)

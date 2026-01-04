@@ -87,6 +87,17 @@ ocx add kdco/researcher
 
 Components are referenced as `namespace/component`. The namespace must match a registry configured in your `ocx.jsonc`.
 
+### `ocx update [component]`
+Update installed components to their latest versions.
+
+```bash
+ocx update kdco/background-agents   # Update a specific component
+ocx update --all                    # Update all installed components
+ocx update --all --dry-run          # Preview changes without applying
+ocx update --registry kdco          # Update all from a specific registry
+ocx update kdco/agents@1.2.0        # Pin to a specific version
+```
+
 ### `ocx search <query>`
 Search for components across all configured registries. Aliased as `ocx list`.
 
@@ -95,6 +106,8 @@ Compare your local project files against the upstream registry version.
 
 ### `ocx build [path]`
 A tool for registry authors to validate component source files and generate registry indexes and packuments.
+
+See [CLI Reference](docs/CLI.md) for full command documentation.
 
 **Looking for the KDCO registry?** See [workers/kdco-registry](./workers/kdco-registry) for components like `kdco/workspace`, `kdco/researcher`, and more.
 

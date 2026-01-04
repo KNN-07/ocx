@@ -68,6 +68,9 @@ export const installedComponentSchema = z.object({
 
 	/** ISO timestamp of installation */
 	installedAt: z.string(),
+
+	/** ISO timestamp of last update (optional, only set after update) */
+	updatedAt: z.string().optional(),
 })
 
 export type InstalledComponent = z.infer<typeof installedComponentSchema>

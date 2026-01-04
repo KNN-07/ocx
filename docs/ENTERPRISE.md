@@ -49,6 +49,55 @@ When you run `ocx add`, OCX automatically verifies the integrity of the componen
 
 If the hashes do not match, the installation fails immediately with an `INTEGRITY_ERROR`. This prevents malicious or unauthorized updates from silently entering your codebase even if a registry is compromised.
 
+### Intentional Updates
+
+The `IntegrityError` is a security feature, not a bug. When you need to update a component whose source has changed, use the dedicated `ocx update` command:
+
+```bash
+# Preview what will change
+ocx update kdco/agents --dry-run
+
+# Apply the update
+ocx update kdco/agents
+
+# Update all components
+ocx update --all --dry-run
+ocx update --all
+```
+
+This explicit workflow ensures that component updates are always intentional and auditable.
+
+### Component Version Pinning
+
+Pin components to specific audited versions using the `@version` syntax:
+
+```bash
+# Pin to a security-audited version
+ocx update kdco/agents@1.2.0
+
+# Add a component at a specific version
+ocx add kdco/agents@1.2.0
+```
+
+This ensures reproducible deployments with known-good versions that have passed your security review.
+
+### Update Audit Trail
+
+The lock file tracks the complete update history for each component:
+
+```jsonc
+{
+  "kdco/agents": {
+    "version": "1.2.0",
+    "hash": "sha256-...",
+    "installedAt": "2026-01-01T00:00:00.000Z",
+    "updatedAt": "2026-01-04T00:00:00.000Z"  // Tracks last update
+  }
+}
+```
+
+Use `ocx diff` to review changes before updating. The combination of `updatedAt` timestamps and hash verification provides a complete audit trail for compliance and security reviews.
+
 ### Security Audit with `ocx diff` (Reactive)
 
 Running `ocx diff` compares your local files against the upstream registry and uses the hash in `ocx.lock` to identify changes. This allows teams to audit exactly what modifications have been made to distributed agents or plugins.

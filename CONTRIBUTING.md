@@ -86,6 +86,27 @@ cd packages/cli
 bun test
 ```
 
+### Testing the Update Command
+
+```bash
+# Run update command tests
+bun test packages/cli/tests/update.test.ts
+
+# Run with pattern matching
+bun test --grep "update"
+
+# Run all CLI tests
+bun test packages/cli/tests/
+```
+
+Key test scenarios:
+- Basic update with hash change
+- `--all` flag updates all components
+- `--registry` flag scopes to registry
+- `--dry-run` previews without changes
+- `@version` syntax pins to specific version
+- Error cases (conflicts, missing components)
+
 ### Local Testing (End-to-End)
 
 Before pushing changes, test the full CLI flow using local registry sources.

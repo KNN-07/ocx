@@ -8,6 +8,19 @@
 		"webfetch": false
 	},
 	"agent": {
+		"coder": {
+			"tools": {
+				"context7_*": false,
+				"exa_*": false,
+				"gh_grep_*": false,
+				"read": true,
+				"write": true,
+				"edit": true,
+				"glob": true,
+				"grep": true,
+				"bash": true
+			}
+		},
 		"researcher": {
 			"tools": {
 				"context7_*": true,
@@ -25,19 +38,6 @@
 				"glob": true,
 				"read": true,
 				"write": true
-			}
-		},
-		"coder": {
-			"tools": {
-				"context7_*": false,
-				"exa_*": false,
-				"gh_grep_*": false,
-				"read": true,
-				"write": true,
-				"edit": true,
-				"glob": true,
-				"grep": true,
-				"bash": true
 			}
 		},
 		"plan": {
