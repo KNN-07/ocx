@@ -184,6 +184,15 @@ function formatZodErrors(error: z.ZodError): string {
 function parsePlanMarkdown(content: string): ParseResult {
 	const skillHint = "Load skill('plan-protocol') for the full format spec."
 
+	// Guard: Content must be string (Law 1: Early Exit, Law 2: Parse at boundary)
+	if (typeof content !== "string") {
+		return {
+			ok: false,
+			error: `Expected markdown string, received ${typeof content}`,
+			hint: skillHint,
+		}
+	}
+
 	// Guard: Empty content (Law 1: Early Exit)
 	if (!content.trim()) {
 		return {
