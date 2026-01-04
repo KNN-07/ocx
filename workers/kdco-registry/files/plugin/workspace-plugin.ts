@@ -544,6 +544,14 @@ export const WorkspacePlugin: Plugin = async (ctx) => {
 		// Targeted Rule Injection
 		"experimental.chat.system.transform": async (input: SystemTransformInput, output) => {
 			const agent = input.agent
+
+			// Universal date awareness (all agents) - Law 2: Parse intent, not just data
+			const today = new Date().toISOString().split("T")[0]
+			output.system.push(`<date-awareness>
+Today is ${today}. When searching for documentation, APIs, or external resources, use the current year (${new Date().getFullYear()}). Do not default to outdated years from training data.
+</date-awareness>`)
+
+			// Agent-specific rules
 			if (agent === "plan") {
 				output.system.push(PLAN_RULES)
 			} else if (agent === "build") {

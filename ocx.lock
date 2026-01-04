@@ -40,11 +40,12 @@
     "kdco/workspace-plugin": {
       "registry": "kdco",
       "version": "1.0.0",
-      "hash": "15a96ff88d186fe66007e0d09f95a123035997325e0c92a19a4f65eca8fea37d",
+      "hash": "d574f7aee543ec55e6b468454e9f0d255dff4240b8d3558eb375497678fce4d3",
       "files": [
         ".opencode/plugin/workspace-plugin.ts"
       ],
-      "installedAt": "2026-01-04T22:01:09.478Z"
+      "installedAt": "2026-01-04T22:01:09.478Z",
+      "updatedAt": "2026-01-04T23:26:14.052Z"
     },
     "kdco/plan-protocol": {
       "registry": "kdco",
