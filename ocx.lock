@@ -31,12 +31,12 @@
     "kdco/background-agents": {
       "registry": "kdco",
       "version": "1.0.0",
-      "hash": "31656d610c0b6ce970dce217a80117150731b130fd965ba123ebbc288f166d12",
+      "hash": "865d9988902d1bd0de5c9b33cc8931ae81cb94b2624d87e93bc008a52746cc4f",
       "files": [
         ".opencode/plugin/background-agents.ts"
       ],
-      "installedAt": "2026-01-04T22:01:09.478Z",
-      "updatedAt": "2026-01-05T00:32:17.688Z"
+      "installedAt": "2026-01-05T02:04:39.816Z",
+      "updatedAt": "2026-01-05T02:10:47.551Z"
     },
     "kdco/workspace-plugin": {
       "registry": "kdco",
@@ -45,8 +45,7 @@
       "files": [
         ".opencode/plugin/workspace-plugin.ts"
       ],
-      "installedAt": "2026-01-04T22:01:09.478Z",
-      "updatedAt": "2026-01-04T23:26:14.052Z"
+      "installedAt": "2026-01-05T02:04:39.816Z"
     },
     "kdco/plan-protocol": {
       "registry": "kdco",
