@@ -4,6 +4,8 @@
 	"namespace": "my-registry",
 	"version": "0.0.1",
 	"author": "Your Name",
+	"opencode": "1.0.0",
+	"ocx": "1.0.16",
 	"components": [
 		{
 			"name": "hello-world",

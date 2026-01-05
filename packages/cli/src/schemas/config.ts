@@ -41,6 +41,9 @@ export const ocxConfigSchema = z.object({
 
 	/** Lock registries - prevent adding/removing (enterprise feature) */
 	lockRegistries: z.boolean().default(false),
+
+	/** Skip version compatibility checks */
+	skipCompatCheck: z.boolean().default(false),
 })
 
 export type OcxConfig = z.infer<typeof ocxConfigSchema>

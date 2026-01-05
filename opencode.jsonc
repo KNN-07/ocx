@@ -12,9 +12,9 @@
 		"researcher": {
 			"permission": {
 				"context7_*": "allow",
-				"exa_*": "deny",
+				"exa_*": "allow",
 				"gh_grep_*": "allow",
-				"kagi_*": "allow",
+				"kagi_*": "deny",
 				"write": "deny",
 				"edit": "deny",
 				"bash": {
@@ -95,12 +95,18 @@
 		},
 		"kagi": {
 			"type": "local",
-			"command": ["npx", "-y", "github:czottmann/kagi-ken-mcp"],
+			"command": [
+				"npx",
+				"-y",
+				"github:czottmann/kagi-ken-mcp"
+			],
 			"environment": {
 				"KAGI_SESSION_TOKEN": "{file:~/.secrets/kagi-session-token}"
 			},
 			"enabled": true
 		}
 	},
-	"plugin": ["@tarquinen/opencode-dcp@1.1.2"]
+	"plugin": [
+		"@tarquinen/opencode-dcp@1.1.2"
+	]
 }

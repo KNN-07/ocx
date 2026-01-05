@@ -119,6 +119,9 @@ export async function buildRegistry(options: BuildRegistryOptions): Promise<Buil
 		namespace: registry.namespace,
 		version: registry.version,
 		author: registry.author,
+		// Include version requirements for compatibility checking
+		...(registry.opencode && { opencode: registry.opencode }),
+		...(registry.ocx && { ocx: registry.ocx }),
 		components: registry.components.map((c) => ({
 			name: c.name,
 			type: c.type,

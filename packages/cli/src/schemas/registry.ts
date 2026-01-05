@@ -662,6 +662,22 @@ export const registrySchema = z
 		/** Registry author */
 		author: z.string().min(1, "Author cannot be empty"),
 
+		/** Minimum OpenCode version required (semver, e.g., "1.0.0") */
+		opencode: z
+			.string()
+			.regex(semverRegex, {
+				message: "OpenCode version must be valid semver",
+			})
+			.optional(),
+
+		/** Minimum OCX CLI version required (semver, e.g., "1.0.0") */
+		ocx: z
+			.string()
+			.regex(semverRegex, {
+				message: "OCX version must be valid semver",
+			})
+			.optional(),
+
 		/** Components in this registry */
 		components: z.array(componentManifestSchema),
 	})
@@ -718,6 +734,22 @@ export const registryIndexSchema = z.object({
 	namespace: namespaceSchema,
 	version: z.string(),
 	author: z.string(),
+
+	/** Minimum OpenCode version required */
+	opencode: z
+		.string()
+		.regex(semverRegex, {
+			message: "OpenCode version must be valid semver",
+		})
+		.optional(),
+
+	/** Minimum OCX CLI version required */
+	ocx: z
+		.string()
+		.regex(semverRegex, {
+			message: "OCX version must be valid semver",
+		})
+		.optional(),
 
 	/** Component summaries for search */
 	components: z.array(

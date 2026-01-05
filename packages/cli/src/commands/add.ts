@@ -9,15 +9,22 @@ import { mkdir, writeFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
 
 import type { Command } from "commander"
+import { CLI_VERSION, GITHUB_REPO } from "../constants.js"
 import { fetchFileContent, fetchRegistryIndex } from "../registry/fetcher.js"
 import type { ResolvedComponent } from "../registry/resolver.js"
 import { type ResolvedDependencies, resolveDependencies } from "../registry/resolver.js"
 import { type OcxLock, readOcxConfig, readOcxLock } from "../schemas/config.js"
-import type { ComponentFileObject } from "../schemas/registry.js"
+import type { ComponentFileObject, RegistryIndex } from "../schemas/registry.js"
 import { updateOpencodeJsonConfig } from "../updaters/update-opencode-config.js"
 import { isContentIdentical } from "../utils/content.js"
 import { ConfigError, ConflictError, IntegrityError, ValidationError } from "../utils/errors.js"
-import { createSpinner, handleError, logger } from "../utils/index.js"
+import {
+	collectCompatIssues,
+	createSpinner,
+	handleError,
+	logger,
+	warnCompatIssues,
+} from "../utils/index.js"
 
 interface AddOptions {
 	yes?: boolean
@@ -26,6 +33,7 @@ interface AddOptions {
 	quiet?: boolean
 	verbose?: boolean
 	json?: boolean
+	skipCompatCheck?: boolean
 }
 
 export function registerAddCommand(program: Command): void {
@@ -39,6 +47,7 @@ export function registerAddCommand(program: Command): void {
 		.option("-q, --quiet", "Suppress output")
 		.option("-v, --verbose", "Verbose output")
 		.option("--json", "Output as JSON")
+		.option("--skip-compat-check", "Skip version compatibility checks")
 		.action(async (components: string[], options: AddOptions) => {
 			try {
 				await runAdd(components, options)
@@ -72,12 +81,41 @@ async function runAdd(componentNames: string[], options: AddOptions): Promise<vo
 		// Resolve all dependencies across all configured registries
 		const resolved = await resolveDependencies(config.registries, componentNames)
 
-		spin?.succeed(`Resolved ${resolved.components.length} components`)
-
 		if (options.verbose) {
 			logger.info("Install order:")
 			for (const name of resolved.installOrder) {
 				logger.info(`  - ${name}`)
+			}
+		}
+
+		// Fetch registry indexes once (Law 2: Parse at boundary)
+		const registryIndexes = new Map<string, RegistryIndex>()
+		const uniqueBaseUrls = new Map<string, string>() // namespace -> baseUrl
+
+		for (const component of resolved.components) {
+			if (!uniqueBaseUrls.has(component.registryName)) {
+				uniqueBaseUrls.set(component.registryName, component.baseUrl)
+			}
+		}
+
+		for (const [namespace, baseUrl] of uniqueBaseUrls) {
+			const index = await fetchRegistryIndex(baseUrl)
+			registryIndexes.set(namespace, index)
+		}
+
+		spin?.succeed(
+			`Resolved ${resolved.components.length} components from ${registryIndexes.size} registries`,
+		)
+
+		// Version compatibility check (skip if disabled via flag or config)
+		const skipCompat = options.skipCompatCheck || config.skipCompatCheck
+		if (!skipCompat) {
+			for (const [namespace, index] of registryIndexes) {
+				const issues = collectCompatIssues({
+					registry: { opencode: index.opencode, ocx: index.ocx },
+					ocxVersion: CLI_VERSION,
+				})
+				warnCompatIssues(namespace, issues)
 			}
 		}
 
@@ -200,8 +238,14 @@ async function runAdd(componentNames: string[], options: AddOptions): Promise<vo
 				}
 			}
 
-			// Fetch registry index to get version for lockfile
-			const index = await fetchRegistryIndex(component.baseUrl)
+			// Use cached registry index for lockfile version
+			const index = registryIndexes.get(component.registryName)
+			if (!index) {
+				throw new ValidationError(
+					`Registry index not found for "${component.registryName}". ` +
+						`This is an internal error - please report it at https://github.com/${GITHUB_REPO}/issues`,
+				)
+			}
 
 			// Update lock with qualifiedName as key (namespace/component format)
 			lock.installed[component.qualifiedName] = {

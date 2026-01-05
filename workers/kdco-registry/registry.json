@@ -3,6 +3,8 @@
 	"namespace": "kdco",
 	"version": "1.0.0",
 	"author": "kdcokenny",
+	"opencode": "1.1.0",
+	"ocx": "1.0.16",
 	"components": [
 		{
 			"name": "workspace-plugin",
