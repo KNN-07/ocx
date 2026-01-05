@@ -1,17 +1,17 @@
-# OCX (OpenCode Extensions)
+# OCX
 
-> ShadCN-style registry for OpenCode extensions. Copy. Paste. Own.
+The missing package manager for OpenCode extensions.
 
-OCX is a lightweight CLI for installing agents, skills, and plugins into OpenCode projects. Following the "copy-and-own" philosophy, OCX scaffolds components directly into your project so you can customize them freely.
+Install OpenCode extensions with automatic dependency resolution, config merging, and integrity verification.
 
-## Key Features
+<!-- 
+TODO: Create demo GIF with VHS (https://github.com/charmbracelet/vhs)
+- Show: ocx add kdco/workspace-plugin → dependencies install → config merges → done
+- Target: 5-15 seconds, dark theme (Catppuccin/Dracula), <5MB
+- Reference examples: lazygit, fzf, zoxide READMEs
+-->
 
-- **Lighter Architecture**: Injects targeted rules into built-in agents using plugin hooks instead of replacing them entirely.
-- **Persistent Context**: Workspace components provide research and plan persistence across sessions.
-- **Fail-Fast Validation**: Strict Zod schemas ensure registries and configurations are always valid.
-- **Enterprise Ready**: Support for lockfiles (`ocx.lock`), registry locking, and version pinning.
-- **Single Binary**: Zero dependencies, distributed as a standalone executable.
-- **Create Registries**: Scaffold your own registry with `ocx init --registry`.
+![OCX Demo](./assets/demo.gif)
 
 ## Installation
 
@@ -63,51 +63,46 @@ npx ocx init --registry my-registry
 
 See [examples/registry-starter](./examples/registry-starter) for the full template with deploy buttons for Cloudflare, Vercel, and Netlify.
 
-## CLI Commands
+## What OCX Handles
 
-### `ocx init`
+- **npm Dependencies** — Plugins need packages? Installed automatically. No manual `package.json` editing.
+- **MCP Servers** — Registered to your config with one command. No manual JSON.
+- **Config Merging** — Components bring settings that merge safely with yours.
+- **Lockfiles** — Track versions, verify integrity with SHA-256 hashes.
+- **Dependency Resolution** — Component A needs B? Both installed in correct order.
+- **Own Your Code** — Everything lives in `.opencode/`. Customize freely.
 
-Initialize OCX in your project, or scaffold a new registry:
+## Auditable by Default
 
-```bash
-ocx init                      # Initialize OCX in current project
-ocx init --registry my-reg    # Scaffold a new registry project
-```
-
-### `ocx registry add <url>`
-Add a component registry source. Registries are version-controlled and prefix-enforced.
-
-### `ocx add <namespace/component>`
-Install components into `.opencode/`. Dependencies are resolved automatically.
+Every component is version-pinned and verified by SHA-256 hash. Before updating, see exactly what changed:
 
 ```bash
-# Install from a configured registry
-ocx add kdco/researcher
+ocx diff kdco/workspace-plugin
 ```
 
-Components are referenced as `namespace/component`. The namespace must match a registry configured in your `ocx.jsonc`.
+- **Detect** — See every upstream change before updating
+- **Verify** — SHA-256 hashes catch tampering
+- **Pin** — Lockfiles prevent silent updates
+- **Audit** — Code lives in your repo, not fetched at runtime
 
-### `ocx update [component]`
-Update installed components to their latest versions.
+*Your AI agent never runs code you haven't reviewed.*
 
-```bash
-ocx update kdco/background-agents   # Update a specific component
-ocx update --all                    # Update all installed components
-ocx update --all --dry-run          # Preview changes without applying
-ocx update --registry kdco          # Update all from a specific registry
-ocx update kdco/agents@1.2.0        # Pin to a specific version
-```
+## Philosophy
 
-### `ocx search <query>`
-Search for components across all configured registries. Aliased as `ocx list`.
+OCX follows the **ShadCN model**: components are copied into your project, not hidden in `node_modules`. You own the code—customize freely.
 
-### `ocx diff [component]`
-Compare your local project files against the upstream registry version.
+Like **Cargo**, OCX resolves dependencies, pins versions, and verifies integrity. Unlike traditional package managers, everything is auditable and local.
 
-### `ocx build [path]`
-A tool for registry authors to validate component source files and generate registry indexes and packuments.
+## Commands
 
-See [CLI Reference](docs/CLI.md) for full command documentation.
+| Command | Description |
+|---------|-------------|
+| `ocx add <component>` | Install a component |
+| `ocx update [component]` | Update to latest version |
+| `ocx diff [component]` | Show upstream changes |
+| `ocx registry add <url>` | Add a registry |
+
+[Full CLI Reference →](./docs/CLI.md)
 
 **Looking for the KDCO registry?** See [workers/kdco-registry](./workers/kdco-registry) for components like `kdco/workspace`, `kdco/researcher`, and more.
 
@@ -173,15 +168,15 @@ OCX supports the full range of OpenCode configuration options:
 | File string shorthand | ✅ | Auto-generates target path |
 | MCP URL shorthand | ✅ | `"https://..."` → remote server |
 
-## Roadmap
+## What's Shipped
 
-- [x] Lighter-weight rule injection architecture
-- [x] Recursive AGENTS.md discovery
-- [x] Multi-platform binary distribution
-- [x] Cargo-style schema with string shorthands
-- [x] Full OpenCode config support (plugins, agent config, instructions)
-- [ ] Cursor / Claude Code adapter support
-- [ ] Centralized component discovery portal
+- ✅ SHA-256 integrity verification
+- ✅ Lockfile support
+- ✅ Multi-registry composition
+- ✅ Dependency resolution
+- ✅ Config merging
+
+Have ideas? [Open an issue](https://github.com/kdcokenny/ocx/issues).
 
 ## License
 
