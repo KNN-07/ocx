@@ -71,6 +71,7 @@ See [examples/registry-starter](./examples/registry-starter) for the full templa
 - **Lockfiles** — Track versions, verify integrity with SHA-256 hashes.
 - **Dependency Resolution** — Component A needs B? Both installed in correct order.
 - **Own Your Code** — Everything lives in `.opencode/`. Customize freely.
+- **Version Compatibility** — Registries declare minimum versions. Clear warnings, not blocking errors.
 
 ## Auditable by Default
 
@@ -174,6 +175,7 @@ OCX supports the full range of OpenCode configuration options:
 - ✅ Multi-registry composition
 - ✅ Dependency resolution
 - ✅ Config merging
+- ✅ Version compatibility warnings
 
 Have ideas? [Open an issue](https://github.com/kdcokenny/ocx/issues).
 
