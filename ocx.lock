@@ -1,42 +1,14 @@
 {
   "lockVersion": 1,
   "installed": {
-    "kdco/code-philosophy": {
-      "registry": "kdco",
-      "version": "1.0.0",
-      "hash": "1c9b013f1aacf3b524665d3bdc30aed992f6b78b1281eaafa3b986e71aaa8256",
-      "files": [
-        ".opencode/skill/code-philosophy/SKILL.md"
-      ],
-      "installedAt": "2026-01-04T22:01:09.477Z"
-    },
-    "kdco/frontend-philosophy": {
-      "registry": "kdco",
-      "version": "1.0.0",
-      "hash": "94c59572402621a869b2cd69da91dc9bfbb6dc6a24ca7ddff9c14805a7ea42e3",
-      "files": [
-        ".opencode/skill/frontend-philosophy/SKILL.md"
-      ],
-      "installedAt": "2026-01-04T22:01:09.478Z"
-    },
-    "kdco/philosophy": {
-      "registry": "kdco",
-      "version": "1.0.0",
-      "hash": "946587f02649d0bb118327421213b6f5886852f1747511857b92be3af3f7a12e",
-      "files": [
-        ".opencode/philosophy/AGENTS.md"
-      ],
-      "installedAt": "2026-01-04T22:01:09.478Z"
-    },
     "kdco/background-agents": {
       "registry": "kdco",
       "version": "1.0.0",
-      "hash": "865d9988902d1bd0de5c9b33cc8931ae81cb94b2624d87e93bc008a52746cc4f",
+      "hash": "77b0582ffd2420120aa2c87fbb9c049053a2671dadaf03373f4af879d95e241b",
       "files": [
         ".opencode/plugin/background-agents.ts"
       ],
-      "installedAt": "2026-01-05T02:04:39.816Z",
-      "updatedAt": "2026-01-05T02:10:47.551Z"
+      "installedAt": "2026-01-05T05:07:55.454Z"
     },
     "kdco/workspace-plugin": {
       "registry": "kdco",
@@ -45,7 +17,7 @@
       "files": [
         ".opencode/plugin/workspace-plugin.ts"
       ],
-      "installedAt": "2026-01-05T02:04:39.816Z"
+      "installedAt": "2026-01-05T05:07:55.454Z"
     },
     "kdco/plan-protocol": {
       "registry": "kdco",
@@ -54,7 +26,7 @@
       "files": [
         ".opencode/skill/plan-protocol/SKILL.md"
       ],
-      "installedAt": "2026-01-04T22:01:09.479Z"
+      "installedAt": "2026-01-05T05:07:55.455Z"
     },
     "kdco/researcher": {
       "registry": "kdco",
@@ -63,7 +35,7 @@
       "files": [
         ".opencode/agent/researcher.md"
       ],
-      "installedAt": "2026-01-04T22:01:09.479Z"
+      "installedAt": "2026-01-05T05:07:55.455Z"
     },
     "kdco/scribe": {
       "registry": "kdco",
@@ -72,7 +44,7 @@
       "files": [
         ".opencode/agent/scribe.md"
       ],
-      "installedAt": "2026-01-04T22:01:09.479Z"
+      "installedAt": "2026-01-05T05:07:55.455Z"
     },
     "kdco/coder": {
       "registry": "kdco",
@@ -81,7 +53,7 @@
       "files": [
         ".opencode/agent/coder.md"
       ],
-      "installedAt": "2026-01-04T22:01:09.479Z"
+      "installedAt": "2026-01-05T05:07:55.455Z"
     },
     "kdco/notify": {
       "registry": "kdco",
@@ -90,14 +62,41 @@
       "files": [
         ".opencode/plugin/notify.ts"
       ],
-      "installedAt": "2026-01-04T22:01:09.479Z"
+      "installedAt": "2026-01-05T05:07:55.455Z"
     },
     "kdco/workspace": {
       "registry": "kdco",
       "version": "1.0.0",
       "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "files": [],
-      "installedAt": "2026-01-04T22:01:09.479Z"
+      "installedAt": "2026-01-05T05:07:55.455Z"
+    },
+    "kdco/code-philosophy": {
+      "registry": "kdco",
+      "version": "1.0.0",
+      "hash": "1c9b013f1aacf3b524665d3bdc30aed992f6b78b1281eaafa3b986e71aaa8256",
+      "files": [
+        ".opencode/skill/code-philosophy/SKILL.md"
+      ],
+      "installedAt": "2026-01-05T05:07:59.045Z"
+    },
+    "kdco/frontend-philosophy": {
+      "registry": "kdco",
+      "version": "1.0.0",
+      "hash": "94c59572402621a869b2cd69da91dc9bfbb6dc6a24ca7ddff9c14805a7ea42e3",
+      "files": [
+        ".opencode/skill/frontend-philosophy/SKILL.md"
+      ],
+      "installedAt": "2026-01-05T05:07:59.045Z"
+    },
+    "kdco/philosophy": {
+      "registry": "kdco",
+      "version": "1.0.0",
+      "hash": "946587f02649d0bb118327421213b6f5886852f1747511857b92be3af3f7a12e",
+      "files": [
+        ".opencode/philosophy/AGENTS.md"
+      ],
+      "installedAt": "2026-01-05T05:07:59.045Z"
     }
   }
 }

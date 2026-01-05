@@ -1,69 +1,79 @@
 {
 	"$schema": "https://opencode.ai/config.json",
-	"tools": {
-		"task": false,
-		"context7_*": false,
-		"exa_*": false,
-		"gh_grep_*": false,
-		"kagi_*": false,
-		"webfetch": false
+	"permission": {
+		"task": "deny",
+		"context7_*": "deny",
+		"exa_*": "deny",
+		"gh_grep_*": "deny",
+		"kagi_*": "deny",
+		"webfetch": "deny"
 	},
 	"agent": {
 		"researcher": {
-			"tools": {
-				"context7_*": true,
-				"exa_*": false,
-				"gh_grep_*": true,
-				"kagi_*": true,
-				"write": false,
-				"edit": false,
-				"bash": false
+			"permission": {
+				"context7_*": "allow",
+				"exa_*": "deny",
+				"gh_grep_*": "allow",
+				"kagi_*": "allow",
+				"write": "deny",
+				"edit": "deny",
+				"bash": {
+					"*": "deny"
+				}
 			}
 		},
 		"scribe": {
-			"tools": {
-				"bash": false,
-				"edit": true,
-				"glob": true,
-				"read": true,
-				"write": true
+			"permission": {
+				"bash": {
+					"*": "deny"
+				},
+				"edit": "allow",
+				"glob": "allow",
+				"read": "allow",
+				"write": "allow"
 			}
 		},
 		"coder": {
-			"tools": {
-				"context7_*": false,
-				"exa_*": false,
-				"gh_grep_*": false,
-				"read": true,
-				"write": true,
-				"edit": true,
-				"glob": true,
-				"grep": true,
-				"bash": true
+			"permission": {
+				"context7_*": "deny",
+				"exa_*": "deny",
+				"gh_grep_*": "deny",
+				"read": "allow",
+				"write": "allow",
+				"edit": "allow",
+				"glob": "allow",
+				"grep": "allow",
+				"bash": "allow"
 			}
 		},
 		"plan": {
-			"tools": {
-				"edit": false,
-				"write": false,
-				"bash": false,
-				"task": true
+			"permission": {
+				"edit": "deny",
+				"write": "deny",
+				"bash": {
+					"*": "deny"
+				},
+				"task": "allow"
 			}
 		},
 		"build": {
-			"tools": {
-				"edit": false,
-				"write": false,
-				"bash": false,
-				"task": true
-			},
-			"prompt": "You are a **build orchestrator**. You coordinate implementation through delegation - you do NOT implement directly.\\n\\n## Your Role\\n- Delegate implementation to `coder`\\n- Delegate documentation to `scribe`\\n- Delegate codebase analysis to `explore`\\n- Delegate external research to `researcher`\\n- Interpret results and decide next steps\\n\\n## Critical Constraint\\nYou CANNOT edit files or run commands directly. For ALL implementation and verification, delegate to `coder`."
+			"prompt": "You are a **build orchestrator**. You coordinate implementation through delegation - you do NOT implement directly.\\\\n\\\\n## Your Role\\\\n- Delegate implementation to `coder`\\\\n- Delegate documentation to `scribe`\\\\n- Delegate codebase analysis to `explore`\\\\n- Delegate external research to `researcher`\\\\n- Interpret results and decide next steps\\\\n\\\\n## Critical Constraint\\\\nYou CANNOT edit files or run commands directly. For ALL implementation and verification, delegate to `coder`.",
+			"permission": {
+				"edit": "deny",
+				"write": "deny",
+				"bash": {
+					"*": "deny"
+				},
+				"task": "allow"
+			}
 		},
 		"explore": {
-			"tools": {
-				"write": false,
-				"edit": false,
-				"bash": false
+			"permission": {
+				"write": "deny",
+				"edit": "deny",
+				"bash": {
+					"*": "deny"
+				}
 			}
 		}
 	},

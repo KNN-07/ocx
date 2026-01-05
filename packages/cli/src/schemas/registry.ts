@@ -211,8 +211,13 @@ export const agentConfigSchema = z.object({
 	temperature: z.number().min(0).max(2).optional(),
 	/** Additional prompt text */
 	prompt: z.string().optional(),
-	/** Permission matrix for file operations */
-	permission: z.record(z.enum(["allow", "deny"])).optional(),
+	/**
+	 * Permission matrix for agent operations.
+	 * Use `{ "*": "deny" }` for bash to enable read-only agent detection.
+	 */
+	permission: z
+		.record(z.union([z.enum(["ask", "allow", "deny"]), z.record(z.enum(["ask", "allow", "deny"]))]))
+		.optional(),
 })
 
 export type AgentConfig = z.infer<typeof agentConfigSchema>
@@ -221,18 +226,25 @@ export type AgentConfig = z.infer<typeof agentConfigSchema>
  * Permission configuration schema (matches opencode.json permission schema)
  * Supports both simple values and per-path patterns
  */
-export const permissionConfigSchema = z.object({
-	/** Bash command permissions */
-	bash: z
-		.union([z.enum(["ask", "allow", "deny"]), z.record(z.enum(["ask", "allow", "deny"]))])
-		.optional(),
-	/** File edit permissions */
-	edit: z
-		.union([z.enum(["ask", "allow", "deny"]), z.record(z.enum(["ask", "allow", "deny"]))])
-		.optional(),
-	/** MCP server permissions */
-	mcp: z.record(z.enum(["ask", "allow", "deny"])).optional(),
-})
+export const permissionConfigSchema = z
+	.object({
+		/**
+		 * Bash command permissions.
+		 * - Use `"allow"` for full bash access
+		 * - Use `{ "*": "deny" }` to deny all bash (required for read-only agent detection)
+		 * - Use patterns like `{ "git *": "allow", "*": "deny" }` for partial access
+		 */
+		bash: z
+			.union([z.enum(["ask", "allow", "deny"]), z.record(z.enum(["ask", "allow", "deny"]))])
+			.optional(),
+		/** File edit permissions */
+		edit: z
+			.union([z.enum(["ask", "allow", "deny"]), z.record(z.enum(["ask", "allow", "deny"]))])
+			.optional(),
+		/** MCP server permissions */
+		mcp: z.record(z.enum(["ask", "allow", "deny"])).optional(),
+	})
+	.catchall(z.union([z.enum(["ask", "allow", "deny"]), z.record(z.enum(["ask", "allow", "deny"]))]))
 
 export type PermissionConfig = z.infer<typeof permissionConfigSchema>
 

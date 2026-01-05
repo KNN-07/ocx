@@ -96,6 +96,20 @@ async function writeOpencodeJsonConfig(path: string, content: string): Promise<v
 // =============================================================================
 
 /**
+ * Get the value at a JSON path from content
+ */
+function getValueAtPath(content: string, path: (string | number)[]): unknown {
+	const parsed = parseJsonc(content, [], { allowTrailingComma: true })
+	let current: unknown = parsed
+	for (const segment of path) {
+		if (current === null || current === undefined) return undefined
+		if (typeof current !== "object") return undefined
+		current = (current as Record<string | number, unknown>)[segment]
+	}
+	return current
+}
+
+/**
  * Apply a value at a JSON path using jsonc-parser (preserves comments).
  * Recursively handles objects and arrays.
  */
@@ -104,8 +118,21 @@ function applyValueAtPath(content: string, path: (string | number)[], value: unk
 		return content
 	}
 
-	// For objects, recursively apply each key
+	// For objects, check if we can recursively merge or need to replace entirely
 	if (typeof value === "object" && !Array.isArray(value)) {
+		const existingValue = getValueAtPath(content, path)
+
+		// If existing value is a primitive (string, number, boolean) but new value is an object,
+		// we must replace the entire value - can't add properties to a primitive
+		if (
+			existingValue !== undefined &&
+			(existingValue === null || typeof existingValue !== "object")
+		) {
+			const edits = modify(content, path, value, JSONC_OPTIONS)
+			return applyEdits(content, edits)
+		}
+
+		// Safe to recursively apply each key
 		let updatedContent = content
 		for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
 			updatedContent = applyValueAtPath(updatedContent, [...path, key], val)
