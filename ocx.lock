@@ -4,11 +4,12 @@
     "kdco/background-agents": {
       "registry": "kdco",
       "version": "1.0.0",
-      "hash": "77b0582ffd2420120aa2c87fbb9c049053a2671dadaf03373f4af879d95e241b",
+      "hash": "99bcbd661e4ddf5c51ea4e46b062677afcb142ced33e3c1953716d7684bb349b",
       "files": [
         ".opencode/plugin/background-agents.ts"
       ],
-      "installedAt": "2026-01-05T05:07:55.454Z"
+      "installedAt": "2026-01-05T05:07:55.454Z",
+      "updatedAt": "2026-01-05T12:43:14.494Z"
     },
     "kdco/workspace-plugin": {
       "registry": "kdco",
