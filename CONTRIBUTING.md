@@ -123,13 +123,13 @@ rm -rf .opencode opencode.jsonc ocx.lock ocx.jsonc
 cd packages/cli && bun run build && cd ../..
 
 # 3. Build the local registry
-./packages/cli/dist/index.js build registry/src/kdco --out registry/src/kdco/dist
+./packages/cli/dist/index.js build workers/kdco-registry --out workers/kdco-registry/dist
 
 # 4. Initialize fresh project
 ./packages/cli/dist/index.js init
 
 # 5. Add local registry (MUST use absolute path with file://)
-./packages/cli/dist/index.js registry add "file://$(pwd)/registry/src/kdco/dist" --name kdco
+./packages/cli/dist/index.js registry add "file://$(pwd)/workers/kdco-registry/dist" --name kdco
 
 # 6. Install components (using namespace/component syntax)
 ./packages/cli/dist/index.js add kdco/philosophy kdco/workspace --yes
@@ -165,7 +165,7 @@ For repeated testing (assumes registry is already built):
 ```bash
 rm -rf .opencode opencode.jsonc ocx.lock ocx.jsonc && \
 ./packages/cli/dist/index.js init && \
-./packages/cli/dist/index.js registry add "file://$(pwd)/registry/src/kdco/dist" --name kdco && \
+./packages/cli/dist/index.js registry add "file://$(pwd)/workers/kdco-registry/dist" --name kdco && \
 ./packages/cli/dist/index.js add kdco/workspace --yes && \
 cat opencode.jsonc
 ```

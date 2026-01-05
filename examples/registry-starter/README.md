@@ -113,6 +113,8 @@ bun run build && bun run deploy
 | `ocx:skill` | AI behavior instructions | Markdown |
 | `ocx:plugin` | OpenCode extensions | TypeScript |
 | `ocx:agent` | Agent role definitions | Markdown |
+| `ocx:command` | Custom TUI commands | Markdown |
+| `ocx:tool` | Custom tool implementations | TypeScript |
 | `ocx:bundle` | Component collections | JSON |
 
 See [AGENTS.md](./AGENTS.md) for detailed documentation on each type.

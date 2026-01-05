@@ -138,8 +138,6 @@ Returns raw file content for installation.
 
 ## Example: Minimal Compliant Registry
 
-A minimal registry needs only three files:
-
 ```
 /index.json
 /components/my-skill.json

@@ -60,6 +60,22 @@ export function startMockRegistry(): MockRegistry {
 				plugin: ["provider-plugin"],
 			},
 		},
+		// Component with string command shorthand MCP
+		"test-local-mcp": {
+			name: "test-local-mcp",
+			type: "ocx:plugin",
+			description: "A component with local MCP using string command",
+			files: [{ path: "index.ts", target: ".opencode/plugin/test-local-mcp.ts" }],
+			dependencies: [],
+			opencode: {
+				mcp: {
+					"local-server": {
+						type: "local",
+						command: "npx some-mcp-server --port 3000",
+					},
+				},
+			},
+		},
 		"test-no-mcp": {
 			name: "test-no-mcp",
 			type: "ocx:plugin",

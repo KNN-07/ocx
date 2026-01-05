@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from "bun:test"
 import {
+	agentConfigSchema,
 	createQualifiedComponent,
 	dependencyRefSchema,
 	inferTargetPath,
@@ -13,6 +14,7 @@ import {
 	normalizeMcpServer,
 	openCodeNameSchema,
 	parseQualifiedComponent,
+	permissionConfigSchema,
 	qualifiedComponentSchema,
 	targetPathSchema,
 } from "../src/schemas/registry"
@@ -263,6 +265,127 @@ describe("schemas", () => {
 			}
 			const result = normalizeMcpServer(input)
 			expect(result).toEqual(input)
+		})
+
+		it("should handle local server with string command", () => {
+			const input = {
+				type: "local" as const,
+				command: "npx some-mcp-server --port 3000",
+				enabled: true,
+			}
+			const result = normalizeMcpServer(input)
+			expect(result).toEqual(input)
+			expect(result.command).toBe("npx some-mcp-server --port 3000")
+		})
+	})
+
+	describe("agentConfigSchema", () => {
+		it("should accept valid agent config with all fields", () => {
+			const config = {
+				model: "anthropic/claude-sonnet-4-5",
+				description: "A custom agent",
+				steps: 100,
+				mode: "subagent" as const,
+				tools: { bash: true, edit: false },
+				temperature: 0.7,
+				top_p: 0.9,
+				prompt: "You are helpful",
+				color: "#ff0000",
+				disable: false,
+			}
+			expect(() => agentConfigSchema.parse(config)).not.toThrow()
+		})
+
+		it("should accept agent with permission matrix", () => {
+			const config = {
+				description: "Read-only agent",
+				permission: {
+					bash: { "*": "deny" as const },
+					edit: "deny" as const,
+				},
+			}
+			const result = agentConfigSchema.parse(config)
+			expect(result.permission?.bash).toEqual({ "*": "deny" })
+			expect(result.permission?.edit).toBe("deny")
+		})
+
+		it("should reject invalid mode values", () => {
+			const config = { mode: "invalid" }
+			expect(() => agentConfigSchema.parse(config)).toThrow()
+		})
+
+		it("should accept any temperature value (provider-specific limits)", () => {
+			// Temperature has no bounds - providers have varying limits
+			expect(() => agentConfigSchema.parse({ temperature: -1 })).not.toThrow()
+			expect(() => agentConfigSchema.parse({ temperature: 0 })).not.toThrow()
+			expect(() => agentConfigSchema.parse({ temperature: 2 })).not.toThrow()
+			expect(() => agentConfigSchema.parse({ temperature: 5 })).not.toThrow()
+		})
+
+		it("should accept deprecated maxSteps field", () => {
+			const config = { maxSteps: 50 }
+			expect(() => agentConfigSchema.parse(config)).not.toThrow()
+		})
+
+		it("should require steps to be positive integer", () => {
+			// Valid: positive integers
+			expect(() => agentConfigSchema.parse({ steps: 1 })).not.toThrow()
+			expect(() => agentConfigSchema.parse({ steps: 100 })).not.toThrow()
+			// Invalid: zero, negative, decimals
+			expect(() => agentConfigSchema.parse({ steps: 0 })).toThrow()
+			expect(() => agentConfigSchema.parse({ steps: -1 })).toThrow()
+			expect(() => agentConfigSchema.parse({ steps: 1.5 })).toThrow()
+		})
+
+		it("should require maxSteps to be positive integer", () => {
+			// Valid: positive integers
+			expect(() => agentConfigSchema.parse({ maxSteps: 1 })).not.toThrow()
+			// Invalid: zero, negative, decimals
+			expect(() => agentConfigSchema.parse({ maxSteps: 0 })).toThrow()
+			expect(() => agentConfigSchema.parse({ maxSteps: -5 })).toThrow()
+			expect(() => agentConfigSchema.parse({ maxSteps: 2.5 })).toThrow()
+		})
+	})
+
+	describe("permissionConfigSchema", () => {
+		it("should accept simple permission values", () => {
+			const config = {
+				bash: "allow" as const,
+				edit: "deny" as const,
+			}
+			expect(() => permissionConfigSchema.parse(config)).not.toThrow()
+		})
+
+		it("should accept permission pattern records", () => {
+			const config = {
+				bash: { "*": "deny" as const, "git *": "allow" as const },
+				edit: { "*.md": "allow" as const, "*.ts": "ask" as const },
+			}
+			const result = permissionConfigSchema.parse(config)
+			expect(result.bash).toEqual({ "*": "deny", "git *": "allow" })
+			expect(result.edit).toEqual({ "*.md": "allow", "*.ts": "ask" })
+		})
+
+		it("should accept MCP permissions", () => {
+			const config = {
+				mcp: { "dangerous-mcp": "deny" as const, "safe-mcp": "allow" as const },
+			}
+			expect(() => permissionConfigSchema.parse(config)).not.toThrow()
+		})
+
+		it("should reject invalid permission values", () => {
+			const config = { bash: "invalid" }
+			expect(() => permissionConfigSchema.parse(config)).toThrow()
+		})
+
+		it("should accept mixed simple and pattern permissions", () => {
+			const config = {
+				bash: "allow" as const,
+				edit: { "*.config.*": "deny" as const },
+			}
+			const result = permissionConfigSchema.parse(config)
+			expect(result.bash).toBe("allow")
+			expect(result.edit).toEqual({ "*.config.*": "deny" })
 		})
 	})
 })

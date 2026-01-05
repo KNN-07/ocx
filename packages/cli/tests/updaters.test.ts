@@ -246,7 +246,6 @@ describe("updateOpencodeJsonConfig", () => {
 					type: "remote",
 					url: "https://mcp.example.com",
 					headers: { "X-Custom": "value" },
-					args: ["--verbose", "--debug"],
 					oauth: true,
 					enabled: true,
 				},
@@ -255,8 +254,19 @@ describe("updateOpencodeJsonConfig", () => {
 
 		const config = parseJsonc(await readFile(join(testDir, "opencode.jsonc"), "utf-8"))
 		expect(config.mcp["full-mcp"].headers).toEqual({ "X-Custom": "value" })
-		expect(config.mcp["full-mcp"].args).toEqual(["--verbose", "--debug"])
 		expect(config.mcp["full-mcp"].oauth).toBe(true)
+	})
+
+	it("should configure permissions with pattern record", async () => {
+		await updateOpencodeJsonConfig(testDir, {
+			permission: {
+				bash: { "*": "deny", "git *": "allow" },
+			},
+		})
+
+		const config = parseJsonc(await readFile(join(testDir, "opencode.jsonc"), "utf-8"))
+		expect(config.permission.bash["*"]).toBe("deny")
+		expect(config.permission.bash["git *"]).toBe("allow")
 	})
 
 	it("should add plugins", async () => {

@@ -116,8 +116,7 @@ OCX manages components within the `.opencode/` directory of your project:
 ├── plugin/           # Project plugins (workspace tools, rule injection)
 ├── skill/            # Reusable instructions (protocols, philosophies)
 ├── command/          # Custom TUI commands
-├── tool/             # Custom tool implementations
-└── philosophy/       # Mandatory project rules
+└── tool/             # Custom tool implementations
 ```
 
 ## Configuration
@@ -162,7 +161,7 @@ OCX supports the full range of OpenCode configuration options:
 | **MCP Server Config** |||
 | Remote servers (`type: remote`) | ✅ | URL shorthand supported |
 | Local servers (`type: local`) | ✅ | Full support |
-| Headers, environment, args, oauth | ✅ | Full support |
+| Headers, environment, oauth | ✅ | Full support |
 | **Schema Design** |||
 | Cargo-style union types | ✅ | String shorthand + full objects |
 | File string shorthand | ✅ | Auto-generates target path |

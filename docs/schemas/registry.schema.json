@@ -153,12 +153,11 @@
 										"format": "uri"
 									},
 									"command": {
-										"type": "array",
-										"items": { "type": "string" }
-									},
-									"args": {
-										"type": "array",
-										"items": { "type": "string" }
+										"oneOf": [
+											{ "type": "string" },
+											{ "type": "array", "items": { "type": "string" } }
+										],
+										"description": "Command to run for local servers. String or array (e.g., 'npx foo' or ['npx', 'foo'])"
 									},
 									"environment": {
 										"type": "object",
@@ -228,24 +227,67 @@
 					"description": "Per-agent configuration",
 					"additionalProperties": {
 						"type": "object",
-						"additionalProperties": false,
 						"properties": {
+							"model": {
+								"type": "string",
+								"description": "Per-agent model override"
+							},
+							"description": {
+								"type": "string",
+								"description": "Agent description for self-documentation"
+							},
+							"steps": {
+								"type": "number",
+								"description": "Maximum iterations/steps for the agent"
+							},
+							"mode": {
+								"type": "string",
+								"enum": ["primary", "subagent", "all"],
+								"description": "Agent mode"
+							},
 							"tools": {
 								"type": "object",
-								"additionalProperties": { "type": "boolean" }
+								"additionalProperties": { "type": "boolean" },
+								"description": "Tool enable/disable patterns"
 							},
 							"temperature": {
 								"type": "number",
 								"minimum": 0,
-								"maximum": 2
+								"maximum": 2,
+								"description": "Sampling temperature"
 							},
-							"prompt": { "type": "string" },
+							"top_p": {
+								"type": "number",
+								"description": "Nucleus sampling parameter"
+							},
+							"prompt": {
+								"type": "string",
+								"description": "Additional prompt text"
+							},
 							"permission": {
 								"type": "object",
+								"description": "Permission matrix for agent operations",
 								"additionalProperties": {
-									"type": "string",
-									"enum": ["allow", "deny"]
+									"oneOf": [
+										{ "type": "string", "enum": ["ask", "allow", "deny"] },
+										{
+											"type": "object",
+											"additionalProperties": { "type": "string", "enum": ["ask", "allow", "deny"] }
+										}
+									]
 								}
+							},
+							"color": {
+								"type": "string",
+								"description": "UI color for the agent"
+							},
+							"disable": {
+								"type": "boolean",
+								"description": "Whether the agent is disabled"
+							},
+							"options": {
+								"type": "object",
+								"description": "Custom options for the agent"
 							}
 						}
 					}

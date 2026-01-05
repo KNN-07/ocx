@@ -109,8 +109,7 @@ MCP servers are configured inside the `opencode` block using URL shorthand for r
   "mcp": {
     "local-mcp": {
       "type": "local",
-      "command": ["node", "server.js"],
-      "args": ["--port", "3000"],
+      "command": ["node", "server.js", "--port", "3000"],
       "environment": { "DEBUG": "true" }
     }
   }
@@ -168,7 +167,6 @@ Components can specify settings to merge into the user's `opencode.jsonc`:
 | `ocx:command` | `command/` | Markdown templates for TUI commands. |
 | `ocx:tool` | `tool/` | Custom tool implementations. |
 | `ocx:bundle` | N/A | Virtual components that install multiple other components. |
-| `ocx:philosophy` | N/A | Philosophy/guidance components (virtual, no target directory). |
 
 ## Building
 

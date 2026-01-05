@@ -242,3 +242,25 @@ bun run format         # Fix formatting
 # Single test
 bun test packages/cli/tests/add.test.ts
 ```
+
+## Schema Synchronization
+
+OCX schemas mirror OpenCode's configuration format. To update schemas when OpenCode releases new config options:
+
+### Reference Sources
+
+- **Official JSON Schema:** https://opencode.ai/config.json
+- **Source Code:** https://github.com/sst/opencode/blob/dev/packages/opencode/src/config/config.ts
+
+### Sync Process
+
+1. Check the OpenCode changelog or config.ts for new fields
+2. Update `packages/cli/src/schemas/registry.ts` with new Zod schemas
+3. Follow existing patterns (JSDoc comments, `.passthrough()` for objects)
+4. Run `bun run check` and `bun run test` to verify
+5. Update this document with sync date
+
+### Last Synced
+
+- **Date:** 2026-01-05
+- **OpenCode Version:** Latest (dev branch)

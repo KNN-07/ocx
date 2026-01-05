@@ -190,7 +190,7 @@ OpenCode supports **JSON** and **JSONC** (JSON with Comments):
   // Theme configuration
   "theme": "opencode",
   "model": "anthropic/claude-sonnet-4-5",
-  "autoupdate": true
+  "auto_update": true
 }
 ```
 
@@ -209,7 +209,7 @@ OpenCode supports **JSON** and **JSONC** (JSON with Comments):
 | `theme` | string | UI theme name |
 | `model` | string | Default model (`provider/model-id`) |
 | `small_model` | string | Model for lightweight tasks |
-| `autoupdate` | boolean/`"notify"` | Auto-update behavior |
+| `auto_update` | boolean/`"notify"` | Auto-update behavior |
 | `default_agent` | string | Default primary agent |
 | `share` | `"manual"`/`"auto"`/`"disabled"` | Session sharing mode |
 
@@ -260,7 +260,7 @@ OpenCode supports **JSON** and **JSONC** (JSON with Comments):
 {
   "server": {
     "port": 4096,
-    "hostname": "0.0.0.0",
+    "host": "0.0.0.0",
     "mdns": true,
     "cors": ["http://localhost:5173"]
   }
@@ -283,7 +283,8 @@ OpenCode supports **JSON** and **JSONC** (JSON with Comments):
 ```json
 {
   "watcher": {
-    "ignore": ["node_modules/**", "dist/**", ".git/**"]
+    "include": ["src/**/*.ts", "*.json"],
+    "exclude": ["node_modules/**", "dist/**", ".git/**"]
   }
 }
 ```
@@ -350,7 +351,7 @@ Agents are specialized AI assistants for specific tasks.
       "model": "anthropic/claude-sonnet-4-20250514",
       "temperature": 0.1,
       "prompt": "You are a code reviewer. Focus on security and performance.",
-      "maxSteps": 10,
+      "steps": 10,
       "tools": {
         "write": false,
         "edit": false
@@ -403,7 +404,7 @@ Provide constructive feedback without making direct changes.
 | `mode` | `primary`/`subagent`/`all` | Agent mode (default: `all`) |
 | `model` | string | Model override (`provider/model-id`) |
 | `temperature` | number | 0.0-1.0 (lower = more focused) |
-| `maxSteps` | number | Max agentic iterations before forced response |
+| `steps` | number | Max agentic iterations before forced response |
 | `prompt` | string | Custom system prompt (supports `{file:path}`) |
 | `tools` | object | Tool enable/disable map |
 | `permission` | object | Permission overrides |
@@ -924,7 +925,7 @@ npm install @opencode-ai/sdk
 import { createOpencode } from "@opencode-ai/sdk"
 
 const { client } = await createOpencode({
-  hostname: "127.0.0.1",
+  host: "127.0.0.1",
   port: 4096,
   config: {
     model: "anthropic/claude-3-5-sonnet-20241022"
@@ -1055,7 +1056,7 @@ opencode
 {
   "command": {
     "test": {
-      "template": "Run the full test suite with coverage.",
+      "run": "Run the full test suite with coverage.",
       "description": "Run tests with coverage",
       "agent": "build",
       "model": "anthropic/claude-3-5-sonnet-20241022"
@@ -1117,7 +1118,7 @@ Focus on failing tests and suggest fixes.
 
 2. **Agent Configuration**
    - Set appropriate `temperature` for the use case
-   - Use `maxSteps` to control costs
+   - Use `steps` to control costs
    - Disable unnecessary tools for focused agents
    - Use descriptive `description` for agent selection
 

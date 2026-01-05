@@ -129,17 +129,43 @@ export const targetPathSchema = z
 // =============================================================================
 
 /**
+ * OAuth configuration for MCP servers.
+ * Supports advanced OAuth flows with custom client configuration.
+ */
+export const oauthConfigSchema = z.object({
+	/** OAuth client ID */
+	clientId: z.string().optional(),
+	/** OAuth scopes to request */
+	scopes: z.array(z.string()).optional(),
+	/** OAuth authorization URL */
+	authUrl: z.string().optional(),
+	/** OAuth token URL */
+	tokenUrl: z.string().optional(),
+})
+
+export type OAuthConfig = z.infer<typeof oauthConfigSchema>
+
+/**
  * Full MCP server configuration object
  */
 export const mcpServerObjectSchema = z
 	.object({
 		type: z.enum(["remote", "local"]),
-		url: z.string().url().optional(),
-		command: z.array(z.string()).optional(),
-		args: z.array(z.string()).optional(),
+		/** Server URL (relaxed validation - allows non-URL strings) */
+		url: z.string().optional(),
+		/**
+		 * Command to run for local servers.
+		 * Can be a single string (e.g., "npx foo") or array (e.g., ["npx", "foo"])
+		 */
+		command: z.union([z.string(), z.array(z.string())]).optional(),
 		environment: z.record(z.string()).optional(),
 		headers: z.record(z.string()).optional(),
-		oauth: z.boolean().optional(),
+		/**
+		 * OAuth configuration.
+		 * - true: Enable OAuth with defaults
+		 * - object: Enable OAuth with custom configuration
+		 */
+		oauth: z.union([z.boolean(), oauthConfigSchema]).optional(),
 		enabled: z.boolean().default(true),
 	})
 	.refine(
@@ -164,7 +190,7 @@ export type McpServer = z.infer<typeof mcpServerObjectSchema>
  * - String: URL shorthand for remote server (e.g., "https://mcp.example.com")
  * - Object: Full configuration
  */
-export const mcpServerRefSchema = z.union([z.string().url(), mcpServerObjectSchema])
+export const mcpServerRefSchema = z.union([z.string(), mcpServerObjectSchema])
 
 export type McpServerRef = z.infer<typeof mcpServerRefSchema>
 
@@ -200,17 +226,164 @@ export type ComponentFile = z.infer<typeof componentFileSchema>
 // OPENCODE CONFIG BLOCK SCHEMA
 // =============================================================================
 
+// -----------------------------------------------------------------------------
+// Provider Configuration
+// -----------------------------------------------------------------------------
+
+/**
+ * Provider configuration for AI model providers.
+ * Supports custom API endpoints, headers, and environment variables.
+ */
+export const providerConfigSchema = z
+	.object({
+		/** API base URL */
+		api: z.string().optional(),
+		/** Custom headers */
+		headers: z.record(z.string()).optional(),
+		/** Environment variables for API keys */
+		env: z.record(z.string()).optional(),
+		/** Whether provider is enabled */
+		enabled: z.boolean().optional(),
+	})
+	.passthrough()
+
+export type ProviderConfig = z.infer<typeof providerConfigSchema>
+
+// -----------------------------------------------------------------------------
+// LSP, Formatter, Command Configuration
+// -----------------------------------------------------------------------------
+
+/**
+ * Language Server Protocol configuration.
+ * Defines how to start and configure LSP servers.
+ */
+export const lspConfigSchema = z
+	.object({
+		/** Command to run (string or array of args) */
+		command: z.union([z.string(), z.array(z.string())]).optional(),
+		/** Whether LSP is enabled */
+		enabled: z.boolean().optional(),
+	})
+	.passthrough()
+
+export type LspConfig = z.infer<typeof lspConfigSchema>
+
+/**
+ * Formatter configuration for code formatting.
+ * Defines the command and file patterns to format.
+ */
+export const formatterConfigSchema = z
+	.object({
+		/** Command to run (string or array of args) */
+		command: z.union([z.string(), z.array(z.string())]).optional(),
+		/** Glob pattern for files to format */
+		glob: z.string().optional(),
+	})
+	.passthrough()
+
+export type FormatterConfig = z.infer<typeof formatterConfigSchema>
+
+/**
+ * Custom command configuration.
+ * Defines executable commands with descriptions.
+ */
+export const commandConfigSchema = z
+	.object({
+		/** Command description */
+		description: z.string().optional(),
+		/** The command to run */
+		run: z.string().optional(),
+	})
+	.passthrough()
+
+export type CommandConfig = z.infer<typeof commandConfigSchema>
+
+// -----------------------------------------------------------------------------
+// TUI, Server, Keybind, Watcher Configuration
+// -----------------------------------------------------------------------------
+
+/**
+ * TUI (Terminal User Interface) configuration.
+ */
+export const tuiConfigSchema = z
+	.object({
+		/** Disable TUI features */
+		disabled: z.boolean().optional(),
+	})
+	.passthrough()
+
+export type TuiConfig = z.infer<typeof tuiConfigSchema>
+
+/**
+ * Server configuration for OpenCode server mode.
+ */
+export const serverConfigSchema = z
+	.object({
+		/** Server host */
+		host: z.string().optional(),
+		/** Server port */
+		port: z.number().optional(),
+	})
+	.passthrough()
+
+export type ServerConfig = z.infer<typeof serverConfigSchema>
+
+/**
+ * Keybind configuration - maps action names to key combinations.
+ */
+export const keybindConfigSchema = z.record(z.string())
+
+export type KeybindConfig = z.infer<typeof keybindConfigSchema>
+
+/**
+ * File watcher configuration for automatic reloads.
+ */
+export const watcherConfigSchema = z
+	.object({
+		/** Patterns to include */
+		include: z.array(z.string()).optional(),
+		/** Patterns to exclude */
+		exclude: z.array(z.string()).optional(),
+	})
+	.passthrough()
+
+export type WatcherConfig = z.infer<typeof watcherConfigSchema>
+
+// -----------------------------------------------------------------------------
+// Agent Configuration
+// -----------------------------------------------------------------------------
+
 /**
  * Agent configuration options (matches opencode.json agent schema)
- * Note: No hardcoded 'model' - that's a user preference
  */
 export const agentConfigSchema = z.object({
+	/** Per-agent model override */
+	model: z.string().optional(),
+
+	/** Agent description for self-documentation */
+	description: z.string().optional(),
+
+	/** Maximum iterations/steps for the agent (must be positive integer) */
+	steps: z.number().int().positive().optional(),
+
+	/** @deprecated Use `steps` instead (must be positive integer) */
+	maxSteps: z.number().int().positive().optional(),
+
+	/** Agent mode */
+	mode: z.enum(["primary", "subagent", "all"]).optional(),
+
 	/** Tool enable/disable patterns */
 	tools: z.record(z.boolean()).optional(),
-	/** Sampling temperature */
-	temperature: z.number().min(0).max(2).optional(),
+
+	/** Sampling temperature (provider-specific limits) */
+	temperature: z.number().optional(),
+
+	/** Nucleus sampling parameter */
+	top_p: z.number().optional(),
+
 	/** Additional prompt text */
 	prompt: z.string().optional(),
+
 	/**
 	 * Permission matrix for agent operations.
 	 * Use `{ "*": "deny" }` for bash to enable read-only agent detection.
@@ -218,6 +391,15 @@ export const agentConfigSchema = z.object({
 	permission: z
 		.record(z.union([z.enum(["ask", "allow", "deny"]), z.record(z.enum(["ask", "allow", "deny"]))]))
 		.optional(),
+
+	/** UI color for the agent */
+	color: z.string().optional(),
+
+	/** Whether the agent is disabled */
+	disable: z.boolean().optional(),
+
+	/** Custom options for the agent */
+	options: z.record(z.any()).optional(),
 })
 
 export type AgentConfig = z.infer<typeof agentConfigSchema>
@@ -253,6 +435,27 @@ export type PermissionConfig = z.infer<typeof permissionConfigSchema>
  * Mirrors opencode.json structure exactly for 1:1 mapping
  */
 export const opencodeConfigSchema = z.object({
+	/** JSON Schema URL for IDE support */
+	$schema: z.string().optional(),
+
+	/** UI theme name */
+	theme: z.string().optional(),
+
+	/** Logging level */
+	logLevel: z.string().optional(),
+
+	/** Username for display */
+	username: z.string().optional(),
+
+	/** Default model to use */
+	model: z.string().optional(),
+
+	/** Small/fast model for simple tasks */
+	small_model: z.string().optional(),
+
+	/** Default agent to use */
+	default_agent: z.string().optional(),
+
 	/** MCP servers (matches opencode.json 'mcp' field) */
 	mcp: z.record(mcpServerRefSchema).optional(),
 
@@ -270,6 +473,39 @@ export const opencodeConfigSchema = z.object({
 
 	/** Permission configuration */
 	permission: permissionConfigSchema.optional(),
+
+	/** Provider configurations */
+	provider: z.record(providerConfigSchema).optional(),
+
+	/** LSP configurations */
+	lsp: z.record(lspConfigSchema).optional(),
+
+	/** Formatter configurations */
+	formatter: z.record(formatterConfigSchema).optional(),
+
+	/** Custom command configurations */
+	command: z.record(commandConfigSchema).optional(),
+
+	/** TUI configuration */
+	tui: tuiConfigSchema.optional(),
+
+	/** Server configuration */
+	server: serverConfigSchema.optional(),
+
+	/** Keybind configuration */
+	keybind: keybindConfigSchema.optional(),
+
+	/** File watcher configuration */
+	watcher: watcherConfigSchema.optional(),
+
+	/** Enable auto-updates */
+	auto_update: z.boolean().optional(),
+
+	/** Enable auto-compaction */
+	auto_compact: z.boolean().optional(),
+
+	/** Share configuration (boolean or URL string) */
+	share: z.union([z.boolean(), z.string()]).optional(),
 })
 
 export type OpencodeConfig = z.infer<typeof opencodeConfigSchema>
