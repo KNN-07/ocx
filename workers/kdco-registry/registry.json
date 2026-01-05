@@ -35,6 +35,13 @@
 			"dependencies": []
 		},
 		{
+			"name": "code-review",
+			"type": "ocx:skill",
+			"description": "Structured code review methodology with severity levels and categories",
+			"files": ["skill/code-review/SKILL.md"],
+			"dependencies": []
+		},
+		{
 			"name": "researcher",
 			"type": "ocx:agent",
 			"description": "Knowledge architect for external research",
@@ -69,7 +76,33 @@
 							"kagi_*": "deny",
 							"write": "deny",
 							"edit": "deny",
-							"bash": { "*": "deny" }
+							"bash": {
+								"*": "deny",
+								"gh repo view*": "allow",
+								"gh pr view*": "allow",
+								"gh pr list*": "allow",
+								"gh issue view*": "allow",
+								"gh issue list*": "allow",
+								"gh release view*": "allow",
+								"gh release list*": "allow",
+								"gh run view*": "allow",
+								"gh run list*": "allow",
+								"gh workflow list*": "allow",
+								"gh search *": "allow",
+								"npm view*": "allow",
+								"npm info*": "allow",
+								"npm show*": "allow",
+								"pip show*": "allow",
+								"pip index*": "allow",
+								"cargo search*": "allow",
+								"cargo info*": "allow",
+								"man *": "allow",
+								"tldr *": "allow",
+								"dig *": "allow",
+								"nslookup *": "allow",
+								"whois *": "allow",
+								"host *": "allow"
+							}
 						}
 					}
 				}
@@ -119,6 +152,32 @@
 				}
 			}
 		},
+		{
+			"name": "reviewer",
+			"type": "ocx:agent",
+			"description": "Code review specialist that analyzes code for issues and improvements",
+			"files": ["agent/reviewer.md"],
+			"dependencies": ["code-review"],
+			"opencode": {
+				"agent": {
+					"reviewer": {
+						"temperature": 0.1,
+						"permission": {
+							"edit": "deny",
+							"write": "deny",
+							"bash": {
+								"*": "deny",
+								"git diff*": "allow",
+								"git log*": "allow",
+								"git show*": "allow",
+								"git blame*": "allow",
+								"rg *": "allow"
+							}
+						}
+					}
+				}
+			}
+		},
 
 		{
 			"name": "background-agents",
@@ -142,6 +201,13 @@
 			"npmDevDependencies": ["node-notifier@10.0.1", "detect-terminal@2.0.0"]
 		},
 		{
+			"name": "review",
+			"type": "ocx:command",
+			"description": "Trigger code review on files or git diffs",
+			"files": ["command/review.md"],
+			"dependencies": ["reviewer"]
+		},
+		{
 			"name": "workspace",
 			"type": "ocx:bundle",
 			"description": "Full KDCO Workspace experience",
@@ -152,6 +218,8 @@
 				"researcher",
 				"scribe",
 				"coder",
+				"reviewer",
+				"review",
 				"notify"
 			],
 			"opencode": {
@@ -179,9 +247,35 @@
 					},
 					"explore": {
 						"permission": {
-							"write": "deny",
 							"edit": "deny",
-							"bash": { "*": "deny" }
+							"write": "deny",
+							"bash": {
+								"*": "deny",
+								"ls *": "allow",
+								"tree *": "allow",
+								"pwd": "allow",
+								"cat *": "allow",
+								"head *": "allow",
+								"tail *": "allow",
+								"wc *": "allow",
+								"file *": "allow",
+								"stat *": "allow",
+								"grep *": "allow",
+								"rg *": "allow",
+								"find *": "allow",
+								"git status*": "allow",
+								"git log*": "allow",
+								"git diff*": "allow",
+								"git show*": "allow",
+								"git blame*": "allow",
+								"git branch*": "allow",
+								"git ls-files*": "allow",
+								"uname*": "allow",
+								"hostname": "allow",
+								"whoami": "allow",
+								"which *": "allow",
+								"realpath *": "allow"
+							}
 						}
 					}
 				}

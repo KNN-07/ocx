@@ -451,6 +451,26 @@ Load the relevant skill BEFORE delegating to coder:
 6. Update: Mark tasks complete in plan
 
 </build-workflow>
+
+<code-review-protocol>
+
+## Code Review Protocol
+
+When implementation is complete (all plan steps done OR user's request fulfilled):
+1. BEFORE reporting completion to the user
+2. Delegate to \`reviewer\` agent with the list of changed files
+3. Include review findings in your completion report
+4. If critical (🔴) or major (🟠) issues found, offer to fix them
+
+Do NOT skip this step. Do NOT ask permission to review.
+The user expects reviewed code, not just implemented code.
+
+Review triggers:
+- All plan tasks marked complete
+- User's implementation request fulfilled
+- Before saying "done" or "complete"
+
+</code-review-protocol>
 </system-reminder>`
 
 export const WorkspacePlugin: Plugin = async (ctx) => {
@@ -556,6 +576,32 @@ Today is ${today}. When searching for documentation, APIs, or external resources
 				output.system.push(PLAN_RULES)
 			} else if (agent === "build") {
 				output.system.push(BUILD_RULES)
+			}
+		},
+
+		// Post-task hook - Inject code review reminder after coder tasks
+		"tool.execute.after": async (
+			input: { tool: string },
+			output?: { args?: { subagent_type?: string }; result?: unknown },
+		) => {
+			// Guard: Only intercept task tool
+			if (input.tool !== "task") return
+
+			// Guard: Check if output has subagent_type
+			if (!output?.args?.subagent_type) return
+
+			// Guard: Only trigger for coder agent
+			const agentName = output.args.subagent_type
+			if (agentName !== "coder") return
+
+			// Return system message to append for next turn
+			return {
+				text: `<system-reminder>
+Coder task complete. If this was the final implementation step and all requested work is done, proceed to code review:
+1. Delegate to \`reviewer\` agent with the changed files
+2. Include findings in your completion report
+3. Offer to fix any critical/major issues found
+</system-reminder>`,
 			}
 		},
 

@@ -18,7 +18,31 @@
 				"write": "deny",
 				"edit": "deny",
 				"bash": {
-					"*": "deny"
+					"*": "deny",
+					"gh repo view*": "allow",
+					"gh pr view*": "allow",
+					"gh pr list*": "allow",
+					"gh issue view*": "allow",
+					"gh issue list*": "allow",
+					"gh release view*": "allow",
+					"gh release list*": "allow",
+					"gh run view*": "allow",
+					"gh run list*": "allow",
+					"gh workflow list*": "allow",
+					"gh search *": "allow",
+					"npm view*": "allow",
+					"npm info*": "allow",
+					"npm show*": "allow",
+					"pip show*": "allow",
+					"pip index*": "allow",
+					"cargo search*": "allow",
+					"cargo info*": "allow",
+					"man *": "allow",
+					"tldr *": "allow",
+					"dig *": "allow",
+					"nslookup *": "allow",
+					"whois *": "allow",
+					"host *": "allow"
 				}
 			}
 		},
@@ -46,6 +70,21 @@
 				"bash": "allow"
 			}
 		},
+		"reviewer": {
+			"permission": {
+				"edit": "deny",
+				"write": "deny",
+				"bash": {
+					"*": "deny",
+					"git diff*": "allow",
+					"git log*": "allow",
+					"git show*": "allow",
+					"git blame*": "allow",
+					"rg *": "allow"
+				}
+			},
+			"temperature": 0.1
+		},
 		"plan": {
 			"permission": {
 				"edit": "deny",
@@ -72,7 +111,31 @@
 				"write": "deny",
 				"edit": "deny",
 				"bash": {
-					"*": "deny"
+					"*": "deny",
+					"ls *": "allow",
+					"tree *": "allow",
+					"pwd": "allow",
+					"cat *": "allow",
+					"head *": "allow",
+					"tail *": "allow",
+					"wc *": "allow",
+					"file *": "allow",
+					"stat *": "allow",
+					"grep *": "allow",
+					"rg *": "allow",
+					"find *": "allow",
+					"git status*": "allow",
+					"git log*": "allow",
+					"git diff*": "allow",
+					"git show*": "allow",
+					"git blame*": "allow",
+					"git branch*": "allow",
+					"git ls-files*": "allow",
+					"uname*": "allow",
+					"hostname": "allow",
+					"whoami": "allow",
+					"which *": "allow",
+					"realpath *": "allow"
 				}
 			}
 		}
@@ -95,18 +158,12 @@
 		},
 		"kagi": {
 			"type": "local",
-			"command": [
-				"npx",
-				"-y",
-				"github:czottmann/kagi-ken-mcp"
-			],
+			"command": ["npx", "-y", "github:czottmann/kagi-ken-mcp"],
 			"environment": {
 				"KAGI_SESSION_TOKEN": "{file:~/.secrets/kagi-session-token}"
 			},
 			"enabled": true
 		}
 	},
-	"plugin": [
-		"@tarquinen/opencode-dcp@1.1.2"
-	]
+	"plugin": ["@tarquinen/opencode-dcp@1.1.2"]
 }
