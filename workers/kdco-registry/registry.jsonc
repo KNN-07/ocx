@@ -1,11 +1,19 @@
 {
+	// KDCO Registry - Official component registry for OpenCode extensions
+	// This registry provides plugins, agents, skills, and commands for the KDCO workspace
+
 	"name": "KDCO",
 	"namespace": "kdco",
 	"version": "1.0.0",
 	"author": "kdcokenny",
 	"opencode": "1.1.0",
 	"ocx": "1.0.16",
+
 	"components": [
+		// ============================================================================
+		// CORE PLUGINS
+		// Foundational plugins that enable workspace features
+		// ============================================================================
 		{
 			"name": "workspace-plugin",
 			"type": "ocx:plugin",
@@ -13,6 +21,33 @@
 			"files": ["plugin/workspace-plugin.ts"],
 			"dependencies": ["background-agents"]
 		},
+		{
+			"name": "background-agents",
+			"type": "ocx:plugin",
+			"description": "Background agent execution - run async tasks while you work",
+			"files": ["plugin/background-agents.ts"],
+			"dependencies": [],
+			"npmDevDependencies": ["unique-names-generator@4.7.1"],
+			"opencode": {
+				// Disable native task tool since this plugin provides delegation
+				"permission": {
+					"task": "deny"
+				}
+			}
+		},
+		{
+			"name": "notify",
+			"type": "ocx:plugin",
+			"description": "Native OS notifications - get notified when tasks complete",
+			"files": ["plugin/notify.ts"],
+			"dependencies": [],
+			"npmDevDependencies": ["node-notifier@10.0.1", "detect-terminal@2.0.0"]
+		},
+
+		// ============================================================================
+		// SKILLS
+		// Knowledge modules that teach agents how to perform specific tasks
+		// ============================================================================
 		{
 			"name": "plan-protocol",
 			"type": "ocx:skill",
@@ -41,6 +76,11 @@
 			"files": ["skill/code-review/SKILL.md"],
 			"dependencies": []
 		},
+
+		// ============================================================================
+		// AGENTS
+		// Specialized AI personas for different tasks
+		// ============================================================================
 		{
 			"name": "researcher",
 			"type": "ocx:agent",
@@ -48,6 +88,7 @@
 			"files": ["agent/researcher.md"],
 			"dependencies": ["background-agents"],
 			"opencode": {
+				// MCP servers for external research capabilities
 				"mcp": {
 					"context7": "https://mcp.context7.com/mcp",
 					"exa": "https://mcp.exa.ai/mcp",
@@ -58,9 +99,11 @@
 						"environment": {
 							"KAGI_SESSION_TOKEN": "{file:~/.secrets/kagi-session-token}"
 						},
+						// Disabled by default - requires Kagi subscription
 						"enabled": false
 					}
 				},
+				// Deny MCP tools globally, only allow for researcher agent
 				"permission": {
 					"context7_*": "deny",
 					"exa_*": "deny",
@@ -70,14 +113,17 @@
 				"agent": {
 					"researcher": {
 						"permission": {
+							// Allow MCP tools for researcher
 							"context7_*": "allow",
 							"exa_*": "allow",
 							"gh_grep_*": "allow",
 							"kagi_*": "deny",
+							// Researcher is read-only - no file modifications
 							"write": "deny",
 							"edit": "deny",
 							"bash": {
 								"*": "deny",
+								// Allow read-only git and package info commands
 								"gh repo view*": "allow",
 								"gh pr view*": "allow",
 								"gh pr list*": "allow",
@@ -118,6 +164,7 @@
 				"agent": {
 					"scribe": {
 						"permission": {
+							// Scribe writes docs but cannot run commands
 							"bash": { "*": "deny" },
 							"edit": "allow",
 							"glob": "allow",
@@ -138,9 +185,11 @@
 				"agent": {
 					"coder": {
 						"permission": {
+							// Coder cannot use research MCPs
 							"context7_*": "deny",
 							"exa_*": "deny",
 							"gh_grep_*": "deny",
+							// Full access to file operations and bash
 							"read": "allow",
 							"write": "allow",
 							"edit": "allow",
@@ -161,12 +210,15 @@
 			"opencode": {
 				"agent": {
 					"reviewer": {
+						// Low temperature for consistent, deterministic reviews
 						"temperature": 0.1,
 						"permission": {
+							// Reviewer is read-only - analysis only
 							"edit": "deny",
 							"write": "deny",
 							"bash": {
 								"*": "deny",
+								// Allow git inspection commands for reviewing changes
 								"git diff*": "allow",
 								"git log*": "allow",
 								"git show*": "allow",
@@ -179,27 +231,10 @@
 			}
 		},
 
-		{
-			"name": "background-agents",
-			"type": "ocx:plugin",
-			"description": "Background agent execution - run async tasks while you work",
-			"files": ["plugin/background-agents.ts"],
-			"dependencies": [],
-			"npmDevDependencies": ["unique-names-generator@4.7.1"],
-			"opencode": {
-				"permission": {
-					"task": "deny"
-				}
-			}
-		},
-		{
-			"name": "notify",
-			"type": "ocx:plugin",
-			"description": "Native OS notifications - get notified when tasks complete",
-			"files": ["plugin/notify.ts"],
-			"dependencies": [],
-			"npmDevDependencies": ["node-notifier@10.0.1", "detect-terminal@2.0.0"]
-		},
+		// ============================================================================
+		// COMMANDS
+		// User-invokable commands for specific workflows
+		// ============================================================================
 		{
 			"name": "review",
 			"type": "ocx:command",
@@ -207,6 +242,11 @@
 			"files": ["command/review.md"],
 			"dependencies": ["reviewer"]
 		},
+
+		// ============================================================================
+		// BUNDLES
+		// Pre-configured collections of components for common use cases
+		// ============================================================================
 		{
 			"name": "workspace",
 			"type": "ocx:bundle",
@@ -223,10 +263,13 @@
 				"notify"
 			],
 			"opencode": {
+				// External npm plugin for diff/patch support
 				"plugin": ["@tarquinen/opencode-dcp@1.1.2"],
 				"permission": {
+					// Disable webfetch globally for security
 					"webfetch": "deny"
 				},
+				// Configure orchestrator agents with appropriate permissions
 				"agent": {
 					"plan": {
 						"permission": {
@@ -237,7 +280,7 @@
 						}
 					},
 					"build": {
-						"prompt": "You are a **build orchestrator**. You coordinate implementation through delegation - you do NOT implement directly.\\\\n\\\\n## Your Role\\\\n- Delegate implementation to `coder`\\\\n- Delegate documentation to `scribe`\\\\n- Delegate codebase analysis to `explore`\\\\n- Delegate external research to `researcher`\\\\n- Interpret results and decide next steps\\\\n\\\\n## Critical Constraint\\\\nYou CANNOT edit files or run commands directly. For ALL implementation and verification, delegate to `coder`.",
+						"prompt": "You are a **build orchestrator**. You coordinate implementation through delegation - you do NOT implement directly.\\\\\\\\n\\\\\\\\n## Your Role\\\\\\\\n- Delegate implementation to `coder`\\\\\\\\n- Delegate documentation to `scribe`\\\\\\\\n- Delegate codebase analysis to `explore`\\\\\\\\n- Delegate external research to `researcher`\\\\\\\\n- Interpret results and decide next steps\\\\\\\\n\\\\\\\\n## Critical Constraint\\\\\\\\nYou CANNOT edit files or run commands directly. For ALL implementation and verification, delegate to `coder`.",
 						"permission": {
 							"edit": "deny",
 							"write": "deny",
@@ -251,6 +294,7 @@
 							"write": "deny",
 							"bash": {
 								"*": "deny",
+								// Allow read-only filesystem exploration
 								"ls *": "allow",
 								"tree *": "allow",
 								"pwd": "allow",
@@ -263,6 +307,7 @@
 								"grep *": "allow",
 								"rg *": "allow",
 								"find *": "allow",
+								// Allow git read commands
 								"git status*": "allow",
 								"git log*": "allow",
 								"git diff*": "allow",
@@ -270,6 +315,7 @@
 								"git blame*": "allow",
 								"git branch*": "allow",
 								"git ls-files*": "allow",
+								// Allow system info commands
 								"uname*": "allow",
 								"hostname": "allow",
 								"whoami": "allow",
