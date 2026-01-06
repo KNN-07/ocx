@@ -29,6 +29,7 @@
 					"gh run view*": "allow",
 					"gh run list*": "allow",
 					"gh workflow list*": "allow",
+					"gh api *": "allow",
 					"gh search *": "allow",
 					"npm view*": "allow",
 					"npm info*": "allow",
@@ -42,7 +43,20 @@
 					"dig *": "allow",
 					"nslookup *": "allow",
 					"whois *": "allow",
-					"host *": "allow"
+					"host *": "allow",
+					// Filter/transform commands for piped output
+					"jq *": "allow",
+					"head *": "allow",
+					"tail *": "allow",
+					"base64 *": "allow",
+					"grep *": "allow",
+					"rg *": "allow",
+					"wc *": "allow",
+					"sort *": "allow",
+					"uniq *": "allow",
+					"cut *": "allow",
+					"awk *": "allow",
+					"tr *": "allow"
 				}
 			}
 		},

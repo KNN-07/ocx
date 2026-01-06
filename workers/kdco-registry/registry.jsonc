@@ -148,7 +148,20 @@
 								"dig *": "allow",
 								"nslookup *": "allow",
 								"whois *": "allow",
-								"host *": "allow"
+								"host *": "allow",
+								// Filter/transform commands for piped output
+								"jq *": "allow",
+								"head *": "allow",
+								"tail *": "allow",
+								"base64 *": "allow",
+								"grep *": "allow",
+								"rg *": "allow",
+								"wc *": "allow",
+								"sort *": "allow",
+								"uniq *": "allow",
+								"cut *": "allow",
+								"awk *": "allow",
+								"tr *": "allow"
 							}
 						}
 					}
