@@ -51,30 +51,80 @@ Install individually if you don't want the full bundle.
 
 The researcher agent uses **Exa** by default (free, no auth required).
 
-### Using Kagi (Optional)
+### Adding Custom Search Engines
 
-Kagi provides privacy-focused search but requires a [paid subscription](https://kagi.com).
+You can integrate any MCP-compatible search server. The pattern involves:
 
-1. Create a secret file (requires Node.js 22+ for `npx`):
+1. **Configure the MCP server** with command and environment
+2. **Store secrets securely** using file-based or environment variables
+3. **Enable tools** for the researcher agent using a glob pattern
+
+#### Security Best Practices
+
+**Preferred: File-based secrets** — keeps API keys out of config files:
+
+```bash
+mkdir -p ~/.secrets && chmod 700 ~/.secrets
+echo "your-api-key" > ~/.secrets/service-api-key
+chmod 600 ~/.secrets/service-api-key
+```
+
+Reference in config with `{file:~/.secrets/service-api-key}`.
+
+**Alternative: Environment variables** — useful for CI/CD:
+
+```jsonc
+"environment": { "API_KEY": "{env:SERVICE_API_KEY}" }
+```
+
+#### Example: Kagi
+
+[Kagi](https://kagi.com) provides privacy-focused search (requires a paid subscription).
+
+1. **Get your session token** from Kagi's settings
+
+2. **Create a secret file** (requires Node.js 22+ for `npx`):
    ```bash
    mkdir -p ~/.secrets && chmod 700 ~/.secrets
    echo "YOUR_KAGI_SESSION_TOKEN" > ~/.secrets/kagi-session-token
    chmod 600 ~/.secrets/kagi-session-token
    ```
 
-2. Enable Kagi in your `opencode.jsonc`:
+3. **Add the MCP server** to your `opencode.jsonc`:
    ```jsonc
    {
      "mcp": {
-       "kagi": { "enabled": true }
+       "kagi": {
+         "type": "local",
+         "command": ["npx", "-y", "github:czottmann/kagi-ken-mcp"],
+         "environment": {
+           "KAGI_SESSION_TOKEN": "{file:~/.secrets/kagi-session-token}"
+         }
+       }
      },
      "agent": {
        "researcher": {
          "tools": { "kagi_*": true }
        }
      }
-   }
-   ```
+    }
+    ```
+
+#### Enabling Tools
+
+Use glob patterns to grant the researcher agent access to MCP tools:
+
+```jsonc
+{
+  "agent": {
+    "researcher": {
+      "tools": { "prefix_*": true }
+    }
+  }
+}
+```
+
+Replace `prefix_*` with the tool prefix for your search engine (e.g., `kagi_*`, `tavily_*`).
 
 ## Creating Your Own Registry
 

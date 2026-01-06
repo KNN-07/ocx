@@ -92,16 +92,7 @@
 				"mcp": {
 					"context7": "https://mcp.context7.com/mcp",
 					"exa": "https://mcp.exa.ai/mcp",
-					"gh_grep": "https://mcp.grep.app",
-					"kagi": {
-						"type": "local",
-						"command": ["npx", "-y", "github:czottmann/kagi-ken-mcp"],
-						"environment": {
-							"KAGI_SESSION_TOKEN": "{file:~/.secrets/kagi-session-token}"
-						},
-						// Disabled by default - requires Kagi subscription
-						"enabled": false
-					}
+					"gh_grep": "https://mcp.grep.app"
 				},
 				// Deny MCP tools globally, only allow for researcher agent
 				"permission": {
