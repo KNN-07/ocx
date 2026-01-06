@@ -35,8 +35,8 @@ export function registerSearchCommand(program: Command): void {
 		.action(async (query: string | undefined, options: SearchOptions) => {
 			try {
 				const limit = parseInt(String(options.limit), 10)
-				if (Number.isNaN(limit)) {
-					throw new ValidationError("--limit must be a valid number");
+				if (Number.isNaN(limit) || limit < 1) {
+					throw new ValidationError("--limit must be a positive integer")
 				}
 
 				// List installed only
