@@ -59,11 +59,12 @@
     "kdco/researcher": {
       "registry": "kdco",
       "version": "1.0.0",
-      "hash": "539647a0b862181272df6411c92a58a14668ad7f0b3e6b4dfc429ea84dcf38e3",
+      "hash": "750b46976f47a9716146fc495042ced167e4edf341a483c549e19b761c1ba5bd",
       "files": [
         ".opencode/agent/researcher.md"
       ],
-      "installedAt": "2026-01-05T22:21:35.622Z"
+      "installedAt": "2026-01-05T22:21:35.622Z",
+      "updatedAt": "2026-01-06T00:55:19.664Z"
     },
     "kdco/scribe": {
       "registry": "kdco",
