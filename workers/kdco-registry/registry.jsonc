@@ -135,6 +135,7 @@
 								"gh run list*": "allow",
 								"gh workflow list*": "allow",
 								"gh search *": "allow",
+								"gh api *": "allow",
 								"npm view*": "allow",
 								"npm info*": "allow",
 								"npm show*": "allow",
