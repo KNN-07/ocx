@@ -7,10 +7,11 @@
 
 import { mkdir } from "node:fs/promises"
 import { dirname, join } from "node:path"
+import { parse as parseJsonc } from "jsonc-parser"
 import { normalizeFile, registrySchema } from "../schemas/registry.js"
 
 export interface BuildRegistryOptions {
-	/** Source directory containing registry.json and files/ */
+	/** Source directory containing registry.jsonc (or registry.json) and files/ */
 	source: string
 	/** Output directory for built registry */
 	out: string
@@ -49,13 +50,19 @@ export class BuildRegistryError extends Error {
 export async function buildRegistry(options: BuildRegistryOptions): Promise<BuildRegistryResult> {
 	const { source: sourcePath, out: outPath } = options
 
-	// Read registry.json from source
-	const registryFile = Bun.file(join(sourcePath, "registry.json"))
-	if (!(await registryFile.exists())) {
-		throw new BuildRegistryError("No registry.json found in source directory")
+	// Read registry file from source (prefer .jsonc over .json)
+	const jsoncFile = Bun.file(join(sourcePath, "registry.jsonc"))
+	const jsonFile = Bun.file(join(sourcePath, "registry.json"))
+	const jsoncExists = await jsoncFile.exists()
+	const jsonExists = await jsonFile.exists()
+
+	if (!jsoncExists && !jsonExists) {
+		throw new BuildRegistryError("No registry.jsonc or registry.json found in source directory")
 	}
 
-	const registryData = await registryFile.json()
+	const registryFile = jsoncExists ? jsoncFile : jsonFile
+	const content = await registryFile.text()
+	const registryData = parseJsonc(content, [], { allowTrailingComma: true })
 
 	// Validate registry schema
 	const parseResult = registrySchema.safeParse(registryData)

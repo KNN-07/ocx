@@ -140,4 +140,119 @@ describe("ocx build", () => {
 			"Bare dependencies must reference components that exist in the registry",
 		)
 	})
+
+	it("should build from registry.jsonc with comments", async () => {
+		const sourceDir = join(testDir, "registry-jsonc")
+		await mkdir(sourceDir, { recursive: true })
+
+		// JSONC content with inline and block comments
+		const registryJsonc = `{
+	// This is an inline comment
+	"name": "JSONC Registry",
+	"namespace": "test",
+	"version": "1.0.0",
+	"author": "Test Author",
+	/*
+	 * Block comment describing components
+	 */
+	"components": [
+		{
+			"name": "jsonc-comp",
+			"type": "ocx:plugin",
+			"description": "Component from JSONC", // trailing comment
+			"files": [{ "path": "index.ts", "target": ".opencode/plugin/jsonc-comp.ts" }],
+			"dependencies": [],
+		}
+	],
+}`
+
+		await writeFile(join(sourceDir, "registry.jsonc"), registryJsonc)
+
+		// Create the files directory and source files
+		const filesDir = join(sourceDir, "files")
+		await mkdir(filesDir, { recursive: true })
+		await writeFile(join(filesDir, "index.ts"), "// JSONC test content")
+
+		// Run build
+		const outDir = "dist-jsonc"
+		const { exitCode, output } = await runCLI(["build", "registry-jsonc", "--out", outDir], testDir)
+
+		if (exitCode !== 0) {
+			console.log(output)
+		}
+		expect(exitCode).toBe(0)
+		expect(output).toContain("Built 1 component")
+
+		// Verify output files
+		const fullOutDir = join(testDir, outDir)
+		expect(existsSync(join(fullOutDir, "index.json"))).toBe(true)
+		expect(existsSync(join(fullOutDir, "components", "jsonc-comp.json"))).toBe(true)
+
+		// Verify index.json content
+		const index = JSON.parse(await readFile(join(fullOutDir, "index.json"), "utf-8"))
+		expect(index.name).toBe("JSONC Registry")
+	})
+
+	it("should prefer registry.jsonc over registry.json when both exist", async () => {
+		const sourceDir = join(testDir, "registry-both")
+		await mkdir(sourceDir, { recursive: true })
+
+		// Create registry.json with one name
+		const registryJson = {
+			name: "JSON Registry",
+			namespace: "test",
+			version: "1.0.0",
+			author: "Test Author",
+			components: [
+				{
+					name: "from-json",
+					type: "ocx:plugin",
+					description: "Component from JSON",
+					files: [{ path: "index.ts", target: ".opencode/plugin/from-json.ts" }],
+					dependencies: [],
+				},
+			],
+		}
+
+		// Create registry.jsonc with a different name
+		const registryJsonc = `{
+	// JSONC should be preferred
+	"name": "JSONC Registry Preferred",
+	"namespace": "test",
+	"version": "1.0.0",
+	"author": "Test Author",
+	"components": [
+		{
+			"name": "from-jsonc",
+			"type": "ocx:plugin",
+			"description": "Component from JSONC",
+			"files": [{ "path": "index.ts", "target": ".opencode/plugin/from-jsonc.ts" }],
+			"dependencies": [],
+		}
+	]
+}`
+
+		await writeFile(join(sourceDir, "registry.json"), JSON.stringify(registryJson, null, 2))
+		await writeFile(join(sourceDir, "registry.jsonc"), registryJsonc)
+
+		// Create the files directory and source files
+		const filesDir = join(sourceDir, "files")
+		await mkdir(filesDir, { recursive: true })
+		await writeFile(join(filesDir, "index.ts"), "// Test content")
+
+		// Run build
+		const outDir = "dist-both"
+		const { exitCode, output } = await runCLI(["build", "registry-both", "--out", outDir], testDir)
+
+		if (exitCode !== 0) {
+			console.log(output)
+		}
+		expect(exitCode).toBe(0)
+
+		// Verify the JSONC version was used (check for JSONC registry name)
+		const fullOutDir = join(testDir, outDir)
+		const index = JSON.parse(await readFile(join(fullOutDir, "index.json"), "utf-8"))
+		expect(index.name).toBe("JSONC Registry Preferred")
+		expect(index.components[0].name).toBe("from-jsonc")
+	})
 })
