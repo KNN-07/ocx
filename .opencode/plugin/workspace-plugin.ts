@@ -294,8 +294,8 @@ interface SystemTransformInput {
 /** Tracks in-flight coder task callIDs with timestamps for stale cleanup */
 const activeCoderCalls = new Map<string, { startTime: number }>()
 
-/** Stale call timeout - 5 minutes */
-const STALE_CALL_TIMEOUT_MS = 5 * 60 * 1000
+/** Stale call timeout - matches MAX_RUN_TIME_MS in background-agents.ts */
+const STALE_CALL_TIMEOUT_MS = 15 * 60 * 1000
 
 /** Periodic cleanup of orphaned callIDs (runs every 60s) */
 const cleanupInterval = setInterval(() => {
