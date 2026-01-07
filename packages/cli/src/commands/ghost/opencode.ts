@@ -68,7 +68,7 @@ async function runGhostOpenCode(args: string[], options: GhostOpenCodeOptions): 
 	// Suppress warning in quiet mode
 	if (Object.keys(openCodeConfig).length === 0 && !options.quiet) {
 		logger.warn(
-			`No opencode.jsonc found at ${getGhostOpencodeConfigPath()}. Run 'ocx ghost add' first.`,
+			`No opencode.jsonc found at ${getGhostOpencodeConfigPath()}. Run 'ocx ghost init' first.`,
 		)
 	}
 

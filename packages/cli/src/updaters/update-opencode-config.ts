@@ -10,6 +10,7 @@
  * - No "smart" merging - component wins, git is your safety net
  */
 
+import path from "node:path"
 import { applyEdits, type ModificationOptions, modify, parse as parseJsonc } from "jsonc-parser"
 import type { OpencodeConfig } from "../schemas/registry.js"
 
@@ -57,6 +58,41 @@ const JSONC_OPTIONS: ModificationOptions = {
 // FILE OPERATIONS
 // =============================================================================
 
+// Minimal template for new opencode.jsonc files
+const OPENCODE_CONFIG_TEMPLATE = `{
+	"$schema": "https://opencode.ai/config.json"
+	// Add MCP servers, tools, plugins here
+}
+`
+
+/**
+ * Ensure opencode.jsonc exists, creating a minimal template if not.
+ * This is an upsert operation - does nothing if file already exists.
+ * @param cwd - Directory to create the config in
+ * @returns Object with path and whether it was created
+ */
+export async function ensureOpencodeConfig(
+	cwd: string,
+): Promise<{ path: string; created: boolean }> {
+	const jsoncPath = path.join(cwd, "opencode.jsonc")
+	const jsonPath = path.join(cwd, "opencode.json")
+
+	// Early exit: config already exists (Law 1)
+	const jsoncFile = Bun.file(jsoncPath)
+	if (await jsoncFile.exists()) {
+		return { path: jsoncPath, created: false }
+	}
+
+	const jsonFile = Bun.file(jsonPath)
+	if (await jsonFile.exists()) {
+		return { path: jsonPath, created: false }
+	}
+
+	// Create minimal template
+	await Bun.write(jsoncPath, OPENCODE_CONFIG_TEMPLATE)
+	return { path: jsoncPath, created: true }
+}
+
 /**
  * Read opencode.json or opencode.jsonc from a directory
  * Returns both parsed config and raw content (for comment preservation)
@@ -66,8 +102,8 @@ export async function readOpencodeJsonConfig(cwd: string): Promise<{
 	content: string
 	path: string
 } | null> {
-	const jsonPath = `${cwd}/opencode.json`
-	const jsoncPath = `${cwd}/opencode.jsonc`
+	const jsonPath = path.join(cwd, "opencode.json")
+	const jsoncPath = path.join(cwd, "opencode.jsonc")
 
 	for (const configPath of [jsoncPath, jsonPath]) {
 		const file = Bun.file(configPath)
@@ -180,7 +216,7 @@ export async function updateOpencodeJsonConfig(
 		// Create new config with schema
 		const config: OpencodeJsonConfig = { $schema: "https://opencode.ai/config.json" }
 		content = JSON.stringify(config, null, "\t")
-		configPath = `${cwd}/opencode.jsonc`
+		configPath = path.join(cwd, "opencode.jsonc")
 		created = true
 	}
 

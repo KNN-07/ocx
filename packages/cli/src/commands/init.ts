@@ -9,6 +9,7 @@ import { join } from "node:path"
 import type { Command } from "commander"
 import { OCX_SCHEMA_URL } from "../constants.js"
 import { ocxConfigSchema } from "../schemas/config.js"
+import { ensureOpencodeConfig } from "../updaters/update-opencode-config.js"
 import { ConflictError, NetworkError, ValidationError } from "../utils/errors.js"
 import { createSpinner, handleError, logger } from "../utils/index.js"
 
@@ -85,16 +86,25 @@ async function runInit(options: InitOptions): Promise<void> {
 		const content = JSON.stringify(config, null, 2)
 		await writeFile(configPath, content, "utf-8")
 
-		if (!options.quiet && !options.json) {
-			logger.success("Initialized OCX configuration")
-		}
+		// Ensure opencode.jsonc exists (upsert - creates if not present)
+		const opencodeResult = await ensureOpencodeConfig(cwd)
 
 		spin?.succeed("Initialized OCX configuration")
 
 		if (options.json) {
-			console.log(JSON.stringify({ success: true, path: configPath }))
+			console.log(
+				JSON.stringify({
+					success: true,
+					path: configPath,
+					opencodePath: opencodeResult.path,
+					opencodeCreated: opencodeResult.created,
+				}),
+			)
 		} else if (!options.quiet) {
 			logger.info(`Created ${configPath}`)
+			if (opencodeResult.created) {
+				logger.info(`Created ${opencodeResult.path}`)
+			}
 			logger.info("")
 			logger.info("Next steps:")
 			logger.info("  1. Add a registry: ocx registry add <url>")

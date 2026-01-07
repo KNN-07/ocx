@@ -122,7 +122,9 @@ describe("ocx ghost opencode", () => {
 		// Write ghost.jsonc (required for ghost mode to be initialized)
 		const configPath = getGhostConfigPath()
 		await Bun.write(configPath, '{"registries": {}}')
-		// Don't write opencode.jsonc - it should warn about missing file
+		// Remove opencode.jsonc if it exists (created by ghost init in beforeEach)
+		const opencodeConfigPath = getGhostOpencodeConfigPath()
+		await rm(opencodeConfigPath, { force: true })
 
 		const { output } = await runGhostCLI(["opencode"], {
 			XDG_CONFIG_HOME: testDir,

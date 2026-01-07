@@ -8,6 +8,7 @@
 import { mkdir, writeFile } from "node:fs/promises"
 import type { Command } from "commander"
 import { getGhostConfigDir, getGhostConfigPath } from "../../ghost/config.js"
+import { ensureOpencodeConfig } from "../../updaters/update-opencode-config.js"
 import { GhostAlreadyInitializedError } from "../../utils/errors.js"
 import { handleError, logger } from "../../utils/index.js"
 import { addOutputOptions, addVerboseOption } from "../../utils/shared-options.js"
@@ -71,15 +72,28 @@ async function runGhostInit(options: GhostInitOptions): Promise<void> {
 		throw err
 	}
 
+	// Ensure opencode.jsonc exists in ghost config directory (upsert - creates if not present)
+	const opencodeResult = await ensureOpencodeConfig(configDir)
+
 	// Output success
 	if (options.json) {
-		console.log(JSON.stringify({ success: true, path: configPath }))
+		console.log(
+			JSON.stringify({
+				success: true,
+				path: configPath,
+				opencodePath: opencodeResult.path,
+				opencodeCreated: opencodeResult.created,
+			}),
+		)
 		return
 	}
 
 	if (!options.quiet) {
 		logger.success("Ghost mode initialized")
 		logger.info(`Created ${configPath}`)
+		if (opencodeResult.created) {
+			logger.info(`Created ${opencodeResult.path}`)
+		}
 		logger.info("")
 		logger.info("Next steps:")
 		logger.info("  1. Edit your config: ocx ghost config")
