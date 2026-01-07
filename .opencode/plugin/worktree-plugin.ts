@@ -413,42 +413,25 @@ async function openTerminal(
 }
 
 /**
- * Open Ghostty: AppleScript new tab with CLI fallback.
- * Production pattern - AppleScript keystroke simulation for tabs (no CLI tab support).
+ * Open a new Ghostty window with the script.
+ *
+ * NOTE: Ghostty does NOT support programmatic tab creation on macOS.
+ * - No +new-tab CLI action exists (only +new-window on GTK/Linux)
+ * - No AppleScript dictionary or IPC support on macOS
+ * - All major production projects (fzf 76k⭐, lazygit 70k⭐, GitHub Desktop 21k⭐,
+ *   Cline 56k⭐, OpenAI Codex 55k⭐, Yazi 31k⭐, etc.) use new windows, not tabs.
+ *
+ * For tab-like behavior, users should run OpenCode inside tmux - the plugin
+ * will automatically use tmux new-window when detected (checked first in openTerminal).
+ *
+ * References:
+ * - Ghostty CLI: https://github.com/mitchellh/ghostty
+ * - tmux Control Mode (planned): https://github.com/mitchellh/ghostty/issues/1935
  */
-async function openGhosttyTab(scriptPath: string): Promise<Result<void, Error>> {
+async function openGhosttyWindow(cwd: string, scriptPath: string): Promise<Result<void, Error>> {
 	try {
-		// Check if Ghostty is running
-		const pgrepResult = Bun.spawnSync(["pgrep", "-x", "Ghostty"])
-		const isRunning = pgrepResult.exitCode === 0
-
-		if (isRunning) {
-			// Try to open new tab via AppleScript keystroke
-			const appleScript = `
-				tell application "Ghostty" to activate
-				delay 0.1
-				tell application "System Events"
-					tell process "Ghostty"
-						keystroke "t" using command down
-					end tell
-				end tell
-				delay 0.2
-				tell application "System Events"
-					tell process "Ghostty"
-						keystroke "${escapeAppleScript(scriptPath)}"
-						key code 36
-					end tell
-				end tell
-			`
-			const result = Bun.spawnSync(["osascript", "-e", appleScript])
-			if (result.exitCode === 0) {
-				return Result.ok(undefined)
-			}
-			// Fall through to new window if AppleScript fails
-		}
-
-		// Fallback: open new window
 		const proc = Bun.spawn(["ghostty", "-e", "bash", scriptPath], {
+			cwd,
 			detached: true,
 			stdio: ["ignore", "ignore", "ignore"],
 		})
@@ -754,7 +737,7 @@ async function openTerminalMacOS(cwd: string, command: string): Promise<Result<v
 	let result: Result<void, Error>
 	switch (terminal) {
 		case "ghostty":
-			result = await openGhosttyTab(scriptPath)
+			result = await openGhosttyWindow(cwd, scriptPath)
 			break
 		case "iterm":
 			result = await openItermTab(scriptPath)
