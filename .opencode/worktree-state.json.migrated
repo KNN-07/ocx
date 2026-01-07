@@ -1,0 +1,54 @@
+{
+  "sessions": [
+    {
+      "id": "ses_469587322ffe0d8Yctj36yxO7J",
+      "branch": "issue-10-facade-readme-sync",
+      "path": "/Users/kenny/workspace/kdcokenny/ocx/.opencode/worktrees/issue-10-facade-readme-sync",
+      "createdAt": "2026-01-07T11:52:20.860Z"
+    },
+    {
+      "id": "ses_469587322ffe0d8Yctj36yxO7J",
+      "branch": "issue-19",
+      "path": "/Users/kenny/workspace/kdcokenny/ocx/.opencode/worktrees/issue-19",
+      "createdAt": "2026-01-07T13:10:00.589Z"
+    },
+    {
+      "id": "ses_469587322ffe0d8Yctj36yxO7J",
+      "branch": "issue-20-worktree-race-conditions",
+      "path": "/Users/kenny/workspace/kdcokenny/ocx/.opencode/worktrees/issue-20-worktree-race-conditions",
+      "createdAt": "2026-01-07T13:12:21.044Z"
+    },
+    {
+      "id": "ses_469587322ffe0d8Yctj36yxO7J",
+      "branch": "issue-12-philosophy-bundle",
+      "path": "/Users/kenny/workspace/kdcokenny/ocx/.opencode/worktrees/issue-12-philosophy-bundle",
+      "createdAt": "2026-01-07T14:17:19.640Z"
+    },
+    {
+      "id": "ses_469587322ffe0d8Yctj36yxO7J",
+      "branch": "feature/ghost-mode",
+      "path": "/Users/kenny/workspace/kdcokenny/ocx/.opencode/worktrees/pr-7-ghost-mode",
+      "createdAt": "2026-01-07T18:45:00.000Z"
+    },
+    {
+      "id": "ses_469587322ffe0d8Yctj36yxO7J",
+      "branch": "issue-11-reviewer-trigger-fix",
+      "path": "/Users/kenny/workspace/kdcokenny/ocx/.opencode/worktrees/issue-11-reviewer-trigger-fix",
+      "createdAt": "2026-01-07T14:37:28.583Z"
+    },
+    {
+      "id": "ses_469587322ffe0d8Yctj36yxO7J",
+      "branch": "docs-worktree-plugin-credits",
+      "path": "/Users/kenny/workspace/kdcokenny/ocx/.opencode/worktrees/docs-worktree-plugin-credits",
+      "createdAt": "2026-01-07T15:03:46.226Z"
+    },
+    {
+      "id": "ses_469587322ffe0d8Yctj36yxO7J",
+      "branch": "feature-background-agent-manager",
+      "path": "/Users/kenny/workspace/kdcokenny/ocx/.opencode/worktrees/feature-background-agent-manager",
+      "createdAt": "2026-01-07T16:51:02.801Z"
+    }
+  ],
+  "pendingSpawn": null,
+  "pendingDelete": null
+}

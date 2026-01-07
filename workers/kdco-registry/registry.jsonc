@@ -276,7 +276,8 @@
 				"reviewer",
 				"review",
 				"notify",
-				"worktree"
+				"worktree",
+				"philosophy"
 			],
 			"opencode": {
 				// External npm plugin for diff/patch support
