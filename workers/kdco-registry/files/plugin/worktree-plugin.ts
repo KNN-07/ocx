@@ -400,6 +400,8 @@ async function loadWorktreeConfig(directory: string): Promise<WorktreeConfig> {
 		if (!(await file.exists())) {
 			// Auto-create config with helpful defaults and comments
 			const defaultConfig = `{
+  "$schema": "https://registry.kdco.dev/schemas/worktree.json",
+
   // Worktree plugin configuration
   // Documentation: https://github.com/kdcokenny/ocx
 

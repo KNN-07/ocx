@@ -1,16 +1,13 @@
 {
-	// Worktree plugin configuration
-	// See: https://github.com/kdcokenny/ocx
-	"sync": {
-		// Files to copy from main worktree to new worktrees
-		"copyFiles": [".env", ".env.local"],
-		// Directories to symlink (saves disk space)
-		"symlinkDirs": ["node_modules"]
-	},
-	"hooks": {
-		// Commands to run after worktree creation
-		"postCreate": [],
-		// Commands to run before worktree deletion
-		"preDelete": []
-	}
+  "sync": {
+    "copyFiles": [
+      ".env",
+      ".env.local"
+    ]
+  },
+  "hooks": {
+    "postCreate": [
+      "bun install"
+    ]
+  }
 }
