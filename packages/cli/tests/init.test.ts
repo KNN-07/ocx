@@ -18,8 +18,8 @@ describe("ocx init", () => {
 		const { exitCode, output } = await runCLI(["init"], testDir)
 
 		expect(exitCode).toBe(0)
-		// Success message from logger.success
-		expect(output).toContain("Initialized OCX configuration")
+		// Success message from logger.info
+		expect(output).toContain("Created")
 
 		const configPath = join(testDir, "ocx.jsonc")
 		expect(existsSync(configPath)).toBe(true)
