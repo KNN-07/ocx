@@ -7,47 +7,16 @@ on:
       - main
     paths:
       - 'workers/kdco-registry/files/plugin/background-agents.ts'
+      - 'facades/opencode-background-agents/**'
 
 jobs:
   sync:
     if: github.repository == 'kdcokenny/ocx'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout OCX
-        uses: actions/checkout@v4
-        with:
-          path: ocx
-
-      - name: Checkout Background Agents Repo
-        uses: actions/checkout@v4
-        with:
-          repository: kdcokenny/opencode-background-agents
-          token: ${{ secrets.FACADE_SYNC_PAT }}
-          path: background-agents
-
-      - name: Sync Files
-        run: |
-          # Sync plugin file
-          rsync -av \
-            ocx/workers/kdco-registry/files/plugin/background-agents.ts \
-            background-agents/src/plugin/background-agents.ts
-          
-          # Remove skill directory if it exists (was deleted from source)
-          rm -rf background-agents/src/skill/
-
-      - name: Commit and Push
-        working-directory: background-agents
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Check if there are changes
-          if git diff --quiet; then
-            echo "No changes to sync"
-            exit 0
-          fi
-
-          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          git add .
-          git commit -m "sync: update from ocx@${SHORT_SHA} [skip ci]"
-          git push
+    uses: ./.github/workflows/_sync-facade.yml
+    with:
+      source_plugin_path: workers/kdco-registry/files/plugin/background-agents.ts
+      target_plugin_path: src/plugin/background-agents.ts
+      source_readme_path: facades/opencode-background-agents/README.md
+      target_repo: kdcokenny/opencode-background-agents
+      checkout_path: background-agents
+    secrets: inherit
