@@ -281,7 +281,7 @@
 			],
 			"opencode": {
 				// External npm plugin for diff/patch support
-				"plugin": ["@tarquinen/opencode-dcp@1.1.2"],
+				"plugin": ["@tarquinen/opencode-dcp@1.1.2", "@franlol/opencode-md-table-formatter@0.0.3"],
 				"permission": {
 					// Disable webfetch globally for security
 					"webfetch": "deny"
