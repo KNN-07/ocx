@@ -14,8 +14,6 @@ Before reviewing ANY code:
 2. If reviewing frontend code, also load `frontend-philosophy`
 3. If reviewing backend code, also load `code-philosophy`
 
-> These skills are pre-installed with the workspace bundle.
-
 ## Review Process
 
 1. **Identify Scope** - List all files to be reviewed
