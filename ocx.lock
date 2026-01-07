@@ -128,11 +128,12 @@
     "kdco/worktree-plugin": {
       "registry": "kdco",
       "version": "1.0.0",
-      "hash": "7e5eea052b0e7e356e780ea88d681c56141ba364492144441391240ecf61ef74",
+      "hash": "4ce2c10fc1e4a044e198bf0ccb4b758da5e496d6bc509a0aa9bc10aa17dd8a46",
       "files": [
         ".opencode/plugin/worktree-plugin.ts"
       ],
-      "installedAt": "2026-01-07T00:49:56.680Z"
+      "installedAt": "2026-01-07T00:49:56.680Z",
+      "updatedAt": "2026-01-07T01:38:21.169Z"
     }
   }
 }
