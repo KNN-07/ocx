@@ -1,48 +1,22 @@
 name: Sync Notify
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
     paths:
       - 'workers/kdco-registry/files/plugin/notify.ts'
+      - 'facades/opencode-notify/**'
 
 jobs:
   sync:
     if: github.repository == 'kdcokenny/ocx'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout OCX
-        uses: actions/checkout@v4
-        with:
-          path: ocx
-
-      - name: Checkout Notify Repo
-        uses: actions/checkout@v4
-        with:
-          repository: kdcokenny/opencode-notify
-          token: ${{ secrets.FACADE_SYNC_PAT }}
-          path: notify
-
-      - name: Sync Files
-        run: |
-          # Sync plugin file (rsync for consistency with other sync workflows)
-          rsync -av \
-            ocx/workers/kdco-registry/files/plugin/notify.ts \
-            notify/src/notify.ts
-
-      - name: Commit and Push
-        working-directory: notify
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          if git diff --quiet; then
-            echo "No changes to sync"
-            exit 0
-          fi
-
-          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          git add .
-          git commit -m "sync: update from ocx@${SHORT_SHA} [skip ci]"
-          git push
+    uses: ./.github/workflows/_sync-facade.yml
+    with:
+      source_plugin_path: workers/kdco-registry/files/plugin/notify.ts
+      target_plugin_path: src/notify.ts
+      source_readme_path: facades/opencode-notify/README.md
+      target_repo: kdcokenny/opencode-notify
+      checkout_path: notify
+    secrets: inherit
