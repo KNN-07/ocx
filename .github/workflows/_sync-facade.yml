@@ -40,6 +40,17 @@ jobs:
           token: ${{ secrets.FACADE_SYNC_PAT }}
           path: ${{ inputs.checkout_path }}
 
+      - name: Initialize Target Repo if Empty
+        working-directory: ${{ inputs.checkout_path }}
+        run: |
+          if [ -z "$(git branch -a)" ]; then
+            echo "Empty repo detected, initializing..."
+            git checkout -b main
+            touch .gitkeep
+            git add .
+            git commit -m "chore: initialize repository"
+          fi
+
       - name: Sync Files
         run: |
           # Ensure target directory exists
