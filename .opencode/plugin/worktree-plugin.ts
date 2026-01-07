@@ -413,28 +413,38 @@ async function openTerminal(
 }
 
 /**
- * Open a new Ghostty window with the script.
+ * Open a new Ghostty window with an inline command.
  *
- * NOTE: Ghostty does NOT support programmatic tab creation on macOS.
- * - No +new-tab CLI action exists (only +new-window on GTK/Linux)
- * - No AppleScript dictionary or IPC support on macOS
- * - All major production projects (fzf 76k⭐, lazygit 70k⭐, GitHub Desktop 21k⭐,
- *   Cline 56k⭐, OpenAI Codex 55k⭐, Yazi 31k⭐, etc.) use new windows, not tabs.
+ * NOTE: Uses `open -na Ghostty.app` with inline command to AVOID the permission
+ * dialog that Ghostty shows for scripts in temp directories. The permission dialog
+ * causes Ghostty to create a duplicate tab for security isolation.
  *
- * For tab-like behavior, users should run OpenCode inside tmux - the plugin
- * will automatically use tmux new-window when detected (checked first in openTerminal).
+ * Production pattern from: fzf, lazygit, GitHub Desktop, etc.
+ * For tab-like behavior, users should run OpenCode inside tmux.
  *
  * References:
  * - Ghostty CLI: https://github.com/mitchellh/ghostty
  * - tmux Control Mode (planned): https://github.com/mitchellh/ghostty/issues/1935
  */
-async function openGhosttyWindow(cwd: string, scriptPath: string): Promise<Result<void, Error>> {
+async function openGhosttyWindow(cwd: string, command: string): Promise<Result<void, Error>> {
 	try {
-		const proc = Bun.spawn(["ghostty", "-e", "bash", scriptPath], {
-			cwd,
-			detached: true,
-			stdio: ["ignore", "ignore", "ignore"],
-		})
+		const proc = Bun.spawn(
+			[
+				"open",
+				"-na",
+				"Ghostty.app",
+				"--args",
+				`--working-directory=${cwd}`,
+				"-e",
+				"bash",
+				"-c",
+				command,
+			],
+			{
+				detached: true,
+				stdio: ["ignore", "ignore", "ignore"],
+			},
+		)
 		proc.unref()
 		return Result.ok(undefined)
 	} catch (error) {
@@ -737,7 +747,8 @@ async function openTerminalMacOS(cwd: string, command: string): Promise<Result<v
 	let result: Result<void, Error>
 	switch (terminal) {
 		case "ghostty":
-			result = await openGhosttyWindow(cwd, scriptPath)
+			// Ghostty uses inline command to avoid permission dialog (no temp script)
+			result = await openGhosttyWindow(cwd, `cd "${escapedCwd}" && ${escapedCommand}`)
 			break
 		case "iterm":
 			result = await openItermTab(scriptPath)
