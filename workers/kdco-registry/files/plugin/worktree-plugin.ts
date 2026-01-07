@@ -131,6 +131,33 @@ const configSchema = z
 	})
 	.passthrough()
 
+/**
+ * Worktree plugin configuration schema.
+ * Config file: .opencode/worktree.jsonc
+ */
+const worktreeConfigSchema = z.object({
+	sync: z
+		.object({
+			/** Files to copy from main worktree (relative paths only) */
+			copyFiles: z.array(z.string()).default([]),
+			/** Directories to symlink from main worktree (saves disk space) */
+			symlinkDirs: z.array(z.string()).default([]),
+			/** Patterns to exclude from copying */
+			exclude: z.array(z.string()).default([]),
+		})
+		.default(() => ({ copyFiles: [], symlinkDirs: [], exclude: [] })),
+	hooks: z
+		.object({
+			/** Commands to run after worktree creation */
+			postCreate: z.array(z.string()).default([]),
+			/** Commands to run before worktree deletion */
+			preDelete: z.array(z.string()).default([]),
+		})
+		.default(() => ({ postCreate: [], preDelete: [] })),
+})
+
+type WorktreeConfig = z.infer<typeof worktreeConfigSchema>
+
 /** Validates tmux environment detection */
 const tmuxEnvSchema = z.object({
 	TMUX: z.string().optional(),
@@ -233,6 +260,136 @@ async function removeWorktree(
 ): Promise<Result<void, string>> {
 	const result = await git(["worktree", "remove", "--force", worktreePath], repoRoot)
 	return result.ok ? Result.ok(undefined) : Result.err(result.error)
+}
+
+// =============================================================================
+// FILE SYNC MODULE
+// =============================================================================
+
+/**
+ * Validate that a path is safe (no absolute paths, no traversal)
+ */
+function isPathSafe(filePath: string): boolean {
+	// Reject absolute paths
+	if (path.isAbsolute(filePath)) {
+		console.warn(`[worktree] Rejected absolute path: ${filePath}`)
+		return false
+	}
+	// Reject path traversal
+	if (filePath.includes("..")) {
+		console.warn(`[worktree] Rejected path traversal: ${filePath}`)
+		return false
+	}
+	return true
+}
+
+/**
+ * Copy files from source directory to target directory.
+ * Skips missing files silently (production pattern).
+ */
+async function copyFiles(sourceDir: string, targetDir: string, files: string[]): Promise<void> {
+	for (const file of files) {
+		if (!isPathSafe(file)) continue
+
+		const sourcePath = path.join(sourceDir, file)
+		const targetPath = path.join(targetDir, file)
+
+		try {
+			const sourceFile = Bun.file(sourcePath)
+			if (!(await sourceFile.exists())) {
+				console.debug(`[worktree] Skipping missing file: ${file}`)
+				continue
+			}
+
+			// Ensure target directory exists
+			const targetFileDir = path.dirname(targetPath)
+			await fs.mkdir(targetFileDir, { recursive: true })
+
+			// Copy file
+			await Bun.write(targetPath, sourceFile)
+			console.log(`[worktree] Copied: ${file}`)
+		} catch (error) {
+			console.warn(`[worktree] Failed to copy ${file}: ${error}`)
+		}
+	}
+}
+
+/**
+ * Create symlinks for directories from source to target.
+ * Uses absolute paths for symlink targets.
+ */
+async function symlinkDirs(sourceDir: string, targetDir: string, dirs: string[]): Promise<void> {
+	for (const dir of dirs) {
+		if (!isPathSafe(dir)) continue
+
+		const sourcePath = path.join(sourceDir, dir)
+		const targetPath = path.join(targetDir, dir)
+
+		try {
+			// Check if source directory exists
+			const stat = await fs.stat(sourcePath).catch(() => null)
+			if (!stat || !stat.isDirectory()) {
+				console.debug(`[worktree] Skipping missing directory: ${dir}`)
+				continue
+			}
+
+			// Ensure parent directory exists
+			const targetParentDir = path.dirname(targetPath)
+			await fs.mkdir(targetParentDir, { recursive: true })
+
+			// Remove existing target if it exists (might be empty dir from git)
+			await fs.rm(targetPath, { recursive: true, force: true })
+
+			// Create symlink (use absolute path for source)
+			await fs.symlink(sourcePath, targetPath, "dir")
+			console.log(`[worktree] Symlinked: ${dir}`)
+		} catch (error) {
+			console.warn(`[worktree] Failed to symlink ${dir}: ${error}`)
+		}
+	}
+}
+
+/**
+ * Run hook commands in the worktree directory.
+ */
+async function runHooks(cwd: string, commands: string[]): Promise<void> {
+	for (const command of commands) {
+		console.log(`[worktree] Running hook: ${command}`)
+		try {
+			const [cmd, ...args] = command.split(" ")
+			const result = Bun.spawnSync([cmd, ...args], {
+				cwd,
+				stdout: "inherit",
+				stderr: "inherit",
+			})
+			if (result.exitCode !== 0) {
+				console.warn(`[worktree] Hook failed with exit code ${result.exitCode}: ${command}`)
+			}
+		} catch (error) {
+			console.warn(`[worktree] Hook error: ${error}`)
+		}
+	}
+}
+
+/**
+ * Load worktree-specific configuration from .opencode/worktree.jsonc
+ */
+async function loadWorktreeConfig(directory: string): Promise<WorktreeConfig> {
+	const configPath = path.join(directory, ".opencode", "worktree.jsonc")
+	try {
+		const file = Bun.file(configPath)
+		if (!(await file.exists())) {
+			return worktreeConfigSchema.parse({}) // Return defaults
+		}
+		const content = await file.text()
+		// Parse JSONC (strip comments)
+		const json = content.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "")
+		const parsed = JSON.parse(json)
+		return worktreeConfigSchema.parse(parsed)
+	} catch (error) {
+		console.warn(`[worktree] Failed to load config: ${error}`)
+		return worktreeConfigSchema.parse({}) // Return defaults on error
+	}
 }
 
 // =============================================================================
@@ -1132,28 +1289,49 @@ export const WorktreePlugin: Plugin = async (ctx) => {
 						return `Failed to create worktree: ${result.error}`
 					}
 
-					// Load config for post-hook
+					const worktreePath = result.value
+
+					// Load config for post-hook (legacy)
 					const config = await loadConfig(directory)
 
-					// Run post-hook if configured
-					await runPostHook(config, result.value)
+					// Run post-hook if configured (legacy)
+					await runPostHook(config, worktreePath)
+
+					// Sync files from main worktree (new config)
+					const worktreeConfig = await loadWorktreeConfig(directory)
+					const mainWorktreePath = directory // The repo root is the main worktree
+
+					// Copy files
+					if (worktreeConfig.sync.copyFiles.length > 0) {
+						await copyFiles(mainWorktreePath, worktreePath, worktreeConfig.sync.copyFiles)
+					}
+
+					// Symlink directories
+					if (worktreeConfig.sync.symlinkDirs.length > 0) {
+						await symlinkDirs(mainWorktreePath, worktreePath, worktreeConfig.sync.symlinkDirs)
+					}
+
+					// Run postCreate hooks
+					if (worktreeConfig.hooks.postCreate.length > 0) {
+						await runHooks(worktreePath, worktreeConfig.hooks.postCreate)
+					}
 
 					// Mark pending spawn for session.idle
 					const state = await loadState(directory)
 					state.pendingSpawn = {
 						branch: args.branch,
-						path: result.value,
+						path: worktreePath,
 						sessionId: toolCtx?.sessionID ?? "unknown",
 					}
 					state.sessions.push({
 						id: toolCtx?.sessionID ?? "unknown",
 						branch: args.branch,
-						path: result.value,
+						path: worktreePath,
 						createdAt: new Date().toISOString(),
 					})
 					await saveState(directory, state)
 
-					return `Worktree created at ${result.value}\n\nA new terminal will open with OpenCode when this response completes.`
+					return `Worktree created at ${worktreePath}\n\nA new terminal will open with OpenCode when this response completes.`
 				},
 			}),
 
@@ -1204,6 +1382,12 @@ export const WorktreePlugin: Plugin = async (ctx) => {
 			// Handle pending delete
 			if (state.pendingDelete) {
 				const { path: worktreePath, branch } = state.pendingDelete
+
+				// Run preDelete hooks before cleanup
+				const config = await loadWorktreeConfig(directory)
+				if (config.hooks.preDelete.length > 0) {
+					await runHooks(worktreePath, config.hooks.preDelete)
+				}
 
 				// Commit any uncommitted changes
 				const addResult = await git(["add", "-A"], worktreePath)
