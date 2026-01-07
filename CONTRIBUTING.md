@@ -132,7 +132,7 @@ cd packages/cli && bun run build && cd ../..
 ./packages/cli/dist/index.js registry add "file://$(pwd)/workers/kdco-registry/dist" --name kdco
 
 # 6. Install components (using namespace/component syntax)
-./packages/cli/dist/index.js add kdco/philosophy kdco/workspace --yes
+./packages/cli/dist/index.js add kdco/workspace --yes
 
 # 7. Verify the result
 cat opencode.jsonc
