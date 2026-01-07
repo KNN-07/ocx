@@ -1,0 +1,13 @@
+{
+  "sync": {
+    "copyFiles": [
+      ".env",
+      ".env.local"
+    ]
+  },
+  "hooks": {
+    "postCreate": [
+      "bun install"
+    ]
+  }
+}

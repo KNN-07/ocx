@@ -9,3 +9,7 @@ dist/
 # Build artifacts
 .turbo/
 workers/kdco-registry/dist/
+
+# Worktree plugin runtime files
+.opencode/worktrees/
+.opencode/worktree-state.json
