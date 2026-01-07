@@ -54,7 +54,11 @@ function isValidBranchName(name: string): boolean {
 	return true
 }
 
-/** Escape a string for safe use in bash double-quoted strings */
+/**
+ * Escape string for use inside bash double-quoted strings.
+ * NOTE: Only for quoted contexts. Does not escape shell metacharacters (;|&)
+ * which are safe inside double quotes.
+ */
 function escapeBash(s: string): string {
 	return s
 		.replace(/\\/g, "\\\\")
@@ -335,7 +339,7 @@ async function openTerminalWSL(cwd: string, command: string): Promise<Result<voi
 	const scriptPath = path.join(os.tmpdir(), `worktree-${Bun.randomUUIDv7()}.sh`)
 	const escapedCwd = escapeBash(cwd)
 	const escapedCommand = escapeBash(command)
-	const scriptContent = `#!/bin/bash\ncd "${escapedCwd}" && ${escapedCommand}`
+	const scriptContent = `#!/bin/bash\ncd "${escapedCwd}" && ${escapedCommand}\nexec bash`
 
 	try {
 		await Bun.write(scriptPath, scriptContent)
@@ -626,12 +630,12 @@ async function openKonsole(cwd: string, scriptPath: string): Promise<Result<void
 
 /**
  * Open XFCE4 Terminal with --working-directory flag.
- * Note: xfce4-terminal's -e flag takes a single command string.
+ * Uses -x flag which allows multiple arguments instead of -e.
  */
 async function openXfce4Terminal(cwd: string, scriptPath: string): Promise<Result<void, Error>> {
 	try {
 		const proc = Bun.spawn(
-			["xfce4-terminal", "--working-directory", cwd, "-e", `bash "${scriptPath}"`],
+			["xfce4-terminal", "--working-directory", cwd, "-x", "bash", scriptPath],
 			{
 				detached: true,
 				stdio: ["ignore", "ignore", "ignore"],
@@ -799,8 +803,8 @@ async function openTerminalWindows(cwd: string, command: string): Promise<Result
 			})
 			proc.unref()
 			return Result.ok(undefined)
-		} catch {
-			// Fall through to cmd.exe fallback
+		} catch (error) {
+			console.debug(`[worktree] Windows Terminal failed, falling back to cmd.exe: ${error}`)
 		}
 	}
 
@@ -845,7 +849,7 @@ async function openTerminalLinux(cwd: string, command: string): Promise<Result<v
 	// 1. Check current terminal via env detection (most accurate)
 	const currentTerminal = detectCurrentLinuxTerminal()
 	if (currentTerminal) {
-		let result: Result<void, Error>
+		let result: Result<void, Error> | null
 		switch (currentTerminal) {
 			case "kitty":
 				result = await openKittyTab(cwd, scriptPath)
@@ -869,9 +873,10 @@ async function openTerminalLinux(cwd: string, command: string): Promise<Result<v
 				result = await openKonsole(cwd, scriptPath)
 				break
 			default:
-				result = Result.ok(undefined)
+				console.debug(`[worktree] No direct handler for ${currentTerminal}, using fallback chain`)
+				result = null // Force fallback chain
 		}
-		if (result.ok) return Result.ok(undefined)
+		if (result?.ok) return Result.ok(undefined)
 		// Fall through on failure to try other methods
 	}
 
@@ -1207,11 +1212,14 @@ export const WorktreePlugin: Plugin = async (ctx) => {
 				const { path: worktreePath, branch } = state.pendingDelete
 
 				// Commit any uncommitted changes
-				await git(["add", "-A"], worktreePath)
-				await git(
+				const addResult = await git(["add", "-A"], worktreePath)
+				if (!addResult.ok) console.warn(`[worktree] git add failed: ${addResult.error}`)
+
+				const commitResult = await git(
 					["commit", "-m", "chore(worktree): session snapshot", "--allow-empty"],
 					worktreePath,
 				)
+				if (!commitResult.ok) console.warn(`[worktree] git commit failed: ${commitResult.error}`)
 
 				// Remove worktree
 				const removeResult = await removeWorktree(directory, worktreePath)
