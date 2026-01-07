@@ -17,6 +17,7 @@ import * as path from "node:path"
 import { type Plugin, tool } from "@opencode-ai/plugin"
 import type { Event } from "@opencode-ai/sdk"
 
+import { parse as parseJsonc } from "jsonc-parser"
 import { z } from "zod"
 
 // =============================================================================
@@ -142,7 +143,7 @@ const worktreeConfigSchema = z.object({
 			copyFiles: z.array(z.string()).default([]),
 			/** Directories to symlink from main worktree (saves disk space) */
 			symlinkDirs: z.array(z.string()).default([]),
-			/** Patterns to exclude from copying */
+			/** Patterns to exclude from copying (reserved for future use) */
 			exclude: z.array(z.string()).default([]),
 		})
 		.default(() => ({ copyFiles: [], symlinkDirs: [], exclude: [] })),
@@ -267,17 +268,23 @@ async function removeWorktree(
 // =============================================================================
 
 /**
- * Validate that a path is safe (no absolute paths, no traversal)
+ * Validate that a path is safe (no escape from base directory)
  */
-function isPathSafe(filePath: string): boolean {
+function isPathSafe(filePath: string, baseDir: string): boolean {
 	// Reject absolute paths
 	if (path.isAbsolute(filePath)) {
 		console.warn(`[worktree] Rejected absolute path: ${filePath}`)
 		return false
 	}
-	// Reject path traversal
+	// Reject obvious path traversal
 	if (filePath.includes("..")) {
 		console.warn(`[worktree] Rejected path traversal: ${filePath}`)
+		return false
+	}
+	// Verify resolved path stays within base directory
+	const resolved = path.resolve(baseDir, filePath)
+	if (!resolved.startsWith(baseDir + path.sep) && resolved !== baseDir) {
+		console.warn(`[worktree] Path escapes base directory: ${filePath}`)
 		return false
 	}
 	return true
@@ -289,7 +296,7 @@ function isPathSafe(filePath: string): boolean {
  */
 async function copyFiles(sourceDir: string, targetDir: string, files: string[]): Promise<void> {
 	for (const file of files) {
-		if (!isPathSafe(file)) continue
+		if (!isPathSafe(file, sourceDir)) continue
 
 		const sourcePath = path.join(sourceDir, file)
 		const targetPath = path.join(targetDir, file)
@@ -309,7 +316,14 @@ async function copyFiles(sourceDir: string, targetDir: string, files: string[]):
 			await Bun.write(targetPath, sourceFile)
 			console.log(`[worktree] Copied: ${file}`)
 		} catch (error) {
-			console.warn(`[worktree] Failed to copy ${file}: ${error}`)
+			const isNotFound =
+				error instanceof Error &&
+				(error.message.includes("ENOENT") || error.message.includes("no such file"))
+			if (isNotFound) {
+				console.debug(`[worktree] Skipping missing: ${file}`)
+			} else {
+				console.warn(`[worktree] Failed to copy ${file}: ${error}`)
+			}
 		}
 	}
 }
@@ -320,7 +334,7 @@ async function copyFiles(sourceDir: string, targetDir: string, files: string[]):
  */
 async function symlinkDirs(sourceDir: string, targetDir: string, dirs: string[]): Promise<void> {
 	for (const dir of dirs) {
-		if (!isPathSafe(dir)) continue
+		if (!isPathSafe(dir, sourceDir)) continue
 
 		const sourcePath = path.join(sourceDir, dir)
 		const targetPath = path.join(targetDir, dir)
@@ -356,14 +370,17 @@ async function runHooks(cwd: string, commands: string[]): Promise<void> {
 	for (const command of commands) {
 		console.log(`[worktree] Running hook: ${command}`)
 		try {
-			const [cmd, ...args] = command.split(" ")
-			const result = Bun.spawnSync([cmd, ...args], {
+			// Use shell to properly handle quoted arguments and complex commands
+			const result = Bun.spawnSync(["bash", "-c", command], {
 				cwd,
 				stdout: "inherit",
-				stderr: "inherit",
+				stderr: "pipe",
 			})
 			if (result.exitCode !== 0) {
-				console.warn(`[worktree] Hook failed with exit code ${result.exitCode}: ${command}`)
+				const stderr = result.stderr?.toString() || ""
+				console.warn(
+					`[worktree] Hook failed (exit ${result.exitCode}): ${command}${stderr ? `\n${stderr}` : ""}`,
+				)
 			}
 		} catch (error) {
 			console.warn(`[worktree] Hook error: ${error}`)
@@ -373,22 +390,61 @@ async function runHooks(cwd: string, commands: string[]): Promise<void> {
 
 /**
  * Load worktree-specific configuration from .opencode/worktree.jsonc
+ * Auto-creates config file with helpful defaults if it doesn't exist.
  */
 async function loadWorktreeConfig(directory: string): Promise<WorktreeConfig> {
 	const configPath = path.join(directory, ".opencode", "worktree.jsonc")
+
 	try {
 		const file = Bun.file(configPath)
 		if (!(await file.exists())) {
-			return worktreeConfigSchema.parse({}) // Return defaults
+			// Auto-create config with helpful defaults and comments
+			const defaultConfig = `{
+  // Worktree plugin configuration
+  // Documentation: https://github.com/kdcokenny/ocx
+
+  "sync": {
+    // Files to copy from main worktree to new worktrees
+    // Example: [".env", ".env.local", "dev.sqlite"]
+    "copyFiles": [],
+
+    // Directories to symlink (saves disk space)
+    // Example: ["node_modules"]
+    "symlinkDirs": [],
+
+    // Patterns to exclude from copying
+    "exclude": []
+  },
+
+  "hooks": {
+    // Commands to run after worktree creation
+    // Example: ["pnpm install", "docker compose up -d"]
+    "postCreate": [],
+
+    // Commands to run before worktree deletion
+    // Example: ["docker compose down"]
+    "preDelete": []
+  }
+}
+`
+			// Ensure .opencode directory exists
+			await fs.mkdir(path.join(directory, ".opencode"), { recursive: true })
+			await Bun.write(configPath, defaultConfig)
+			console.log(`[worktree] Created default config: ${configPath}`)
+			return worktreeConfigSchema.parse({})
 		}
+
 		const content = await file.text()
-		// Parse JSONC (strip comments)
-		const json = content.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "")
-		const parsed = JSON.parse(json)
+		// Use proper JSONC parser (handles comments in strings correctly)
+		const parsed = parseJsonc(content)
+		if (parsed === undefined) {
+			console.error(`[worktree] Invalid worktree.jsonc syntax`)
+			return worktreeConfigSchema.parse({})
+		}
 		return worktreeConfigSchema.parse(parsed)
 	} catch (error) {
 		console.warn(`[worktree] Failed to load config: ${error}`)
-		return worktreeConfigSchema.parse({}) // Return defaults on error
+		return worktreeConfigSchema.parse({})
 	}
 }
 
