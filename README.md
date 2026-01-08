@@ -267,6 +267,10 @@ OCX supports the full range of OpenCode configuration options:
 
 Have ideas? [Open an issue](https://github.com/kdcokenny/ocx/issues).
 
+## Disclaimer
+
+This project is not built by the OpenCode team and is not affiliated with [OpenCode](https://github.com/sst/opencode) in any way.
+
 ## License
 
 MIT
