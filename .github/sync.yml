@@ -21,7 +21,42 @@ kdcokenny/opencode-worktree:
     dest: README.md
 
 kdcokenny/opencode-workspace:
-  - source: workers/kdco-registry/files/plugin/workspace-plugin.ts
-    dest: src/plugin/workspace-plugin.ts
   - source: facades/opencode-workspace/README.md
     dest: README.md
+  # Plugins
+  - source: workers/kdco-registry/files/plugin/workspace-plugin.ts
+    dest: src/plugin/workspace-plugin.ts
+  - source: workers/kdco-registry/files/plugin/background-agents.ts
+    dest: src/plugin/background-agents.ts
+  - source: workers/kdco-registry/files/plugin/notify.ts
+    dest: src/plugin/notify.ts
+  - source: workers/kdco-registry/files/plugin/worktree.ts
+    dest: src/plugin/worktree.ts
+  - source: workers/kdco-registry/files/plugin/worktree/state.ts
+    dest: src/plugin/worktree/state.ts
+  - source: workers/kdco-registry/files/plugin/worktree/terminal.ts
+    dest: src/plugin/worktree/terminal.ts
+  # Skills
+  - source: workers/kdco-registry/files/skill/plan-protocol/SKILL.md
+    dest: src/skill/plan-protocol/SKILL.md
+  - source: workers/kdco-registry/files/skill/code-review/SKILL.md
+    dest: src/skill/code-review/SKILL.md
+  - source: workers/kdco-registry/files/skill/code-philosophy/SKILL.md
+    dest: src/skill/code-philosophy/SKILL.md
+  - source: workers/kdco-registry/files/skill/frontend-philosophy/SKILL.md
+    dest: src/skill/frontend-philosophy/SKILL.md
+  # Agents
+  - source: workers/kdco-registry/files/agent/researcher.md
+    dest: src/agent/researcher.md
+  - source: workers/kdco-registry/files/agent/scribe.md
+    dest: src/agent/scribe.md
+  - source: workers/kdco-registry/files/agent/coder.md
+    dest: src/agent/coder.md
+  - source: workers/kdco-registry/files/agent/reviewer.md
+    dest: src/agent/reviewer.md
+  # Commands
+  - source: workers/kdco-registry/files/command/review.md
+    dest: src/command/review.md
+  # Philosophy
+  - source: workers/kdco-registry/files/philosophy/AGENTS.md
+    dest: src/philosophy/AGENTS.md
