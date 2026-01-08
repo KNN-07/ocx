@@ -8,11 +8,7 @@
 import type { Command } from "commander"
 import { GhostConfigProvider } from "../../config/provider.js"
 import { handleError } from "../../utils/index.js"
-import {
-	addCommonOptions,
-	addConfirmationOptions,
-	addVerboseOption,
-} from "../../utils/shared-options.js"
+import { addCommonOptions, addForceOption, addVerboseOption } from "../../utils/shared-options.js"
 import { type AddOptions, runAddCore } from "../add.js"
 
 export function registerGhostAddCommand(parent: Command): void {
@@ -22,9 +18,10 @@ export function registerGhostAddCommand(parent: Command): void {
 		.argument("<components...>", "Components to install")
 		.option("--dry-run", "Show what would be installed without making changes")
 		.option("--skip-compat-check", "Skip version compatibility checks")
+		.option("--trust", "Skip npm plugin validation")
 
 	addCommonOptions(cmd)
-	addConfirmationOptions(cmd)
+	addForceOption(cmd)
 	addVerboseOption(cmd)
 
 	cmd.action(async (components: string[], options: AddOptions) => {

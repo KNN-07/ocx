@@ -45,7 +45,7 @@ describe("ocx add", () => {
 		await writeFile(configPath, JSON.stringify(config, null, 2))
 
 		// Install agent which depends on skill which depends on plugin
-		const { exitCode, output } = await runCLI(["add", "kdco/test-agent", "--yes"], testDir)
+		const { exitCode, output } = await runCLI(["add", "kdco/test-agent", "--force"], testDir)
 
 		if (exitCode !== 0) {
 			console.log(output)
@@ -87,17 +87,20 @@ describe("ocx add", () => {
 		await writeFile(configPath, JSON.stringify(config, null, 2))
 
 		// Install component first time
-		const { exitCode: firstExitCode } = await runCLI(["add", "kdco/test-plugin", "--yes"], testDir)
+		const { exitCode: firstExitCode } = await runCLI(
+			["add", "kdco/test-plugin", "--force"],
+			testDir,
+		)
 		expect(firstExitCode).toBe(0)
 
 		// Install same component again (should skip, not fail)
-		const { exitCode } = await runCLI(["add", "kdco/test-plugin", "--yes"], testDir)
+		const { exitCode } = await runCLI(["add", "kdco/test-plugin", "--force"], testDir)
 		expect(exitCode).toBe(0)
 		// File should still exist
 		expect(existsSync(join(testDir, ".opencode/plugin/test-plugin.ts"))).toBe(true)
 	})
 
-	it("should fail on conflict without --yes flag", async () => {
+	it("should fail on conflict without --force flag", async () => {
 		testDir = await createTempDir("add-conflict-no-yes")
 
 		// Init and add registry
@@ -111,20 +114,20 @@ describe("ocx add", () => {
 		await writeFile(configPath, JSON.stringify(config, null, 2))
 
 		// Install component first time
-		await runCLI(["add", "kdco/test-plugin", "--yes"], testDir)
+		await runCLI(["add", "kdco/test-plugin", "--force"], testDir)
 
 		// Modify the file to create a conflict
 		const filePath = join(testDir, ".opencode/plugin/test-plugin.ts")
 		await writeFile(filePath, "// Modified by user")
 
-		// Try to install again WITHOUT --yes (should fail with conflict)
+		// Try to install again WITHOUT --force (should fail with conflict)
 		const { exitCode, output } = await runCLI(["add", "kdco/test-plugin"], testDir)
 		expect(exitCode).not.toBe(0)
 		expect(output).toContain("conflict")
-		expect(output).toContain("--yes")
+		expect(output).toContain("--force")
 	})
 
-	it("should overwrite conflicting files with --yes flag", async () => {
+	it("should overwrite conflicting files with --force flag", async () => {
 		testDir = await createTempDir("add-overwrite-yes")
 
 		// Init and add registry
@@ -138,14 +141,14 @@ describe("ocx add", () => {
 		await writeFile(configPath, JSON.stringify(config, null, 2))
 
 		// Install component first time
-		await runCLI(["add", "kdco/test-plugin", "--yes"], testDir)
+		await runCLI(["add", "kdco/test-plugin", "--force"], testDir)
 
 		// Modify the file to create a conflict
 		const filePath = join(testDir, ".opencode/plugin/test-plugin.ts")
 		await writeFile(filePath, "// Modified by user")
 
-		// Install again WITH --yes (should overwrite)
-		const { exitCode } = await runCLI(["add", "kdco/test-plugin", "--yes"], testDir)
+		// Install again WITH --force (should overwrite)
+		const { exitCode } = await runCLI(["add", "kdco/test-plugin", "--force"], testDir)
 		expect(exitCode).toBe(0)
 
 		// File should be restored to original content
@@ -169,7 +172,7 @@ describe("ocx add", () => {
 		// Install test-no-mcp which depends on test-mcp-provider
 		// test-mcp-provider has MCP config, test-no-mcp does not
 		// This tests the regression where MCP was lost due to undefined overwriting
-		const { exitCode, output } = await runCLI(["add", "kdco/test-no-mcp", "--yes"], testDir)
+		const { exitCode, output } = await runCLI(["add", "kdco/test-no-mcp", "--force"], testDir)
 
 		if (exitCode !== 0) {
 			console.log(output)
@@ -206,7 +209,7 @@ describe("ocx add", () => {
 
 		// Install test-no-mcp which depends on test-mcp-provider
 		// Both have plugin arrays that should be concatenated
-		const { exitCode, output } = await runCLI(["add", "kdco/test-no-mcp", "--yes"], testDir)
+		const { exitCode, output } = await runCLI(["add", "kdco/test-no-mcp", "--force"], testDir)
 
 		if (exitCode !== 0) {
 			console.log(output)
@@ -236,13 +239,13 @@ describe("ocx add", () => {
 		await writeFile(configPath, JSON.stringify(config, null, 2))
 
 		// 1. Install normally to create lock entry
-		await runCLI(["add", "kdco/test-plugin", "--yes"], testDir)
+		await runCLI(["add", "kdco/test-plugin", "--force"], testDir)
 
 		// 2. Tamper with the registry content
 		registry.setFileContent("test-plugin", "index.ts", "TAMPERED CONTENT")
 
 		// 3. Try to add again (should fail integrity check)
-		const { exitCode, output } = await runCLI(["add", "kdco/test-plugin", "--yes"], testDir)
+		const { exitCode, output } = await runCLI(["add", "kdco/test-plugin", "--force"], testDir)
 
 		expect(exitCode).not.toBe(0)
 		expect(output).toContain("Integrity verification failed")

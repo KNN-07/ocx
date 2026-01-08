@@ -45,7 +45,7 @@ ocx init [directory] [options]
 
 | Option | Description |
 |--------|-------------|
-| `-y, --yes` | Skip prompts and use defaults |
+| `-f, --force` | Skip prompts and use defaults |
 | `--cwd <path>` | Working directory (default: current directory) |
 | `-q, --quiet` | Suppress output |
 | `-v, --verbose` | Verbose output |
@@ -63,10 +63,10 @@ ocx init [directory] [options]
 ocx init
 
 # Initialize with defaults (no prompts)
-ocx init -y
+ocx init -f
 
 # Overwrite existing configuration
-ocx init --yes
+ocx init --force
 
 # Initialize in a specific directory
 ocx init ./my-project
@@ -98,9 +98,9 @@ After initialization, OCX creates:
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| `ocx.jsonc already exists` | Config file exists | Use `--yes` to overwrite |
+| `ocx.jsonc already exists` | Config file exists | Use `--force` to overwrite |
 | `Invalid namespace format` | Namespace contains invalid characters | Use lowercase letters, numbers, and hyphens only |
-| `Directory is not empty` | Target directory has files | Use `--yes` to proceed anyway |
+| `Directory is not empty` | Target directory has files | Use `--force` to proceed anyway |
 
 ---
 
@@ -124,7 +124,8 @@ ocx add <components...> [options]
 
 | Option | Description |
 |--------|-------------|
-| `-y, --yes` | Skip prompts and overwrite files |
+| `-f, --force` | Overwrite existing components/plugins without prompting |
+| `--trust` | Skip plugin validation for npm packages (allows non-ESM packages) |
 | `--dry-run` | Show what would be installed without making changes |
 | `--cwd <path>` | Working directory (default: current directory) |
 | `-q, --quiet` | Suppress output |
@@ -133,11 +134,16 @@ ocx add <components...> [options]
 
 ### Component Syntax
 
-Components can be specified in two formats:
+Components can be specified in multiple formats:
 
 ```bash
-# Fully qualified (recommended)
+# Registry component (fully qualified)
 ocx add kdco/agents
+
+# npm plugin (direct from npm registry)
+ocx add npm:opencode-plugin-foo
+ocx add npm:@scope/plugin-name
+ocx add npm:some-plugin@1.0.0
 
 # Multiple components
 ocx add kdco/agents kdco/skills kdco/plugins
@@ -146,23 +152,37 @@ ocx add kdco/agents kdco/skills kdco/plugins
 ### Examples
 
 ```bash
-# Add a single component
+# Add a registry component
 ocx add kdco/background-agents
 
-# Add multiple components
-ocx add kdco/agents kdco/notify
+# Add an npm plugin directly
+ocx add npm:@franlol/opencode-md-table-formatter
+
+# Add npm plugin with specific version
+ocx add npm:some-plugin@1.0.0
+
+# Add multiple at once (mix of registry and npm)
+ocx add kdco/researcher npm:opencode-plugin-foo
 
 # Preview installation
 ocx add kdco/agents --dry-run
 
 # Overwrite existing files without prompts
-ocx add kdco/agents --yes
+ocx add kdco/agents --force
 
 # Get machine-readable output
 ocx add kdco/agents --json
 
 # Verbose output showing all file operations
 ocx add kdco/agents --verbose
+```
+
+### Bypassing Plugin Validation
+
+By default, OCX validates that npm packages are valid OpenCode plugins (ESM modules with entry points). To skip validation:
+
+```bash
+ocx add npm:some-package --trust
 ```
 
 ### Behavior
@@ -179,7 +199,7 @@ ocx add kdco/agents --verbose
 | Error | Cause | Solution |
 |-------|-------|----------|
 | `No ocx.jsonc found` | Not initialized | Run `ocx init` first |
-| `File conflicts detected` | Local files modified | Use `--yes` to overwrite or review changes |
+| `File conflicts detected` | Local files modified | Use `--force` to overwrite or review changes |
 | `Integrity check failed` | Hash mismatch | Component was modified; resolve manually |
 | `File conflict: already exists` | Another component installed this file | Remove conflicting file first |
 

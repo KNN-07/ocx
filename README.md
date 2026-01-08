@@ -4,13 +4,6 @@ The missing package manager for OpenCode extensions.
 
 Install OpenCode extensions with automatic dependency resolution, config merging, and integrity verification.
 
-<!-- 
-TODO: Create demo GIF with VHS (https://github.com/charmbracelet/vhs)
-- Show: ocx add kdco/workspace-plugin → dependencies install → config merges → done
-- Target: 5-15 seconds, dark theme (Catppuccin/Dracula), <5MB
-- Reference examples: lazygit, fzf, zoxide READMEs
--->
-
 ![OCX Demo](./assets/demo.gif)
 
 ## Installation
@@ -18,32 +11,36 @@ TODO: Create demo GIF with VHS (https://github.com/charmbracelet/vhs)
 OCX supports macOS (x64, Apple Silicon), Linux (x64, arm64), and Windows (x64).
 
 ```bash
-# Install script (macOS and Linux) - recommended
+# Recommended (macOS/Linux)
 curl -fsSL https://ocx.kdco.dev/install.sh | sh
 
-# Or install via npm
+# Or via npm (any platform)
 npm install -g ocx
-
-# Windows users: Download binaries from GitHub Releases
-# https://github.com/kdcokenny/ocx/releases
 ```
 
 The install script handles PATH configuration automatically or prints instructions if manual setup is needed.
 
 ## Quick Start
 
+### Option A: Add an npm Plugin (Fastest)
+
 ```bash
-# 1. Initialize OCX in your project
 ocx init
+ocx add npm:@franlol/opencode-md-table-formatter
+```
 
-# 2. Add the KDCO registry
+That's it. Plugin added to your `opencode.jsonc`.
+
+### Option B: Use a Curated Registry
+
+Registries bundle related components with automatic dependency resolution:
+
+```bash
 ocx registry add https://registry.kdco.dev --name kdco
-
-# 3. Add the workspace bundle
 ocx add kdco/workspace
 ```
 
-After installation, OCX will manage components in your `.opencode/` directory, where you can freely customize them to match your project's needs.
+After installation, components live in `.opencode/` where you can customize freely.
 
 ### Create Your Own Registry
 
@@ -59,7 +56,7 @@ npx ocx init --registry my-registry
 | `--author <name>` | Author name (default: git user.name) |
 | `--local <path>` | Use custom local template |
 | `--canary` | Use latest from main branch |
-| `--yes` | Skip confirmation prompts |
+| `--force` | Skip confirmation prompts |
 
 See [examples/registry-starter](./examples/registry-starter) for the full template with deploy buttons for Cloudflare, Vercel, and Netlify.
 
@@ -99,7 +96,7 @@ Like **Cargo**, OCX resolves dependencies, pins versions, and verifies integrity
 
 | Command | Description |
 |---------|-------------|
-| `ocx add <component>` | Install a component |
+| `ocx add <components...>` | Add components (`namespace/component`) or npm plugins (`npm:<package>`) |
 | `ocx update [component]` | Update to latest version |
 | `ocx diff [component]` | Show upstream changes |
 | `ocx registry add <url>` | Add a registry |
@@ -241,11 +238,11 @@ OCX supports the full range of OpenCode configuration options:
 | Agents (`.opencode/agent/*.md`) | ✅ | Full support |
 | Skills (`.opencode/skill/<name>/SKILL.md`) | ✅ | Full support |
 | Plugins (file-based `.opencode/plugin/*.ts`) | ✅ | Full support |
-| Plugins (npm packages) | ✅ | Via `opencode.plugin` |
+| Plugins (npm packages) | ✅ | Via `ocx add npm:<package>` |
 | Commands (`.opencode/command/*.md`) | ✅ | Full support |
 | Bundles (meta-components) | ✅ | Full support |
 | **opencode.jsonc Config** |||
-| `plugin` (npm package array) | ✅ | Full support |
+| `plugin` (npm package array) | ✅ | Via `ocx add npm:<package>` |
 | `mcp` (MCP servers) | ✅ | URL shorthand + full objects |
 | `tools` (enable/disable patterns) | ✅ | Full support |
 | `agent` (per-agent config) | ✅ | tools, temperature, permission, prompt |

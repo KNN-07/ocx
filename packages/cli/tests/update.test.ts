@@ -44,7 +44,7 @@ describe("ocx update", () => {
 	 * Helper to install a component
 	 */
 	async function installComponent(dir: string, componentName: string): Promise<void> {
-		const { exitCode, output } = await runCLI(["add", componentName, "--yes"], dir)
+		const { exitCode, output } = await runCLI(["add", componentName, "--force"], dir)
 		if (exitCode !== 0) {
 			throw new Error(`Failed to install ${componentName}: ${output}`)
 		}

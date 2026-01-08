@@ -36,6 +36,48 @@ Plugins extend OpenCode by hooking into events and customizing behavior.
 }
 ```
 
+### Adding npm Plugins with OCX
+
+OCX supports adding npm plugins directly without a registry using the `npm:` protocol:
+
+```bash
+ocx add npm:<package-name>[@version]
+```
+
+This adds the package to the `plugin` array in `opencode.jsonc`. OpenCode will install and load the plugin at runtime.
+
+#### Examples
+
+```bash
+# Latest version
+ocx add npm:opencode-plugin-foo
+
+# Specific version
+ocx add npm:opencode-plugin-foo@1.0.0
+
+# Scoped package
+ocx add npm:@scope/plugin
+
+# Mix with registry components
+ocx add kdco/researcher npm:some-plugin
+```
+
+The plugin is added to your configuration:
+
+```json
+{
+  "plugin": ["opencode-plugin-foo"]
+}
+```
+
+Or with a version constraint:
+
+```json
+{
+  "plugin": [{ "name": "opencode-plugin-foo", "version": "1.0.0" }]
+}
+```
+
 ### Basic Plugin Structure
 
 ```typescript

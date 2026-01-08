@@ -8,6 +8,41 @@
 import { z } from "zod"
 
 // =============================================================================
+// NPM SPECIFIER SCHEMA
+// =============================================================================
+
+/**
+ * npm specifier schema for "npm:package@version" syntax.
+ * Validates the format at boundary (Law 2: Parse Don't Validate).
+ *
+ * Valid formats:
+ * - npm:lodash
+ * - npm:lodash@4.0.0
+ * - npm:@scope/pkg
+ * - npm:@scope/pkg@1.0.0
+ */
+export const npmSpecifierSchema = z
+	.string()
+	.refine((val) => val.startsWith("npm:"), {
+		message: 'npm specifier must start with "npm:" prefix',
+	})
+	.refine(
+		(val) => {
+			const remainder = val.slice(4)
+			// Must have something after npm:
+			if (!remainder) return false
+			// Cannot contain path traversal
+			if (remainder.includes("..") || remainder.includes("/./")) return false
+			return true
+		},
+		{
+			message: "Invalid npm specifier format",
+		},
+	)
+
+export type NpmSpecifier = z.infer<typeof npmSpecifierSchema>
+
+// =============================================================================
 // OPENCODE NAMING CONSTRAINTS (from OpenCode docs)
 // =============================================================================
 

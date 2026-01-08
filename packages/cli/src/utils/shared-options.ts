@@ -27,7 +27,7 @@ export const sharedOptions = {
 	json: () => new Option("--json", "Output as JSON"),
 
 	/** Skip confirmation prompts */
-	yes: () => new Option("-y, --yes", "Skip confirmation prompts"),
+	force: () => new Option("-f, --force", "Skip confirmation prompts"),
 
 	/** Verbose output */
 	verbose: () => new Option("-v, --verbose", "Verbose output"),
@@ -56,17 +56,17 @@ export function addCommonOptions<T extends { addOption: (opt: Option) => T }>(cm
 }
 
 /**
- * Add confirmation options (yes) to a command.
+ * Add force option to a command for skipping confirmation prompts.
  *
  * @example
  * ```typescript
  * const cmd = program.command("destructive")
- * addConfirmationOptions(cmd)
+ * addForceOption(cmd)
  *   .action(handler)
  * ```
  */
-export function addConfirmationOptions<T extends { addOption: (opt: Option) => T }>(cmd: T): T {
-	return cmd.addOption(sharedOptions.yes())
+export function addForceOption<T extends { addOption: (opt: Option) => T }>(cmd: T): T {
+	return cmd.addOption(sharedOptions.force())
 }
 
 /**

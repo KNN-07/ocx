@@ -17,7 +17,11 @@ import type { ResolvedComponent } from "../registry/resolver.js"
 import { type ResolvedDependencies, resolveDependencies } from "../registry/resolver.js"
 import { type OcxLock, readOcxLock } from "../schemas/config.js"
 import type { ComponentFileObject, RegistryIndex } from "../schemas/registry.js"
-import { updateOpencodeJsonConfig } from "../updaters/update-opencode-config.js"
+import { parseQualifiedComponent } from "../schemas/registry.js"
+import {
+	readOpencodeJsonConfig,
+	updateOpencodeJsonConfig,
+} from "../updaters/update-opencode-config.js"
 import { isContentIdentical } from "../utils/content.js"
 import { ConfigError, ConflictError, IntegrityError, ValidationError } from "../utils/errors.js"
 import {
@@ -29,31 +33,90 @@ import {
 	warnCompatIssues,
 } from "../utils/index.js"
 import {
-	addCommonOptions,
-	addConfirmationOptions,
-	addVerboseOption,
-} from "../utils/shared-options.js"
+	extractPackageName,
+	fetchPackageVersion,
+	formatPluginEntry,
+	isNpmSpecifier,
+	parseNpmSpecifier,
+	validateNpmPackage,
+	validateOpenCodePlugin,
+} from "../utils/npm-registry.js"
+import { addCommonOptions, addForceOption, addVerboseOption } from "../utils/shared-options.js"
+
+// =============================================================================
+// ADD INPUT TYPES (Discriminated Union)
+// =============================================================================
+
+/**
+ * Parsed add input - discriminated union for type-safe routing.
+ * Parsed at the boundary (Law 2: Parse Don't Validate).
+ */
+export type AddInput =
+	| { type: "npm"; name: string; version?: string }
+	| { type: "registry"; namespace: string; component: string; version?: string }
+
+/**
+ * Parse a component input string into a typed AddInput.
+ * Routes between npm: protocol and registry component references.
+ *
+ * @throws ValidationError for invalid input format
+ */
+export function parseAddInput(input: string): AddInput {
+	// Guard: empty input
+	if (!input?.trim()) {
+		throw new ValidationError("Component name cannot be empty")
+	}
+
+	const trimmed = input.trim()
+
+	// Route npm: specifiers
+	if (isNpmSpecifier(trimmed)) {
+		const parsed = parseNpmSpecifier(trimmed)
+		return { type: "npm", name: parsed.name, version: parsed.version }
+	}
+
+	// Route registry components
+	// Check if it's a qualified reference (namespace/component)
+	if (trimmed.includes("/")) {
+		const { namespace, component } = parseQualifiedComponent(trimmed)
+		return { type: "registry", namespace, component }
+	}
+
+	// Bare component name - needs registry resolution
+	// For now, treat as registry component without namespace
+	// The resolver will handle namespace inference from config
+	return { type: "registry", namespace: "", component: trimmed }
+}
 
 export interface AddOptions {
-	yes?: boolean
+	force?: boolean
 	dryRun?: boolean
 	cwd?: string
 	quiet?: boolean
 	verbose?: boolean
 	json?: boolean
 	skipCompatCheck?: boolean
+	trust?: boolean
 }
 
 export function registerAddCommand(program: Command): void {
 	const cmd = program
 		.command("add")
-		.description("Add components to your project")
-		.argument("<components...>", "Components to install")
+		.description(
+			"Add components or npm plugins to your project.\n\n" +
+				"  Registry components:  ocx add namespace/component\n" +
+				"  npm plugins:          ocx add npm:package-name[@version]",
+		)
+		.argument(
+			"<components...>",
+			"Components to install (namespace/component or npm:package[@version])",
+		)
 		.option("--dry-run", "Show what would be installed without making changes")
 		.option("--skip-compat-check", "Skip version compatibility checks")
+		.option("--trust", "Skip npm plugin validation (for packages that don't follow conventions)")
 
 	addCommonOptions(cmd)
-	addConfirmationOptions(cmd)
+	addForceOption(cmd)
 	addVerboseOption(cmd)
 
 	cmd.action(async (components: string[], options: AddOptions) => {
@@ -69,8 +132,183 @@ export function registerAddCommand(program: Command): void {
 /**
  * Core add logic that accepts a ConfigProvider.
  * This enables reuse across both standard and ghost modes.
+ *
+ * Routes inputs to appropriate handlers:
+ * - npm: specifiers -> handleNpmPlugins
+ * - registry components -> existing registry flow
  */
 export async function runAddCore(
+	componentNames: string[],
+	options: AddOptions,
+	provider: ConfigProvider,
+): Promise<void> {
+	const cwd = provider.cwd
+
+	// Parse all inputs at boundary (Law 2: Parse Don't Validate)
+	const parsedInputs = componentNames.map(parseAddInput)
+
+	// Separate npm and registry inputs
+	const npmInputs = parsedInputs.filter((i): i is AddInput & { type: "npm" } => i.type === "npm")
+	const registryInputs = parsedInputs.filter(
+		(i): i is AddInput & { type: "registry" } => i.type === "registry",
+	)
+
+	// Handle npm plugins first
+	if (npmInputs.length > 0) {
+		await handleNpmPlugins(npmInputs, options, cwd)
+	}
+
+	// Handle registry components (existing flow)
+	if (registryInputs.length > 0) {
+		// Reconstruct component names for registry resolver
+		const registryComponentNames = registryInputs.map((i) =>
+			i.namespace ? `${i.namespace}/${i.component}` : i.component,
+		)
+		await runRegistryAddCore(registryComponentNames, options, provider)
+	}
+}
+
+/**
+ * Handle npm plugin additions.
+ * Validates packages exist on npm and updates opencode.json plugin array.
+ */
+async function handleNpmPlugins(
+	inputs: Array<{ type: "npm"; name: string; version?: string }>,
+	options: AddOptions,
+	cwd: string,
+): Promise<void> {
+	const spin = options.quiet ? null : createSpinner({ text: "Validating npm packages..." })
+	spin?.start()
+
+	try {
+		const allWarnings: string[] = []
+
+		// Validate all packages exist on npm registry and are valid OpenCode plugins
+		for (const input of inputs) {
+			// Always validate package exists
+			await validateNpmPackage(input.name)
+
+			// Skip plugin validation if --trust flag is set
+			if (!options.trust) {
+				try {
+					const versionData = await fetchPackageVersion(input.name, input.version)
+					const result = validateOpenCodePlugin(versionData)
+					allWarnings.push(...result.warnings)
+				} catch (error) {
+					// Enhance error with hints for ValidationError
+					if (error instanceof ValidationError) {
+						spin?.fail("Plugin validation failed")
+						// Wrap with hints - handleError will log this message
+						throw new ValidationError(
+							`${error.message}\n` +
+								`hint  OpenCode plugins must be ESM modules with an entry point\n` +
+								`hint  Use \`--trust\` to add anyway`,
+						)
+					}
+					throw error
+				}
+			}
+		}
+
+		spin?.succeed(`Validated ${inputs.length} npm package(s)`)
+
+		// Show warnings for soft checks
+		if (allWarnings.length > 0 && !options.quiet) {
+			logger.info("")
+			for (const warning of allWarnings) {
+				logger.warn(warning)
+			}
+		}
+
+		// Read existing opencode config
+		const existingConfig = await readOpencodeJsonConfig(cwd)
+		const existingPlugins: string[] = existingConfig?.config.plugin ?? []
+
+		// Build a map of existing plugin names (without version) for conflict detection
+		const existingPluginMap = new Map<string, string>()
+		for (const plugin of existingPlugins) {
+			const name = extractPackageName(plugin)
+			existingPluginMap.set(name, plugin)
+		}
+
+		// Check for conflicts and build new plugin list
+		const pluginsToAdd: string[] = []
+		const conflicts: string[] = []
+
+		for (const input of inputs) {
+			const existingEntry = existingPluginMap.get(input.name)
+
+			if (existingEntry) {
+				// Conflict: package already exists
+				if (!options.force) {
+					conflicts.push(input.name)
+				} else {
+					// With --force, replace existing entry
+					existingPluginMap.set(input.name, formatPluginEntry(input.name, input.version))
+				}
+			} else {
+				// New package
+				pluginsToAdd.push(formatPluginEntry(input.name, input.version))
+			}
+		}
+
+		// Fail fast on conflicts (Law 4)
+		if (conflicts.length > 0) {
+			throw new ConflictError(
+				`Plugin(s) already exist in opencode.json: ${conflicts.join(", ")}.\n` +
+					"Use --force to replace existing entries.",
+			)
+		}
+
+		// Build final plugin array
+		const finalPlugins = [...existingPluginMap.values(), ...pluginsToAdd]
+
+		// Dry run: just log what would happen
+		if (options.dryRun) {
+			logger.info("")
+			logger.info("Dry run - no changes made")
+			logger.info("")
+			logger.info("Would add npm plugins:")
+			for (const input of inputs) {
+				logger.info(`  ${formatPluginEntry(input.name, input.version)}`)
+			}
+			return
+		}
+
+		// Update opencode.json with new plugins
+		await updateOpencodeJsonConfig(cwd, { plugin: finalPlugins })
+
+		if (!options.quiet) {
+			logger.info("")
+			logger.success(`Added ${inputs.length} npm plugin(s) to opencode.json`)
+			for (const input of inputs) {
+				logger.info(`  ✓ ${formatPluginEntry(input.name, input.version)}`)
+			}
+		}
+
+		if (options.json) {
+			console.log(
+				JSON.stringify(
+					{
+						success: true,
+						plugins: inputs.map((i) => formatPluginEntry(i.name, i.version)),
+					},
+					null,
+					2,
+				),
+			)
+		}
+	} catch (error) {
+		spin?.fail("Failed to add npm plugins")
+		throw error
+	}
+}
+
+/**
+ * Registry component add logic (original runAddCore implementation).
+ * Handles component installation from configured registries.
+ */
+async function runRegistryAddCore(
 	componentNames: string[],
 	options: AddOptions,
 	provider: ConfigProvider,
@@ -210,7 +448,7 @@ export async function runAddCore(
 					const existingContent = await Bun.file(targetPath).text()
 					const incomingContent = file.content.toString("utf-8")
 
-					if (!isContentIdentical(existingContent, incomingContent) && !options.yes) {
+					if (!isContentIdentical(existingContent, incomingContent) && !options.force) {
 						allConflicts.push(componentFile.target)
 					}
 				}
@@ -226,9 +464,9 @@ export async function runAddCore(
 			}
 			logger.error("")
 			logger.error("These files have been modified since installation.")
-			logger.error("Use --yes to overwrite, or review the changes first.")
+			logger.error("Use --force to overwrite, or review the changes first.")
 			throw new ConflictError(
-				`${allConflicts.length} file(s) have conflicts. Use --yes to overwrite.`,
+				`${allConflicts.length} file(s) have conflicts. Use --force to overwrite.`,
 			)
 		}
 
@@ -239,7 +477,7 @@ export async function runAddCore(
 		for (const { component, files, computedHash } of componentBundles) {
 			// Install component
 			const installResult = await installComponent(component, files, cwd, {
-				yes: options.yes,
+				force: options.force,
 				verbose: options.verbose,
 			})
 
@@ -356,7 +594,7 @@ async function installComponent(
 	component: ResolvedComponent,
 	files: { path: string; content: Buffer }[],
 	cwd: string,
-	_options: { yes?: boolean; verbose?: boolean },
+	_options: { force?: boolean; verbose?: boolean },
 ): Promise<{ written: string[]; skipped: string[]; overwritten: string[] }> {
 	const result = {
 		written: [] as string[],

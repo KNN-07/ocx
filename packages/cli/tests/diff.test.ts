@@ -22,7 +22,7 @@ describe("ocx diff", () => {
 
 	it("should show no changes when local matches upstream", async () => {
 		// Mock an install
-		await runCLI(["add", "kdco/test-plugin", "--yes"], testDir)
+		await runCLI(["add", "kdco/test-plugin", "--force"], testDir)
 
 		const { exitCode, output } = await runCLI(["diff", "kdco/test-plugin"], testDir)
 
@@ -32,7 +32,7 @@ describe("ocx diff", () => {
 
 	it("should detect changes when local file is modified", async () => {
 		// Mock an install
-		await runCLI(["add", "kdco/test-plugin", "--yes"], testDir)
+		await runCLI(["add", "kdco/test-plugin", "--force"], testDir)
 
 		// Modify the local file
 		const pluginPath = join(testDir, ".opencode/plugin/test-plugin.ts")
