@@ -5,7 +5,6 @@
  * Uses EDITOR or VISUAL environment variables, falls back to vi.
  */
 
-import { spawn } from "node:child_process"
 import type { Command } from "commander"
 import { ProfileManager } from "../../../profile/manager.js"
 import { getProfileGhostConfig } from "../../../profile/paths.js"
@@ -36,18 +35,14 @@ async function runProfileConfig(name: string | undefined): Promise<void> {
 	const configPath = getProfileGhostConfig(profileName)
 	const editor = process.env.EDITOR || process.env.VISUAL || "vi"
 
-	const child = spawn(editor, [configPath], {
-		stdio: "inherit",
+	const proc = Bun.spawn([editor, configPath], {
+		stdin: "inherit",
+		stdout: "inherit",
+		stderr: "inherit",
 	})
 
-	await new Promise<void>((resolve, reject) => {
-		child.on("close", (code) => {
-			if (code === 0) {
-				resolve()
-			} else {
-				reject(new Error(`Editor exited with code ${code}`))
-			}
-		})
-		child.on("error", reject)
-	})
+	const exitCode = await proc.exited
+	if (exitCode !== 0) {
+		throw new Error(`Editor exited with code ${exitCode}`)
+	}
 }

@@ -5,7 +5,7 @@
  * Non-destructive: creates backup of legacy config before migration.
  */
 
-import { chmod, cp, readdir, rename, stat } from "node:fs/promises"
+import { chmod, readdir, rename, stat } from "node:fs/promises"
 import { homedir } from "node:os"
 import path from "node:path"
 import { ProfileManager } from "./manager.js"
@@ -107,13 +107,13 @@ export async function migrate(dryRun = false): Promise<MigrationResult> {
 	const manager = ProfileManager.create()
 	await manager.initialize()
 
-	// Copy files to default profile
+	// Copy files to default profile with consistent permissions
 	const defaultProfileDir = getProfileDir("default")
 	for (const file of filesToMigrate) {
 		const srcPath = path.join(legacyDir, file)
 		const destPath = path.join(defaultProfileDir, file)
-		await cp(srcPath, destPath)
-		// Ensure consistent permissions (0o600) matching atomicWrite behavior
+		// Copy content using Bun's file API, then set permissions (0o600 matches atomicWrite)
+		await Bun.write(destPath, Bun.file(srcPath))
 		await chmod(destPath, 0o600)
 		result.migratedFiles.push(file)
 	}

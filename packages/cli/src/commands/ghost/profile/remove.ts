@@ -5,7 +5,6 @@
  * Requires confirmation unless --force is provided.
  */
 
-import { createInterface } from "node:readline"
 import type { Command } from "commander"
 import { ProfileManager } from "../../../profile/manager.js"
 import { isTTY } from "../../../utils/env.js"
@@ -48,7 +47,7 @@ async function runProfileRemove(name: string, options: ProfileRemoveOptions): Pr
 			)
 		}
 
-		const confirmed = await confirmDeletion(name)
+		const confirmed = confirmDeletion(name)
 		if (!confirmed) {
 			console.log("Aborted.")
 			return
@@ -61,17 +60,9 @@ async function runProfileRemove(name: string, options: ProfileRemoveOptions): Pr
 
 /**
  * Prompt user to confirm profile deletion.
+ * Uses Bun's global prompt() which is a Web API.
  */
-async function confirmDeletion(name: string): Promise<boolean> {
-	const rl = createInterface({
-		input: process.stdin,
-		output: process.stdout,
-	})
-
-	const answer = await new Promise<string>((resolve) => {
-		rl.question(`Delete profile "${name}"? This cannot be undone. [y/N] `, resolve)
-	})
-
-	rl.close()
-	return answer.toLowerCase() === "y"
+function confirmDeletion(name: string): boolean {
+	const answer = prompt(`Delete profile "${name}"? This cannot be undone. [y/N]`)
+	return answer?.toLowerCase() === "y"
 }
