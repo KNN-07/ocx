@@ -7,9 +7,9 @@
  */
 
 import { randomBytes } from "node:crypto"
-import { readdir, rename, rm, stat, symlink } from "node:fs/promises"
+import { mkdir, readdir, rename, rm, stat, symlink } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { isAbsolute, join } from "node:path"
+import { dirname, isAbsolute, join, relative } from "node:path"
 
 /** Age threshold for stale ghost sessions (24 hours) */
 const STALE_SESSION_THRESHOLD_MS = 24 * 60 * 60 * 1000
@@ -69,6 +69,55 @@ export async function createSymlinkFarm(
 		// Cleanup on failure (Law 4: Fail Fast)
 		await rm(tempDir, { recursive: true, force: true }).catch(() => {})
 		throw error
+	}
+}
+
+/**
+ * Inject files from a source directory into an existing symlink farm.
+ * Used by ghost mode to add ghost config files after farm creation.
+ *
+ * @param tempDir - The symlink farm directory
+ * @param sourceDir - Directory containing files to inject (e.g., ~/.config/ocx/)
+ * @param injectPaths - Set of absolute paths to inject
+ */
+export async function injectGhostFiles(
+	tempDir: string,
+	sourceDir: string,
+	injectPaths: Set<string>,
+): Promise<void> {
+	// Guard: Validate paths (Law 1: Early Exit)
+	if (!isAbsolute(tempDir)) {
+		throw new Error(`tempDir must be an absolute path, got: ${tempDir}`)
+	}
+	if (!isAbsolute(sourceDir)) {
+		throw new Error(`sourceDir must be an absolute path, got: ${sourceDir}`)
+	}
+
+	for (const injectPath of injectPaths) {
+		// Compute relative path from sourceDir
+		const relativePath = relative(sourceDir, injectPath)
+
+		// Guard: injectPath must be within sourceDir (Law 1: Early Exit)
+		if (relativePath.startsWith("..") || isAbsolute(relativePath)) {
+			throw new Error(`injectPath must be within sourceDir: ${injectPath}`)
+		}
+
+		const targetPath = join(tempDir, relativePath)
+
+		// Ensure parent directory exists
+		const parentDir = dirname(targetPath)
+		if (parentDir !== tempDir) {
+			await mkdir(parentDir, { recursive: true })
+		}
+
+		// Create symlink (skip if already exists - defensive)
+		try {
+			await symlink(injectPath, targetPath)
+		} catch (err) {
+			if ((err as NodeJS.ErrnoException).code !== "EEXIST") {
+				throw new Error(`Failed to inject ${injectPath} → ${targetPath}: ${(err as Error).message}`)
+			}
+		}
 	}
 }
 

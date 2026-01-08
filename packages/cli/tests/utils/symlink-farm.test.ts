@@ -11,6 +11,7 @@ import {
 	cleanupSymlinkFarm,
 	createSymlinkFarm,
 	GHOST_MARKER_FILE,
+	injectGhostFiles,
 } from "../../src/utils/symlink-farm.js"
 
 // =============================================================================
@@ -199,5 +200,99 @@ describe("cleanupSymlinkFarm", () => {
 	it("should not throw if directory doesn't exist", async () => {
 		// Should not throw
 		await cleanupSymlinkFarm("/nonexistent/path/that/does/not/exist")
+	})
+})
+
+describe("injectGhostFiles", () => {
+	let sourceDir: string
+	let injectDir: string
+
+	beforeEach(async () => {
+		sourceDir = await createTempDir("symlink-farm-inject-source")
+		injectDir = await createTempDir("symlink-farm-inject-files")
+	})
+
+	afterEach(async () => {
+		await cleanupTempDir(sourceDir)
+		await cleanupTempDir(injectDir)
+	})
+
+	it("should inject files into existing symlink farm", async () => {
+		// Setup source with a file
+		await Bun.write(join(sourceDir, "existing.txt"), "existing")
+
+		// Setup inject dir with files to inject
+		await Bun.write(join(injectDir, "injected.txt"), "injected")
+		await Bun.write(join(injectDir, "config.json"), "{}")
+
+		// Create farm and inject
+		const tempDir = await createSymlinkFarm(sourceDir, new Set())
+		const injectPaths = new Set([join(injectDir, "injected.txt"), join(injectDir, "config.json")])
+		await injectGhostFiles(tempDir, injectDir, injectPaths)
+
+		try {
+			// Original file should exist
+			const existingStat = await lstat(join(tempDir, "existing.txt"))
+			expect(existingStat.isSymbolicLink()).toBe(true)
+
+			// Injected files should exist as symlinks
+			const injectedStat = await lstat(join(tempDir, "injected.txt"))
+			expect(injectedStat.isSymbolicLink()).toBe(true)
+
+			const configStat = await lstat(join(tempDir, "config.json"))
+			expect(configStat.isSymbolicLink()).toBe(true)
+
+			// Verify symlink targets
+			const injectedTarget = await readlink(join(tempDir, "injected.txt"))
+			expect(injectedTarget).toBe(join(injectDir, "injected.txt"))
+		} finally {
+			await cleanupSymlinkFarm(tempDir)
+		}
+	})
+
+	it("should inject directories", async () => {
+		// Setup inject dir with a subdirectory
+		const subDir = join(injectDir, ".opencode")
+		await mkdir(subDir, { recursive: true })
+		await Bun.write(join(subDir, "plugin.ts"), "// plugin")
+
+		// Create farm and inject the directory
+		const tempDir = await createSymlinkFarm(sourceDir, new Set())
+		const injectPaths = new Set([subDir])
+		await injectGhostFiles(tempDir, injectDir, injectPaths)
+
+		try {
+			// .opencode should be a symlink
+			const stat = await lstat(join(tempDir, ".opencode"))
+			expect(stat.isSymbolicLink()).toBe(true)
+
+			// Should be able to read through the symlink
+			const content = await Bun.file(join(tempDir, ".opencode", "plugin.ts")).text()
+			expect(content).toBe("// plugin")
+		} finally {
+			await cleanupSymlinkFarm(tempDir)
+		}
+	})
+
+	it("should handle empty inject set", async () => {
+		const tempDir = await createSymlinkFarm(sourceDir, new Set())
+
+		// Should not throw
+		await injectGhostFiles(tempDir, injectDir, new Set())
+
+		await cleanupSymlinkFarm(tempDir)
+	})
+
+	it("should throw if injectPath is outside sourceDir", async () => {
+		const tempDir = await createSymlinkFarm(sourceDir, new Set())
+		const outsidePath = join(injectDir, "..", "outside.txt")
+
+		try {
+			await expect(injectGhostFiles(tempDir, injectDir, new Set([outsidePath]))).rejects.toThrow(
+				"injectPath must be within sourceDir",
+			)
+		} finally {
+			await cleanupSymlinkFarm(tempDir)
+		}
 	})
 })

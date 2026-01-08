@@ -24,6 +24,7 @@ import {
 	cleanupOrphanedGhostDirs,
 	cleanupSymlinkFarm,
 	createSymlinkFarm,
+	injectGhostFiles,
 	REMOVING_SUFFIX,
 } from "../../utils/symlink-farm.js"
 
@@ -89,6 +90,10 @@ async function runGhostOpenCode(args: string[], options: GhostOpenCodeOptions): 
 	)
 
 	const tempDir = await createSymlinkFarm(cwd, excludePaths)
+
+	// Inject ghost OpenCode files into the temp directory
+	const ghostFiles = await discoverProjectFiles(ghostConfigDir, ghostConfigDir)
+	await injectGhostFiles(tempDir, ghostConfigDir, ghostFiles)
 
 	// Track cleanup state to prevent double cleanup
 	let cleanupDone = false
