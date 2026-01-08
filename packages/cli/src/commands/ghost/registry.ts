@@ -2,13 +2,15 @@
  * Ghost Registry Commands
  *
  * Manage registries in the ghost configuration.
- * Thin wrapper around core registry functions using GhostConfigProvider.
+ * Thin wrapper around core registry functions using profile-based config.
  */
 
 import type { Command } from "commander"
 import kleur from "kleur"
-import { ghostConfigExists, loadGhostConfig, saveGhostConfig } from "../../ghost/config.js"
-import { GhostNotInitializedError } from "../../utils/errors.js"
+import { atomicWrite } from "../../profile/atomic.js"
+import { ProfileManager } from "../../profile/manager.js"
+import { getProfileGhostConfig } from "../../profile/paths.js"
+import { ProfilesNotInitializedError } from "../../utils/errors.js"
 import { handleError, logger, outputJson } from "../../utils/index.js"
 import { addOutputOptions } from "../../utils/shared-options.js"
 import {
@@ -20,14 +22,15 @@ import {
 } from "../registry.js"
 
 /**
- * Ensure ghost mode is initialized before proceeding.
- * Throws GhostNotInitializedError if not.
+ * Ensure ghost profiles are initialized before proceeding.
+ * Returns the ProfileManager instance for chaining.
  */
-async function ensureGhostInitialized(): Promise<void> {
-	const exists = await ghostConfigExists()
-	if (!exists) {
-		throw new GhostNotInitializedError()
+async function ensureProfilesInitialized(): Promise<ProfileManager> {
+	const manager = ProfileManager.create()
+	if (!(await manager.isInitialized())) {
+		throw new ProfilesNotInitializedError()
 	}
+	return manager
 }
 
 export function registerGhostRegistryCommand(parent: Command): void {
@@ -44,14 +47,15 @@ export function registerGhostRegistryCommand(parent: Command): void {
 
 	addCmd.action(async (url: string, options: RegistryAddOptions) => {
 		try {
-			await ensureGhostInitialized()
-			const config = await loadGhostConfig()
+			const manager = await ensureProfilesInitialized()
+			const profileName = await manager.getCurrent()
+			const profile = await manager.get(profileName)
 
 			const result = await runRegistryAddCore(url, options, {
-				getRegistries: () => config.registries,
+				getRegistries: () => profile.ghost.registries,
 				setRegistry: async (name, regConfig) => {
-					config.registries[name] = regConfig
-					await saveGhostConfig(config)
+					profile.ghost.registries[name] = regConfig
+					await atomicWrite(getProfileGhostConfig(profileName), profile.ghost)
 				},
 			})
 
@@ -79,14 +83,15 @@ export function registerGhostRegistryCommand(parent: Command): void {
 
 	removeCmd.action(async (name: string, options: RegistryOptions) => {
 		try {
-			await ensureGhostInitialized()
-			const config = await loadGhostConfig()
+			const manager = await ensureProfilesInitialized()
+			const profileName = await manager.getCurrent()
+			const profile = await manager.get(profileName)
 
 			const result = await runRegistryRemoveCore(name, {
-				getRegistries: () => config.registries,
+				getRegistries: () => profile.ghost.registries,
 				removeRegistry: async (regName) => {
-					delete config.registries[regName]
-					await saveGhostConfig(config)
+					delete profile.ghost.registries[regName]
+					await atomicWrite(getProfileGhostConfig(profileName), profile.ghost)
 				},
 			})
 
@@ -107,11 +112,12 @@ export function registerGhostRegistryCommand(parent: Command): void {
 
 	listCmd.action(async (options: RegistryOptions) => {
 		try {
-			await ensureGhostInitialized()
-			const config = await loadGhostConfig()
+			const manager = await ensureProfilesInitialized()
+			const profileName = await manager.getCurrent()
+			const profile = await manager.get(profileName)
 
 			const result = runRegistryListCore({
-				getRegistries: () => config.registries,
+				getRegistries: () => profile.ghost.registries,
 			})
 
 			if (options.json) {

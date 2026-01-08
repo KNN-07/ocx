@@ -439,12 +439,16 @@ describe("GhostConfigProvider", () => {
 	})
 
 	it("should use ghost config directory as cwd, not passed cwd", async () => {
-		// Create a valid ghost config
-		const configDir = getGhostConfigDir()
-		await mkdir(configDir, { recursive: true })
-		const configPath = getGhostConfigPath()
+		// Initialize profiles (required for GhostConfigProvider)
+		const { ProfileManager } = await import("../../src/profile/manager.js")
+		const manager = ProfileManager.create()
+		await manager.initialize()
+
+		// Update the default profile with a registry
+		const { getProfileGhostConfig, getProfileDir } = await import("../../src/profile/paths.js")
+		const ghostPath = getProfileGhostConfig("default")
 		await Bun.write(
-			configPath,
+			ghostPath,
 			JSON.stringify({
 				registries: { default: { url: "https://registry.opencode.ai" } },
 			}),
@@ -454,17 +458,22 @@ describe("GhostConfigProvider", () => {
 		const differentCwd = "/some/other/directory"
 		const provider = await GhostConfigProvider.create(differentCwd)
 
-		// The provider's cwd should be the ghost config directory, NOT the passed cwd
-		expect(provider.cwd).toBe(configDir)
+		// The provider's cwd should be the profile directory, NOT the passed cwd
+		expect(provider.cwd).toBe(getProfileDir("default"))
 		expect(provider.cwd).not.toBe(differentCwd)
 	})
 
 	it("should return correct registries from ghost config", async () => {
-		const configDir = getGhostConfigDir()
-		await mkdir(configDir, { recursive: true })
-		const configPath = getGhostConfigPath()
+		// Initialize profiles (required for GhostConfigProvider)
+		const { ProfileManager } = await import("../../src/profile/manager.js")
+		const manager = ProfileManager.create()
+		await manager.initialize()
+
+		// Update the default profile with registries
+		const { getProfileGhostConfig } = await import("../../src/profile/paths.js")
+		const ghostPath = getProfileGhostConfig("default")
 		await Bun.write(
-			configPath,
+			ghostPath,
 			JSON.stringify({
 				registries: {
 					default: { url: "https://registry.opencode.ai" },

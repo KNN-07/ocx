@@ -267,6 +267,69 @@ The discovery logic in `opencode-discovery.ts` mirrors OpenCode's scanning:
 
 Reference: https://github.com/sst/opencode (see source comments for exact file locations)
 
+### Ghost Mode Profiles
+
+Profiles enable multiple named ghost configurations for different contexts (work, personal, clients).
+
+#### Directory Structure
+
+```
+~/.config/opencode/profiles/
+├── current -> default      # Symlink to active profile
+├── default/
+│   ├── ghost.jsonc         # Ghost settings (required)
+│   ├── opencode.jsonc      # OpenCode overrides (optional)
+│   └── AGENTS.md           # Custom agents (optional)
+└── work/
+    └── ghost.jsonc
+```
+
+#### Profile Commands
+
+| Command | Alias | Description |
+|---------|-------|-------------|
+| `ocx ghost profile list` | `ocx g p ls` | List all profiles (* = current) |
+| `ocx ghost profile add <name>` | `ocx g p add` | Create new profile |
+| `ocx ghost profile remove <name>` | `ocx g p rm` | Delete profile |
+| `ocx ghost profile use <name>` | `ocx g p use` | Set current profile |
+| `ocx ghost profile show [name]` | `ocx g p show` | Display profile contents |
+| `ocx ghost profile config [name]` | `ocx g p config` | Edit ghost.jsonc in $EDITOR |
+
+#### Profile Selection Priority
+
+1. `--profile <name>` flag on command
+2. `OCX_PROFILE` environment variable
+3. `profiles/current` symlink
+4. Defaults to `default` profile
+
+#### Examples
+
+```bash
+# Create and switch to a work profile
+ocx ghost profile add work
+ocx ghost profile use work
+
+# Run OpenCode with a specific profile
+ocx ghost opencode --profile work
+
+# Or use environment variable
+OCX_PROFILE=work ocx ghost opencode
+
+# Clone settings from existing profile
+ocx ghost profile add client-x --from work
+```
+
+#### Migration from Legacy Config
+
+If you have an existing `~/.config/ocx/` configuration:
+
+```bash
+ocx ghost migrate --dry-run  # Preview changes
+ocx ghost migrate            # Perform migration
+```
+
+This moves your config to `profiles/default/` and renames the old directory to `~/.config/ocx.bak/`.
+
 ## Quick Reference
 
 ```bash
