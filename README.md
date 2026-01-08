@@ -120,9 +120,9 @@ ocx ghost registry list
 
 # Use in any repo (without touching it)
 cd ~/oss/some-project
-ocx ghost add button        # Uses YOUR registries
-ocx ghost search input      # Searches YOUR registries
-ocx ghost opencode          # Runs OpenCode with YOUR config
+ocx ghost add npm:@franlol/opencode-md-table-formatter  # Add npm plugins
+ocx ghost add kdco/workspace   # Or use registries
+ocx ghost opencode             # Runs OpenCode with YOUR config
 ```
 
 #### Commands
@@ -134,7 +134,7 @@ ocx ghost opencode          # Runs OpenCode with YOUR config
 | `ocx ghost registry add <url> [--name <name>]` | `ocx g registry add` | Add a registry |
 | `ocx ghost registry remove <name>` | `ocx g registry remove` | Remove a registry |
 | `ocx ghost registry list` | `ocx g registry list` | List registries |
-| `ocx ghost add <component>` | `ocx g add` | Add component using ghost config |
+| `ocx ghost add <component>` | `ocx g add` | Add component or npm plugin |
 | `ocx ghost search <query>` | `ocx g search` | Search ghost registries |
 | `ocx ghost opencode [args...]` | `ocx g opencode` | Run OpenCode with ghost config |
 
