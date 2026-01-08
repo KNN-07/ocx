@@ -20,12 +20,9 @@ const DEFAULT_GHOST_CONFIG = `{
   // This config is used when running commands with \`ocx ghost\` or \`ocx g\`
   // Note: OpenCode settings go in ~/.config/ocx/opencode.jsonc (see: ocx ghost opencode --edit)
   
-  // Component registries to use
-  "registries": {
-    "default": {
-      "url": "https://registry.opencode.ai"
-    }
-  },
+  // Component registries - add your registries here
+  // Example: "myregistry": { "url": "https://example.com/registry" }
+  "registries": {},
   
   // Where to install components (relative to project root)
   "componentPath": "src/components"

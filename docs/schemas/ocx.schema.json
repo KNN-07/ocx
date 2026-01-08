@@ -40,6 +40,11 @@
 			"type": "boolean",
 			"description": "If true, prevents adding or removing registries via the CLI",
 			"default": false
+		},
+		"skipCompatCheck": {
+			"type": "boolean",
+			"description": "Skip version compatibility checks",
+			"default": false
 		}
 	},
 	"additionalProperties": false
