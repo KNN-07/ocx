@@ -261,6 +261,17 @@ describe("ocx ghost profile remove", () => {
 		await cleanupTempDir(testDir)
 	})
 
+	it("should delete a non-current profile without --force", async () => {
+		await runGhostCLI(["profile", "add", "toremove"], { XDG_CONFIG_HOME: testDir })
+
+		const { exitCode, output } = await runGhostCLI(["profile", "remove", "toremove"], {
+			XDG_CONFIG_HOME: testDir,
+		})
+
+		expect(exitCode).toBe(0)
+		expect(output).toContain("Deleted profile")
+	})
+
 	it("should delete a profile with --force", async () => {
 		await runGhostCLI(["profile", "add", "toremove"], { XDG_CONFIG_HOME: testDir })
 
@@ -304,13 +315,13 @@ describe("ocx ghost profile remove", () => {
 	it("should fail deleting current profile without --force", async () => {
 		await runGhostCLI(["profile", "add", "backup"], { XDG_CONFIG_HOME: testDir })
 
-		// Without --force, should require interactive confirmation (which fails in test)
+		// Without --force, should fail with "cannot delete current profile" error
 		const { exitCode, output } = await runGhostCLI(["profile", "remove", "default"], {
 			XDG_CONFIG_HOME: testDir,
 		})
 
 		expect(exitCode).not.toBe(0)
-		expect(output).toContain("non-interactive")
+		expect(output).toContain("Cannot delete current profile")
 	})
 
 	it("should allow deleting current profile with --force", async () => {
