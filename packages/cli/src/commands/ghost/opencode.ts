@@ -7,15 +7,13 @@
  */
 
 import { renameSync, rmSync } from "node:fs"
+import { copyFile as copyFilePromise } from "node:fs/promises"
+import path from "node:path"
 import type { Command } from "commander"
-import {
-	getGhostConfigDir,
-	getGhostOpencodeConfigPath,
-	ghostConfigExists,
-	loadGhostConfig,
-	loadGhostOpencodeConfig,
-} from "../../ghost/config.js"
-import { GhostNotInitializedError } from "../../utils/errors.js"
+import { ProfileManager } from "../../profile/manager.js"
+import { needsMigration } from "../../profile/migrate.js"
+import { getProfileAgents, getProfileDir, getProfileOpencodeConfig } from "../../profile/paths.js"
+import { ProfilesNotInitializedError } from "../../utils/errors.js"
 import { detectGitRepo, handleError, logger } from "../../utils/index.js"
 import { discoverProjectFiles } from "../../utils/opencode-discovery.js"
 import { filterExcludedPaths } from "../../utils/pattern-filter.js"
@@ -31,12 +29,14 @@ import {
 interface GhostOpenCodeOptions {
 	json?: boolean
 	quiet?: boolean
+	profile?: string
 }
 
 export function registerGhostOpenCodeCommand(parent: Command): void {
 	parent
 		.command("opencode")
 		.description("Launch OpenCode with ghost mode configuration")
+		.option("-p, --profile <name>", "Use specific profile")
 		.addOption(sharedOptions.json())
 		.addOption(sharedOptions.quiet())
 		.allowUnknownOption()
@@ -53,23 +53,38 @@ export function registerGhostOpenCodeCommand(parent: Command): void {
 }
 
 async function runGhostOpenCode(args: string[], options: GhostOpenCodeOptions): Promise<void> {
-	// Guard: Check ghost mode is initialized (Law 1: Early Exit)
-	if (!(await ghostConfigExists())) {
-		throw new GhostNotInitializedError()
+	// Guard: Check profiles are initialized (Law 1: Early Exit)
+	const manager = ProfileManager.create()
+	if (!(await manager.isInitialized())) {
+		throw new ProfilesNotInitializedError()
+	}
+
+	// Check for legacy config and print migration notice (but still proceed)
+	if (!options.quiet && (await needsMigration())) {
+		console.log("Notice: Found legacy config at ~/.config/ocx/")
+		console.log("Run 'ocx ghost migrate' to upgrade to the new profiles system.\n")
 	}
 
 	// Clean up orphaned temp directories from interrupted sessions (SIGKILL resilience)
 	await cleanupOrphanedGhostDirs()
 
-	// Load opencode config from opencode.jsonc in ghost config directory
-	const openCodeConfig = await loadGhostOpencodeConfig()
-	const ghostConfigDir = getGhostConfigDir()
+	// Resolve current profile (respects --profile flag, OCX_PROFILE env, or symlink)
+	const profileName = await manager.getCurrent(options.profile)
+	const profile = await manager.get(profileName)
+
+	// Get the profile's config directory
+	const profileDir = getProfileDir(profileName)
+
+	// Check for profile's opencode.jsonc (optional)
+	const profileOpencodePath = getProfileOpencodeConfig(profileName)
+	const profileOpencodeFile = Bun.file(profileOpencodePath)
+	const hasOpencodeConfig = await profileOpencodeFile.exists()
 
 	// Guard: Warn if opencode config is empty/missing (but still proceed)
 	// Suppress warning in quiet mode
-	if (Object.keys(openCodeConfig).length === 0 && !options.quiet) {
+	if (!hasOpencodeConfig && !options.quiet) {
 		logger.warn(
-			`No opencode.jsonc found at ${getGhostOpencodeConfigPath()}. Run 'ocx ghost init' first.`,
+			`No opencode.jsonc found at ${profileOpencodePath}. Create one to customize OpenCode settings.`,
 		)
 	}
 
@@ -82,7 +97,7 @@ async function runGhostOpenCode(args: string[], options: GhostOpenCodeOptions): 
 	const discoveredPaths = await discoverProjectFiles(cwd, gitRoot)
 
 	// Apply user's include/exclude patterns from ghost config
-	const ghostConfig = await loadGhostConfig()
+	const ghostConfig = profile.ghost
 	const excludePaths = filterExcludedPaths(
 		discoveredPaths,
 		ghostConfig.include,
@@ -91,9 +106,16 @@ async function runGhostOpenCode(args: string[], options: GhostOpenCodeOptions): 
 
 	const tempDir = await createSymlinkFarm(cwd, excludePaths)
 
-	// Inject ghost OpenCode files into the temp directory
-	const ghostFiles = await discoverProjectFiles(ghostConfigDir, ghostConfigDir)
-	await injectGhostFiles(tempDir, ghostConfigDir, ghostFiles)
+	// Inject ghost OpenCode files from profile directory into the temp directory
+	const ghostFiles = await discoverProjectFiles(profileDir, profileDir)
+	await injectGhostFiles(tempDir, profileDir, ghostFiles)
+
+	// If profile has AGENTS.md, copy it into temp directory
+	if (profile.hasAgents) {
+		const agentsPath = getProfileAgents(profileName)
+		const destAgentsPath = path.join(tempDir, "AGENTS.md")
+		await copyFilePromise(agentsPath, destAgentsPath)
+	}
 
 	// Track cleanup state to prevent double cleanup
 	let cleanupDone = false
@@ -131,13 +153,15 @@ async function runGhostOpenCode(args: string[], options: GhostOpenCodeOptions): 
 
 	// Spawn opencode from the temp directory with config passed via environment
 	// Only set GIT_DIR/GIT_WORK_TREE when actually in a git repository
+	// If profile has opencode.jsonc, pass it via OPENCODE_CONFIG
 	proc = Bun.spawn({
 		cmd: ["opencode", ...args],
 		cwd: tempDir,
 		env: {
 			...process.env,
-			OPENCODE_CONFIG_CONTENT: JSON.stringify(openCodeConfig),
-			OPENCODE_CONFIG_DIR: ghostConfigDir,
+			...(profile.opencode && { OPENCODE_CONFIG_CONTENT: JSON.stringify(profile.opencode) }),
+			OPENCODE_CONFIG_DIR: profileDir,
+			OCX_PROFILE: profileName, // Pass profile to child processes
 			...(gitContext && {
 				GIT_WORK_TREE: gitContext.workTree,
 				GIT_DIR: gitContext.gitDir,

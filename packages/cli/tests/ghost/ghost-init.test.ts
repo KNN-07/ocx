@@ -2,8 +2,8 @@
  * Ghost Init Command Tests
  *
  * Tests for the `ocx ghost init` command:
- * - Creates config directory if not exists
- * - Creates ghost.jsonc with default content
+ * - Creates profiles directory structure
+ * - Creates default profile with ghost.jsonc
  * - Errors with helpful message if already initialized
  */
 
@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test"
 import { mkdir, rm } from "node:fs/promises"
 import { join } from "node:path"
 import { parse as parseJsonc } from "jsonc-parser"
-import { getGhostConfigDir, getGhostConfigPath } from "../../src/ghost/config.js"
+import { getProfileGhostConfig, getProfilesDir } from "../../src/profile/paths.js"
 
 // =============================================================================
 // HELPERS
@@ -88,11 +88,11 @@ describe("ocx ghost init", () => {
 		}
 		expect(exitCode).toBe(0)
 
-		// Verify directory was created
+		// Verify profiles directory was created
 		process.env.XDG_CONFIG_HOME = testDir
-		const configDir = getGhostConfigDir()
+		const profilesDir = getProfilesDir()
 		// Check if directory exists by checking if the path is a directory
-		const dirExists = (await Bun.spawn(["test", "-d", configDir]).exited) === 0
+		const dirExists = (await Bun.spawn(["test", "-d", profilesDir]).exited) === 0
 		expect(dirExists).toBe(true)
 	})
 
@@ -104,7 +104,7 @@ describe("ocx ghost init", () => {
 
 		// Verify config file was created with expected content
 		process.env.XDG_CONFIG_HOME = testDir
-		const configPath = getGhostConfigPath()
+		const configPath = getProfileGhostConfig("default")
 		const configFile = Bun.file(configPath)
 		const exists = await configFile.exists()
 		expect(exists).toBe(true)
@@ -112,9 +112,9 @@ describe("ocx ghost init", () => {
 		const content = await configFile.text()
 		const config = parseJsonc(content) as Record<string, unknown>
 
-		// Check for default structure (opencode config is stored separately in opencode.jsonc)
+		// Check for default structure (profiles have registries and optional $schema)
 		expect(config.registries).toBeDefined()
-		expect(config.componentPath).toBeDefined()
+		expect(config.$schema).toBeDefined()
 	})
 
 	it("should error with helpful message if already initialized", async () => {
@@ -126,9 +126,7 @@ describe("ocx ghost init", () => {
 		const secondResult = await runGhostCLI(["init"], { XDG_CONFIG_HOME: testDir })
 
 		expect(secondResult.exitCode).not.toBe(0)
-		expect(secondResult.output).toContain("already initialized")
-		expect(secondResult.output).toContain("To reset")
-		expect(secondResult.output).toContain("rm")
+		expect(secondResult.output).toContain("already")
 	})
 
 	it("should output JSON when --json flag is used", async () => {
@@ -140,7 +138,8 @@ describe("ocx ghost init", () => {
 
 		const json = JSON.parse(output)
 		expect(json.success).toBe(true)
-		expect(json.path).toContain("ghost.jsonc")
+		expect(json.defaultProfile).toBe("default")
+		expect(json.profilesDir).toContain("profiles")
 	})
 
 	it("should suppress output with --quiet flag", async () => {

@@ -1,8 +1,10 @@
 /**
  * Ghost Mode Config Loader
  *
- * Handles loading, saving, and managing the global ghost configuration
- * stored at ~/.config/ocx/ghost.jsonc (XDG-compliant path).
+ * Handles loading, saving, and managing ghost configuration.
+ * Supports the new profile system at ~/.config/opencode/profiles/
+ * while maintaining backwards compatibility with the legacy
+ * ~/.config/ocx/ghost.jsonc location.
  */
 
 import { mkdir } from "node:fs/promises"
@@ -10,6 +12,8 @@ import { homedir } from "node:os"
 import path, { dirname, join } from "node:path"
 import { type ParseError, parse as parseJsonc, printParseErrorCode } from "jsonc-parser"
 import type { output, ZodError, ZodTypeAny } from "zod"
+import { ProfileManager } from "../profile/manager.js"
+import { getProfileDir, getProfileGhostConfig, getProfileOpencodeConfig } from "../profile/paths.js"
 import type { GhostConfig } from "../schemas/ghost.js"
 import { ghostConfigSchema } from "../schemas/ghost.js"
 import { GhostConfigError, GhostNotInitializedError } from "../utils/errors.js"
@@ -19,7 +23,7 @@ import { isAbsolutePath } from "../utils/path-helpers.js"
 // CONSTANTS
 // =============================================================================
 
-const CONFIG_DIR_NAME = "ocx"
+const LEGACY_CONFIG_DIR_NAME = "ocx"
 const CONFIG_FILE_NAME = "ghost.jsonc"
 
 // =============================================================================
@@ -93,37 +97,85 @@ function parseJsoncFile<T extends ZodTypeAny>(
 }
 
 // =============================================================================
-// PATH HELPERS
+// LEGACY PATH HELPERS (for backwards compatibility)
 // =============================================================================
 
 /**
- * Get the ghost config directory path (XDG-compliant).
+ * Get the legacy ghost config directory path (XDG-compliant).
+ * This is the old ~/.config/ocx/ location.
  *
- * Per XDG Base Directory Specification, if XDG_CONFIG_HOME is set but invalid
- * (e.g., relative path), it should be treated as unset and fall back to ~/.config.
- * This matches behavior of directories-rs, xdg-base-dirs, and fish shell.
- *
- * @see https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
+ * @deprecated Use profile-based paths instead
  */
-export function getGhostConfigDir(): string {
+function getLegacyGhostConfigDir(): string {
 	const xdgConfigHome = process.env.XDG_CONFIG_HOME
 
-	// XDG spec: only use if set AND absolute path (relative paths are invalid per spec)
+	// XDG spec: only use if set AND absolute path
 	if (xdgConfigHome && isAbsolutePath(xdgConfigHome)) {
-		return path.join(xdgConfigHome, CONFIG_DIR_NAME)
+		return path.join(xdgConfigHome, LEGACY_CONFIG_DIR_NAME)
 	}
 
-	// Fall back to ~/.config/ocx
-	return path.join(homedir(), ".config", CONFIG_DIR_NAME)
+	return path.join(homedir(), ".config", LEGACY_CONFIG_DIR_NAME)
+}
+
+/**
+ * Get the legacy ghost config file path.
+ * @deprecated Use getProfileGhostConfig instead
+ */
+function getLegacyGhostConfigPath(): string {
+	return join(getLegacyGhostConfigDir(), CONFIG_FILE_NAME)
+}
+
+// =============================================================================
+// PROFILE-AWARE PATH HELPERS
+// =============================================================================
+
+/**
+ * Get the ghost config directory path.
+ *
+ * Priority:
+ * 1. Profile override parameter
+ * 2. OCX_PROFILE environment variable
+ * 3. Legacy ~/.config/ocx/ (for sync calls, actual profile resolution happens in async functions)
+ *
+ * @param profileOverride - Optional profile name to use
+ */
+export function getGhostConfigDir(profileOverride?: string): string {
+	// If profile override specified, use that profile's directory
+	if (profileOverride) {
+		return getProfileDir(profileOverride)
+	}
+
+	// Check for OCX_PROFILE env var
+	const envProfile = process.env.OCX_PROFILE
+	if (envProfile) {
+		return getProfileDir(envProfile)
+	}
+
+	// For sync path resolution, return the legacy path
+	// The actual profile resolution happens in async loadGhostConfig
+	return getLegacyGhostConfigDir()
 }
 
 /**
  * Get the full path to the ghost config file.
  *
- * Returns ~/.config/ocx/ghost.jsonc or $XDG_CONFIG_HOME/ocx/ghost.jsonc
+ * @param profileOverride - Optional profile name to use
  */
-export function getGhostConfigPath(): string {
-	return join(getGhostConfigDir(), CONFIG_FILE_NAME)
+export function getGhostConfigPath(profileOverride?: string): string {
+	// If profile specified, use profile-based path
+	if (profileOverride) {
+		return getProfileGhostConfig(profileOverride)
+	}
+
+	// Check for OCX_PROFILE env var
+	const envProfile = process.env.OCX_PROFILE
+	if (envProfile) {
+		return getProfileGhostConfig(envProfile)
+	}
+
+	// For sync path resolution, return the legacy path as fallback
+	// The actual profile resolution happens in loadGhostConfig
+	return getLegacyGhostConfigPath()
 }
 
 // =============================================================================
@@ -131,25 +183,48 @@ export function getGhostConfigPath(): string {
 // =============================================================================
 
 /**
- * Check if ghost mode is initialized (config file exists).
+ * Check if ghost mode is initialized.
+ *
+ * Checks both the new profile system and legacy location.
  */
 export async function ghostConfigExists(): Promise<boolean> {
-	const configPath = getGhostConfigPath()
-	const file = Bun.file(configPath)
+	const manager = ProfileManager.create()
+
+	// First check new profile system
+	if (await manager.isInitialized()) {
+		return true
+	}
+
+	// Fall back to legacy location check
+	const legacyPath = getLegacyGhostConfigPath()
+	const file = Bun.file(legacyPath)
 	return file.exists()
 }
 
 /**
  * Load the ghost config from disk.
  *
- * @throws GhostNotInitializedError if config file doesn't exist
+ * Uses the profile system if initialized, otherwise falls back to legacy location.
+ *
+ * @param profileOverride - Optional profile name to load
+ * @throws ProfilesNotInitializedError if no profiles and no legacy config
  * @throws GhostConfigError if config file is invalid (syntax or schema)
  */
-export async function loadGhostConfig(): Promise<GhostConfig> {
-	const configPath = getGhostConfigPath()
-	const file = Bun.file(configPath)
+export async function loadGhostConfig(profileOverride?: string): Promise<GhostConfig> {
+	const manager = ProfileManager.create()
 
-	// Guard: Check if file exists (Law 1: Early Exit)
+	// Try new profile system first
+	if (await manager.isInitialized()) {
+		const profileName = await manager.getCurrent(profileOverride)
+		const profile = await manager.get(profileName)
+		return profile.ghost
+	}
+
+	// Fall back to legacy location
+	const legacyPath = getLegacyGhostConfigPath()
+	const file = Bun.file(legacyPath)
+
+	// Guard: Check if legacy file exists (Law 1: Early Exit)
 	if (!(await file.exists())) {
 		throw new GhostNotInitializedError()
 	}
@@ -157,7 +232,7 @@ export async function loadGhostConfig(): Promise<GhostConfig> {
 	const content = await file.text()
 
 	// Parse and validate in one step (Law 2: Parse Don't Validate)
-	return parseJsoncFile(configPath, content, ghostConfigSchema)
+	return parseJsoncFile(legacyPath, content, ghostConfigSchema)
 }
 
 /**
@@ -165,9 +240,11 @@ export async function loadGhostConfig(): Promise<GhostConfig> {
  *
  * Creates the config directory if it doesn't exist.
  * Writes as plain JSON (not JSONC) since we're generating the file.
+ *
+ * @deprecated Use ProfileManager for profile-based config management
  */
 export async function saveGhostConfig(config: GhostConfig): Promise<void> {
-	const configPath = getGhostConfigPath()
+	const configPath = getLegacyGhostConfigPath()
 	const configDir = dirname(configPath)
 
 	// Ensure config directory exists (recursive is idempotent)
@@ -191,9 +268,23 @@ const OPENCODE_CONFIG_FILE_NAME = "opencode.jsonc"
 
 /**
  * Get the path to the ghost opencode.jsonc file
+ *
+ * @param profileOverride - Optional profile name to use
  */
-export function getGhostOpencodeConfigPath(): string {
-	return join(getGhostConfigDir(), OPENCODE_CONFIG_FILE_NAME)
+export function getGhostOpencodeConfigPath(profileOverride?: string): string {
+	// If profile specified, use profile-based path
+	if (profileOverride) {
+		return getProfileOpencodeConfig(profileOverride)
+	}
+
+	// Check for OCX_PROFILE env var
+	const envProfile = process.env.OCX_PROFILE
+	if (envProfile) {
+		return getProfileOpencodeConfig(envProfile)
+	}
+
+	// Fall back to legacy location
+	return join(getLegacyGhostConfigDir(), OPENCODE_CONFIG_FILE_NAME)
 }
 
 /**
@@ -203,11 +294,24 @@ export function getGhostOpencodeConfigPath(): string {
  * Uses atomic read pattern to avoid TOCTOU race condition:
  * Instead of exists() then read(), we attempt the read and handle ENOENT.
  *
+ * @param profileOverride - Optional profile name to load from
  * @returns The parsed config object, or empty object if file doesn't exist
  * @throws GhostConfigError if config file has invalid JSON syntax
  */
-export async function loadGhostOpencodeConfig(): Promise<Record<string, unknown>> {
-	const configPath = getGhostOpencodeConfigPath()
+export async function loadGhostOpencodeConfig(
+	profileOverride?: string,
+): Promise<Record<string, unknown>> {
+	const manager = ProfileManager.create()
+
+	// Try new profile system first
+	if (await manager.isInitialized()) {
+		const profileName = await manager.getCurrent(profileOverride)
+		const profile = await manager.get(profileName)
+		return profile.opencode ?? {}
+	}
+
+	// Fall back to legacy location
+	const configPath = join(getLegacyGhostConfigDir(), OPENCODE_CONFIG_FILE_NAME)
 
 	try {
 		const content = await Bun.file(configPath).text()

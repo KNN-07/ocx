@@ -1,19 +1,23 @@
 /**
  * Ghost Config Command
  *
- * Open the ghost configuration file in the user's preferred editor.
+ * Open the current profile's ghost.jsonc in the user's preferred editor.
  * Uses the editor preference chain: OCX_EDITOR -> EDITOR -> VISUAL -> vi
+ *
+ * This is an alias for `ocx ghost profile config` that works with the current profile.
  */
 
 import type { Command } from "commander"
-import { getGhostConfigPath, ghostConfigExists } from "../../ghost/config.js"
-import { GhostNotInitializedError } from "../../utils/errors.js"
+import { ProfileManager } from "../../profile/manager.js"
+import { getProfileGhostConfig } from "../../profile/paths.js"
+import { ProfilesNotInitializedError } from "../../utils/errors.js"
 import { handleError, logger } from "../../utils/index.js"
 import { addOutputOptions } from "../../utils/shared-options.js"
 
 interface GhostConfigOptions {
 	json?: boolean
 	quiet?: boolean
+	profile?: string
 }
 
 /**
@@ -32,7 +36,10 @@ function resolveEditor(): string {
 }
 
 export function registerGhostConfigCommand(parent: Command): void {
-	const cmd = parent.command("config").description("Open ghost configuration in your editor")
+	const cmd = parent
+		.command("config")
+		.description("Open current profile's ghost.jsonc in your editor")
+		.option("-p, --profile <name>", "Open a specific profile's config")
 
 	addOutputOptions(cmd).action(async (options: GhostConfigOptions) => {
 		try {
@@ -44,17 +51,24 @@ export function registerGhostConfigCommand(parent: Command): void {
 }
 
 async function runGhostConfig(options: GhostConfigOptions): Promise<void> {
-	// Guard: Check if ghost is initialized (Law 1: Early Exit)
-	const exists = await ghostConfigExists()
-	if (!exists) {
-		throw new GhostNotInitializedError()
+	const manager = ProfileManager.create()
+
+	// Guard: Check if profiles are initialized (Law 1: Early Exit)
+	if (!(await manager.isInitialized())) {
+		throw new ProfilesNotInitializedError()
 	}
 
-	const configPath = getGhostConfigPath()
+	// Resolve current profile (respects --profile flag, OCX_PROFILE env, or symlink)
+	const profileName = await manager.getCurrent(options.profile)
+
+	// Verify profile exists (fail fast)
+	await manager.get(profileName)
+
+	const configPath = getProfileGhostConfig(profileName)
 
 	// JSON mode: just output the path
 	if (options.json) {
-		console.log(JSON.stringify({ success: true, path: configPath }))
+		console.log(JSON.stringify({ success: true, profile: profileName, path: configPath }))
 		return
 	}
 

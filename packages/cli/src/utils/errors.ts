@@ -116,3 +116,39 @@ export class GhostConfigError extends OCXError {
 		this.name = "GhostConfigError"
 	}
 }
+
+// =============================================================================
+// PROFILE ERRORS
+// =============================================================================
+
+export class ProfileNotFoundError extends OCXError {
+	constructor(name: string) {
+		super(`Profile "${name}" not found`, "NOT_FOUND", EXIT_CODES.NOT_FOUND)
+		this.name = "ProfileNotFoundError"
+	}
+}
+
+export class ProfileExistsError extends OCXError {
+	constructor(name: string) {
+		super(`Profile "${name}" already exists`, "CONFLICT", EXIT_CODES.GENERAL)
+		this.name = "ProfileExistsError"
+	}
+}
+
+export class InvalidProfileNameError extends OCXError {
+	constructor(name: string, reason: string) {
+		super(`Invalid profile name "${name}": ${reason}`, "VALIDATION_ERROR", EXIT_CODES.GENERAL)
+		this.name = "InvalidProfileNameError"
+	}
+}
+
+export class ProfilesNotInitializedError extends OCXError {
+	constructor() {
+		super(
+			"Ghost profiles not initialized. Run 'ocx ghost init' first.",
+			"NOT_FOUND",
+			EXIT_CODES.NOT_FOUND,
+		)
+		this.name = "ProfilesNotInitializedError"
+	}
+}

@@ -9,7 +9,8 @@
  * Implementations parse config at construction; getters are sync and pure.
  */
 
-import { getGhostConfigDir, loadGhostConfig } from "../ghost/config.js"
+import { ProfileManager } from "../profile/manager.js"
+import { getProfileDir } from "../profile/paths.js"
 import type { OcxConfig, RegistryConfig } from "../schemas/config.js"
 import { readOcxConfig } from "../schemas/config.js"
 import type { GhostConfig } from "../schemas/ghost.js"
@@ -101,17 +102,20 @@ export class GhostConfigProvider implements ConfigProvider {
 	}
 
 	/**
-	 * Static factory - parses at boundary, throws GhostNotInitializedError if missing.
+	 * Static factory - parses at boundary, throws ProfilesNotInitializedError if missing.
 	 *
 	 * Note: The _cwd parameter is kept for API compatibility but ignored.
-	 * Ghost mode always uses the ghost config directory as its working directory.
+	 * Ghost mode always uses the current profile's directory.
 	 *
-	 * @throws GhostNotInitializedError if ghost config doesn't exist
+	 * @throws ProfilesNotInitializedError if profiles not initialized
+	 * @throws ProfileNotFoundError if current profile doesn't exist
 	 * @throws GhostConfigError if ghost config is invalid
 	 */
 	static async create(_cwd: string): Promise<GhostConfigProvider> {
-		const config = await loadGhostConfig()
-		return new GhostConfigProvider(getGhostConfigDir(), config)
+		const manager = ProfileManager.create()
+		const profileName = await manager.getCurrent()
+		const profile = await manager.get(profileName)
+		return new GhostConfigProvider(getProfileDir(profileName), profile.ghost)
 	}
 
 	getRegistries(): Record<string, RegistryConfig> {
