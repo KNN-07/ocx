@@ -86,6 +86,13 @@
 			"files": ["skill/code-review/SKILL.md"],
 			"dependencies": []
 		},
+		{
+			"name": "plan-review",
+			"type": "ocx:skill",
+			"description": "Criteria for reviewing implementation plans",
+			"files": ["skill/plan-review/SKILL.md"],
+			"dependencies": []
+		},
 
 		// ============================================================================
 		// AGENTS
@@ -221,7 +228,7 @@
 			"type": "ocx:agent",
 			"description": "Code review specialist that analyzes code for issues and improvements",
 			"files": ["agent/reviewer.md"],
-			"dependencies": ["code-review"],
+			"dependencies": ["code-review", "plan-review"],
 			"opencode": {
 				"agent": {
 					"reviewer": {
