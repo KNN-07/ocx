@@ -2,7 +2,11 @@
 
 The missing package manager for OpenCode extensions.
 
-Install OpenCode extensions with automatic dependency resolution, config merging, and integrity verification.
+## Why OCX?
+
+- 📦 **Extensions made easy** — Dependencies, MCP servers, config merging handled automatically
+- 👻 **Ghost Mode** — Work in any repo with YOUR config. Zero modifications. Isolated profiles.
+- 🔒 **Auditable** — SHA-256 verified, version-pinned, code you can review
 
 ![OCX Demo](./assets/demo.gif)
 
