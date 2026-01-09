@@ -1,17 +1,11 @@
-import { zValidator } from "@hono/zod-validator"
 import { Hono } from "hono"
 import { etag } from "hono/etag"
 import { logger } from "hono/logger"
 import { secureHeaders } from "hono/secure-headers"
 import { trimTrailingSlash } from "hono/trailing-slash"
-import { z } from "zod"
 
 const VALID_SCHEMAS = ["ocx", "ghost", "lock", "registry"] as const
 type SchemaName = (typeof VALID_SCHEMAS)[number]
-
-const schemaParamSchema = z.object({
-	name: z.enum(VALID_SCHEMAS),
-})
 
 const SCHEMA_FILES: Record<SchemaName, string> = {
 	ocx: "docs/schemas/ocx.schema.json",
@@ -51,37 +45,39 @@ app.get("/schema.json", (c) => c.redirect("/schemas/ocx.json", 301))
 app.get("/lock.schema.json", (c) => c.redirect("/schemas/lock.json", 301))
 
 // Unified schema route
-app.get(
-	"/schemas/:name.json",
-	zValidator("param", schemaParamSchema, (result, c) => {
-		if (!result.success) {
-			return c.json({ error: "Invalid schema", validSchemas: VALID_SCHEMAS }, 400)
-		}
-	}),
-	async (c) => {
-		const { name } = c.req.valid("param")
-		const filePath = SCHEMA_FILES[name]
+app.get("/schemas/:name{.+\\.json}", async (c) => {
+	const nameWithExt = c.req.param("name") // "registry.json"
+	const name = nameWithExt.replace(/\.json$/, "") // "registry"
 
-		const res = await fetch(
-			`https://raw.githubusercontent.com/${c.env.GITHUB_REPO}/${c.env.GITHUB_BRANCH}/${filePath}`,
-			{ cf: { cacheTtl: 3600, cacheEverything: true } },
+	// Validate against allowed schemas
+	if (!VALID_SCHEMAS.includes(name as SchemaName)) {
+		return c.json(
+			{ error: "Invalid schema", validSchemas: VALID_SCHEMAS.map((s) => `${s}.json`) },
+			400,
 		)
+	}
 
-		if (!res.ok) {
-			const status = res.status === 404 ? 404 : 502
-			return c.json({ error: "Failed to fetch schema" }, status)
-		}
+	const filePath = SCHEMA_FILES[name as SchemaName]
 
-		try {
-			const content = await res.json()
-			return c.json(content, 200, {
-				"Cache-Control": "public, max-age=300, s-maxage=3600",
-				Vary: "Accept-Encoding",
-			})
-		} catch {
-			return c.json({ error: "Invalid schema format from upstream" }, 502)
-		}
-	},
-)
+	const res = await fetch(
+		`https://raw.githubusercontent.com/${c.env.GITHUB_REPO}/${c.env.GITHUB_BRANCH}/${filePath}`,
+		{ cf: { cacheTtl: 3600, cacheEverything: true } },
+	)
+
+	if (!res.ok) {
+		const status = res.status === 404 ? 404 : 502
+		return c.json({ error: "Failed to fetch schema" }, status)
+	}
+
+	try {
+		const content = await res.json()
+		return c.json(content, 200, {
+			"Cache-Control": "public, max-age=300, s-maxage=3600",
+			Vary: "Accept-Encoding",
+		})
+	} catch {
+		return c.json({ error: "Invalid schema format from upstream" }, 502)
+	}
+})
 
 export default app
