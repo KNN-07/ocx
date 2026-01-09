@@ -1,8 +1,24 @@
+import { zValidator } from "@hono/zod-validator"
 import { Hono } from "hono"
 import { etag } from "hono/etag"
 import { logger } from "hono/logger"
 import { secureHeaders } from "hono/secure-headers"
 import { trimTrailingSlash } from "hono/trailing-slash"
+import { z } from "zod"
+
+const VALID_SCHEMAS = ["ocx", "ghost", "lock", "registry"] as const
+type SchemaName = (typeof VALID_SCHEMAS)[number]
+
+const schemaParamSchema = z.object({
+	name: z.enum(VALID_SCHEMAS),
+})
+
+const SCHEMA_FILES: Record<SchemaName, string> = {
+	ocx: "docs/schemas/ocx.schema.json",
+	ghost: "docs/schemas/ghost.schema.json",
+	lock: "docs/schemas/lock.schema.json",
+	registry: "docs/schemas/registry.schema.json",
+}
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -30,28 +46,42 @@ app.get("/install.sh", async (c) => {
 	})
 })
 
-app.get("/schema.json", async (c) => {
-	const githubRawBase = `https://raw.githubusercontent.com/${c.env.GITHUB_REPO}/${c.env.GITHUB_BRANCH}`
-	const response = await fetch(`${githubRawBase}/docs/schemas/ocx.schema.json`)
-	if (!response.ok) {
-		return c.text("Schema not found", 404)
-	}
-	const content = await response.json()
-	c.header("Cache-Control", "public, max-age=300, must-revalidate")
-	c.header("Vary", "Accept-Encoding")
-	return c.json(content)
-})
+// Backward compatibility redirects
+app.get("/schema.json", (c) => c.redirect("/schemas/ocx.json", 301))
+app.get("/lock.schema.json", (c) => c.redirect("/schemas/lock.json", 301))
 
-app.get("/lock.schema.json", async (c) => {
-	const githubRawBase = `https://raw.githubusercontent.com/${c.env.GITHUB_REPO}/${c.env.GITHUB_BRANCH}`
-	const response = await fetch(`${githubRawBase}/docs/schemas/lock.schema.json`)
-	if (!response.ok) {
-		return c.text("Lock schema not found", 404)
-	}
-	const content = await response.json()
-	c.header("Cache-Control", "public, max-age=300, must-revalidate")
-	c.header("Vary", "Accept-Encoding")
-	return c.json(content)
-})
+// Unified schema route
+app.get(
+	"/schemas/:name.json",
+	zValidator("param", schemaParamSchema, (result, c) => {
+		if (!result.success) {
+			return c.json({ error: "Invalid schema", validSchemas: VALID_SCHEMAS }, 400)
+		}
+	}),
+	async (c) => {
+		const { name } = c.req.valid("param")
+		const filePath = SCHEMA_FILES[name]
+
+		const res = await fetch(
+			`https://raw.githubusercontent.com/${c.env.GITHUB_REPO}/${c.env.GITHUB_BRANCH}/${filePath}`,
+			{ cf: { cacheTtl: 3600, cacheEverything: true } },
+		)
+
+		if (!res.ok) {
+			const status = res.status === 404 ? 404 : 502
+			return c.json({ error: "Failed to fetch schema" }, status)
+		}
+
+		try {
+			const content = await res.json()
+			return c.json(content, 200, {
+				"Cache-Control": "public, max-age=300, s-maxage=3600",
+				Vary: "Accept-Encoding",
+			})
+		} catch {
+			return c.json({ error: "Invalid schema format from upstream" }, 502)
+		}
+	},
+)
 
 export default app

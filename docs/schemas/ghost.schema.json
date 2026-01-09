@@ -1,0 +1,53 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"$id": "https://ocx.kdco.dev/schemas/ghost.json",
+	"title": "Ghost Configuration Schema",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"$schema": {
+			"type": "string",
+			"description": "Schema URL for IDE support"
+		},
+		"registries": {
+			"type": "object",
+			"description": "Registry configurations keyed by name",
+			"additionalProperties": {
+				"type": "object",
+				"required": ["url"],
+				"additionalProperties": false,
+				"properties": {
+					"url": {
+						"type": "string",
+						"format": "uri",
+						"description": "Registry URL"
+					},
+					"version": {
+						"type": "string",
+						"description": "Registry version"
+					},
+					"headers": {
+						"type": "object",
+						"additionalProperties": { "type": "string" },
+						"description": "Custom headers for registry requests"
+					}
+				}
+			}
+		},
+		"componentPath": {
+			"type": "string",
+			"pattern": "^(?!/)(?!.*\\.\\.)[^\\0]+$",
+			"description": "Relative path for component installation (no .. or absolute paths)"
+		},
+		"include": {
+			"type": "array",
+			"items": { "type": "string" },
+			"description": "Glob patterns for OpenCode files to include"
+		},
+		"exclude": {
+			"type": "array",
+			"items": { "type": "string" },
+			"description": "Glob patterns to exclude from include results"
+		}
+	}
+}

@@ -5,7 +5,7 @@
 	// Schema reference: https://ocx.kdco.dev/schema.json
 	// Documentation: https://github.com/kdcokenny/ocx
 
-	"$schema": "https://ocx.kdco.dev/schema.json",
+	"$schema": "https://ocx.kdco.dev/schemas/registry.json",
 	"name": "My Registry",
 	"namespace": "my-registry",
 	"version": "0.0.1",
