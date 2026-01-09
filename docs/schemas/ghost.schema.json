@@ -12,6 +12,7 @@
 		"registries": {
 			"type": "object",
 			"description": "Registry configurations keyed by name",
+			"default": {},
 			"additionalProperties": {
 				"type": "object",
 				"required": ["url"],
@@ -36,17 +37,17 @@
 		},
 		"componentPath": {
 			"type": "string",
-			"pattern": "^(?!/)(?!.*\\.\\.)[^\\0]+$",
+			"pattern": "^(?!/)(?![A-Za-z]:)(?!\\\\\\\\)(?!.*\\.\\.)[^\\0]+$",
 			"description": "Relative path for component installation (no .. or absolute paths)"
 		},
 		"include": {
 			"type": "array",
-			"items": { "type": "string" },
+			"items": { "type": "string", "minLength": 1 },
 			"description": "Glob patterns for OpenCode files to include"
 		},
 		"exclude": {
 			"type": "array",
-			"items": { "type": "string" },
+			"items": { "type": "string", "minLength": 1 },
 			"description": "Glob patterns to exclude from include results"
 		}
 	}

@@ -39,6 +39,11 @@
 					"installedAt": {
 						"type": "string",
 						"description": "The timestamp when the component was installed (ISO format)"
+					},
+					"updatedAt": {
+						"type": "string",
+						"format": "date-time",
+						"description": "ISO timestamp of last update"
 					}
 				},
 				"required": ["registry", "version", "hash", "files", "installedAt"],

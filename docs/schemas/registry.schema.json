@@ -7,6 +7,10 @@
 	"required": ["name", "namespace", "version", "author", "components"],
 	"additionalProperties": false,
 	"properties": {
+		"$schema": {
+			"type": "string",
+			"description": "JSON Schema URL for IDE support"
+		},
 		"name": {
 			"type": "string",
 			"minLength": 1,
@@ -35,6 +39,16 @@
 			"items": {
 				"$ref": "#/definitions/component"
 			}
+		},
+		"opencode": {
+			"type": "string",
+			"pattern": "^\\d+\\.\\d+\\.\\d+",
+			"description": "Minimum OpenCode version required"
+		},
+		"ocx": {
+			"type": "string",
+			"pattern": "^\\d+\\.\\d+\\.\\d+",
+			"description": "Minimum OCX CLI version required"
 		}
 	},
 	"definitions": {
@@ -118,8 +132,91 @@
 		"opencodeConfig": {
 			"type": "object",
 			"description": "OpenCode configuration to merge into opencode.json (1:1 mapping)",
-			"additionalProperties": false,
+			"additionalProperties": true,
 			"properties": {
+				"$schema": {
+					"type": "string",
+					"description": "JSON Schema URL for IDE support"
+				},
+				"theme": {
+					"type": "string",
+					"description": "UI theme name"
+				},
+				"logLevel": {
+					"type": "string",
+					"enum": ["debug", "info", "warn", "error"],
+					"description": "Logging level"
+				},
+				"username": {
+					"type": "string",
+					"description": "Username for display"
+				},
+				"model": {
+					"type": "string",
+					"description": "Default model to use"
+				},
+				"small_model": {
+					"type": "string",
+					"description": "Small/fast model for simple tasks"
+				},
+				"default_agent": {
+					"type": "string",
+					"description": "Default agent to use"
+				},
+				"provider": {
+					"type": "object",
+					"description": "Provider configurations",
+					"additionalProperties": true
+				},
+				"lsp": {
+					"type": "object",
+					"description": "Language Server Protocol configurations",
+					"additionalProperties": true
+				},
+				"formatter": {
+					"type": "object",
+					"description": "Formatter configurations",
+					"additionalProperties": true
+				},
+				"command": {
+					"type": "object",
+					"description": "Custom command configurations",
+					"additionalProperties": true
+				},
+				"tui": {
+					"type": "object",
+					"description": "TUI (Terminal User Interface) configuration",
+					"additionalProperties": true
+				},
+				"server": {
+					"type": "object",
+					"description": "Server configuration for OpenCode server mode",
+					"additionalProperties": true
+				},
+				"keybind": {
+					"type": "object",
+					"description": "Keybind configuration - maps action names to key combinations",
+					"additionalProperties": true
+				},
+				"watcher": {
+					"type": "object",
+					"description": "File watcher configuration for automatic reloads",
+					"additionalProperties": true
+				},
+				"auto_update": {
+					"type": "boolean",
+					"description": "Enable auto-updates"
+				},
+				"auto_compact": {
+					"type": "object",
+					"description": "Enable auto-compaction configuration",
+					"additionalProperties": true
+				},
+				"share": {
+					"type": "object",
+					"description": "Share configuration",
+					"additionalProperties": true
+				},
 				"mcp": {
 					"type": "object",
 					"description": "MCP servers (URL string or full config object)",
@@ -168,7 +265,19 @@
 										"additionalProperties": { "type": "string" }
 									},
 									"oauth": {
-										"type": "boolean"
+										"oneOf": [
+											{ "type": "boolean" },
+											{
+												"type": "object",
+												"properties": {
+													"clientId": { "type": "string" },
+													"scopes": { "type": "array", "items": { "type": "string" } },
+													"authUrl": { "type": "string", "format": "uri" },
+													"tokenUrl": { "type": "string", "format": "uri" }
+												}
+											}
+										],
+										"description": "OAuth configuration for MCP server"
 									},
 									"enabled": {
 										"type": "boolean",
@@ -239,6 +348,11 @@
 							"steps": {
 								"type": "number",
 								"description": "Maximum iterations/steps for the agent"
+							},
+							"maxSteps": {
+								"type": "integer",
+								"minimum": 1,
+								"description": "Deprecated: Use 'steps' instead"
 							},
 							"mode": {
 								"type": "string",
