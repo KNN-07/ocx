@@ -48,7 +48,6 @@
 		{
 			"name": "worktree",
 			"type": "ocx:plugin",
-			"title": "Worktree",
 			"description": "Auto-manages Git worktrees for isolated AI sessions with seamless terminal spawning",
 			"files": ["plugin/worktree.ts", "plugin/worktree/state.ts", "plugin/worktree/terminal.ts"],
 			"dependencies": [],
