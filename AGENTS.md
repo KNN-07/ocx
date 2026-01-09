@@ -240,22 +240,56 @@ Ghost mode enables working in repositories without modifying them:
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| `GhostConfigProvider` | `src/config/provider.ts` | Provides config from `~/.config/ocx/` |
+| `ProfileManager` | `src/profile/manager.ts` | Static factory for profile CRUD operations |
+| `profile/paths.ts` | `src/profile/paths.ts` | Path constants and helpers for profile directories |
+| `profile/migrate.ts` | `src/profile/migrate.ts` | Migration from legacy `~/.config/ocx/` to profiles |
+| `GhostConfigProvider` | `src/config/provider.ts` | Provides config from current profile |
 | `opencode-discovery.ts` | `src/utils/` | Finds OpenCode config files to exclude |
 | `symlink-farm.ts` | `src/utils/` | Creates temp dir with symlinks |
 | Ghost commands | `src/commands/ghost/` | init, config, registry, add, search, opencode |
+| Profile commands | `src/commands/ghost/profile/` | list, add, remove, use, show, config |
+
+### Directory Structure
+
+```
+~/.config/opencode/profiles/
+├── current -> default       # Symlink to active profile
+├── default/
+│   ├── ghost.jsonc          # Ghost mode settings
+│   ├── opencode.jsonc       # OpenCode config (optional)
+│   └── AGENTS.md            # Agent instructions (optional)
+└── work/
+    ├── ghost.jsonc
+    ├── opencode.jsonc
+    └── AGENTS.md
+```
+
+### Profile Resolution Priority
+
+`ProfileManager.getCurrent()` resolves the active profile in this order:
+
+1. `--profile <name>` flag (explicit override)
+2. `OCX_PROFILE` environment variable
+3. `current` symlink in `~/.config/opencode/profiles/`
+4. `default` profile (fallback)
 
 ### How `ghost opencode` Works
 
-1. Discovers all OpenCode project files (config, AGENTS.md, .opencode/)
-2. Applies `include`/`exclude` patterns from ghost config to customize visibility
-3. Creates temp directory with symlinks to project (excluding filtered files)
-4. Sets `GIT_WORK_TREE` and `GIT_DIR` so Git sees real project
-5. Spawns OpenCode from temp dir with ghost config via env vars
-6. Cleans up temp dir on exit
+1. Resolves current profile using priority above
+2. Discovers all OpenCode project files (config, AGENTS.md, .opencode/)
+3. Applies `include`/`exclude` patterns from profile's ghost.jsonc to customize visibility
+4. Creates temp directory with symlinks to project (excluding filtered files)
+5. Sets `GIT_WORK_TREE` and `GIT_DIR` so Git sees real project
+6. Spawns OpenCode from temp dir with `OCX_PROFILE` env var set
+7. Cleans up temp dir on exit
 
 **Customization:** The `include`/`exclude` fields in `ghost.jsonc` control which OpenCode files
 are visible. Follows TypeScript-style semantics—`include` selects, `exclude` filters.
+
+### GhostConfigProvider vs ProfileManager
+
+- **`GhostConfigProvider`**: Reads config from the current profile, used at runtime by ghost commands
+- **`ProfileManager`**: Manages profile lifecycle (create, delete, switch, list)
 
 ### OpenCode Discovery Reference
 
@@ -269,20 +303,7 @@ Reference: https://github.com/sst/opencode (see source comments for exact file l
 
 ### Ghost Mode Profiles
 
-Profiles enable multiple named ghost configurations for different contexts (work, personal, clients).
-
-#### Directory Structure
-
-```
-~/.config/opencode/profiles/
-├── current -> default      # Symlink to active profile
-├── default/
-│   ├── ghost.jsonc         # Ghost settings (required)
-│   ├── opencode.jsonc      # OpenCode overrides (optional)
-│   └── AGENTS.md           # Custom agents (optional)
-└── work/
-    └── ghost.jsonc
-```
+Profile commands for managing multiple ghost configurations:
 
 #### Profile Commands
 
@@ -295,14 +316,7 @@ Profiles enable multiple named ghost configurations for different contexts (work
 | `ocx ghost profile show [name]` | `ocx g p show` | Display profile contents |
 | `ocx ghost profile config [name]` | `ocx g p config` | Edit ghost.jsonc in $EDITOR |
 
-#### Profile Selection Priority
-
-1. `--profile <name>` flag on command
-2. `OCX_PROFILE` environment variable
-3. `profiles/current` symlink
-4. Defaults to `default` profile
-
-#### Examples
+#### Profile Command Examples
 
 ```bash
 # Create and switch to a work profile
@@ -317,6 +331,9 @@ OCX_PROFILE=work ocx ghost opencode
 
 # Clone settings from existing profile
 ocx ghost profile add client-x --from work
+
+# List all profiles
+ocx ghost profile list
 ```
 
 #### Migration from Legacy Config

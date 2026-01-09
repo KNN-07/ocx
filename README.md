@@ -103,16 +103,19 @@ Like **Cargo**, OCX resolves dependencies, pins versions, and verifies integrity
 
 [Full CLI Reference →](./docs/CLI.md)
 
-### Ghost Mode
+### Ghost Mode — Your setup, any repo
 
-Ghost mode lets you work in repositories without modifying them, using your own portable configuration. Perfect for drive-by contributions to open source projects.
+Ghost mode lets you work in repositories without modifying them, using your own portable configuration and profile isolation. Perfect for drive-by contributions to open source projects—or keeping work and personal configs completely separate.
 
 #### Quick Start
 
 ```bash
 # One-time setup
-ocx ghost init              # Creates ~/.config/ocx/ghost.jsonc
-ocx ghost config            # Edit your ghost config
+ocx ghost init              # Creates your first profile
+ocx ghost config            # Edit your active profile
+
+# Or migrate existing config
+ocx ghost migrate           # Move from ~/.config/ocx/ → ~/.config/opencode/profiles/default/
 
 # Add registries
 ocx ghost registry add https://registry.kdco.dev --name kdco
@@ -124,6 +127,29 @@ ocx ghost add npm:@franlol/opencode-md-table-formatter  # Add npm plugins
 ocx ghost add kdco/workspace   # Or use registries
 ocx ghost opencode             # Runs OpenCode with YOUR config
 ```
+
+#### Profile Management
+
+Profiles keep your configurations isolated and portable:
+
+```
+~/.config/opencode/profiles/
+├── current -> default       # Active profile
+├── default/
+│   ├── ghost.jsonc
+│   └── opencode.jsonc
+└── work/
+    └── ...
+```
+
+**Essential profile commands:**
+
+- `ghost profile list` - List all profiles
+- `ghost profile add <name>` - Create a new profile  
+- `ghost profile use <name>` - Switch to a profile
+- `ghost profile remove <name>` - Delete a profile
+
+Or use the `OCX_PROFILE` environment variable to temporarily switch profiles.
 
 #### Commands
 
@@ -142,10 +168,11 @@ ocx ghost opencode             # Runs OpenCode with YOUR config
 
 #### Config Location
 
-Ghost config is stored at `~/.config/ocx/ghost.jsonc` (or `$XDG_CONFIG_HOME/ocx/ghost.jsonc`).
-OpenCode configuration for ghost mode is stored in `~/.config/ocx/opencode.jsonc`.
+Ghost config is stored at `~/.config/opencode/profiles/<profile-name>/ghost.jsonc` (or `$XDG_CONFIG_HOME/opencode/profiles/<profile-name>/ghost.jsonc`).
+OpenCode configuration for ghost mode is stored alongside it in `opencode.jsonc`.
 
 ```jsonc
+// ~/.config/opencode/profiles/default/ghost.jsonc
 {
   // Component registries (Record<name, url>)
   "registries": {
@@ -153,7 +180,7 @@ OpenCode configuration for ghost mode is stored in `~/.config/ocx/opencode.jsonc
     "kdco": "https://registry.kdco.dev"
   },
   
-  // Where to install components (relative to ghost config dir)
+  // Where to install components (relative to profile dir)
   "componentPath": ".opencode"
 }
 ```
@@ -162,9 +189,9 @@ OpenCode configuration for ghost mode is stored in `~/.config/ocx/opencode.jsonc
 
 | Aspect | Normal Mode | Ghost Mode |
 |--------|-------------|------------|
-| Config location | `./ocx.jsonc` in project | `~/.config/ocx/ghost.jsonc` |
+| Config location | `./ocx.jsonc` in project | `~/.config/opencode/profiles/<name>/ghost.jsonc` |
 | Modifies repo | Yes | No |
-| Per-project settings | Yes | No (same config everywhere) |
+| Per-project settings | Yes | Profile-isolated |
 | Requires `ocx init` | Yes | No (uses ghost config) |
 
 #### Customizing File Visibility
@@ -172,7 +199,7 @@ OpenCode configuration for ghost mode is stored in `~/.config/ocx/opencode.jsonc
 By default, ghost mode hides all OpenCode project files (AGENTS.md, .opencode/, etc.) from the symlink farm. You can customize which files are included using glob patterns in your ghost config:
 
 ```jsonc
-// ~/.config/ocx/ghost.jsonc
+// ~/.config/opencode/profiles/default/ghost.jsonc
 {
   "registries": {
     "kdco": "https://registry.kdco.dev"
@@ -192,6 +219,8 @@ By default, ghost mode hides all OpenCode project files (AGENTS.md, .opencode/, 
 ```
 
 This follows the TypeScript-style include/exclude model—no confusing negation patterns.
+
+**📖 Full command reference available in [docs/CLI.md](./docs/CLI.md).**
 
 **Looking for the KDCO registry?** See [workers/kdco-registry](./workers/kdco-registry) for components like `kdco/workspace`, `kdco/researcher`, and more.
 

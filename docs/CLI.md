@@ -803,8 +803,15 @@ Ghost mode lets you work in repositories without modifying them.
 
 | Command | Description |
 |---------|-------------|
-| `ocx ghost init` | Initialize ghost mode (`~/.config/ocx/ghost.jsonc`) |
-| `ocx ghost config` | Open ghost config in `$EDITOR` |
+| `ocx ghost init` | Initialize ghost mode (`~/.config/opencode/profiles/<profile-name>/ghost.jsonc`) |
+| `ocx ghost migrate` | Migrate from legacy config location |
+| `ocx ghost profile add <name>` | Create a new profile |
+| `ocx ghost profile remove <name>` | Delete a profile |
+| `ocx ghost profile list` | List available profiles |
+| `ocx ghost profile use <name>` | Switch to profile |
+| `ocx ghost profile show [name]` | Display profile configuration |
+| `ocx ghost profile config [name]` | Open profile config in $EDITOR |
+| `ocx ghost config` | Open current profile config in `$EDITOR` |
 | `ocx ghost registry list` | List configured registries |
 | `ocx ghost registry add <url> [--name <n>]` | Add a registry |
 | `ocx ghost registry remove <name>` | Remove a registry |
@@ -812,11 +819,22 @@ Ghost mode lets you work in repositories without modifying them.
 | `ocx ghost search [query]` | Search ghost registries |
 | `ocx ghost opencode [args...]` | Run OpenCode with ghost config (isolated from project) |
 
-**Alias:** All ghost commands support `ocx g` shorthand (e.g., `ocx g add`).
-
 ### Ghost Config Reference
 
-The ghost config file (`~/.config/ocx/ghost.jsonc`) supports these fields:
+Ghost mode uses multi-profile configuration with configuration files stored at `~/.config/opencode/profiles/`. Each profile has a `ghost.jsonc` file with the same schema.
+
+#### Profile Configuration Path
+
+```
+~/.config/opencode/profiles/
+├── default/          # Default profile directory
+│   └── ghost.jsonc   # Configuration file
+├── work/             # Additional profile example
+│   └── ghost.jsonc
+└── current@          # Symlink to active profile
+```
+
+#### Schema
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -847,3 +865,454 @@ By default, ghost mode hides all OpenCode project files from the symlink farm. U
 ```
 
 This follows the TypeScript-style include/exclude model—`include` selects files, `exclude` filters the results.
+
+---
+
+### Ghost Profile Commands
+
+Ghost profiles allow you to maintain multiple independent configurations for different contexts (work, personal, client projects, etc.).
+
+#### Profile Resolution Priority
+
+Profiles are resolved in this order (first match wins):
+
+1. **`--profile` flag** (highest priority): Direct CLI specification
+2. **`OCX_PROFILE` environment variable**: Set persistent profile for session
+3. **`current` symlink**: Points to active profile in `~/.config/opencode/profiles/`
+4. **`default` profile** (fallback): Used when no other selection exists
+
+---
+
+#### ocx ghost profile list
+
+List all available profiles and show which one is currently active.
+
+##### Usage
+
+```bash
+ocx ghost profile list [options]
+```
+
+##### Options
+
+| Option | Description |
+|--------|-------------|
+| `--json` | Output as JSON |
+
+##### Examples
+
+```bash
+# List profiles
+ocx ghost profile list
+
+# List with JSON output
+ocx ghost profile list --json
+```
+
+##### Output
+
+```bash
+$ ocx ghost profile list
+Available profiles:
+  * default
+    work
+    client-acme
+
+$ ocx ghost profile list --json
+{
+  "profiles": ["default", "work", "client-acme"],
+  "current": "default"
+}
+```
+
+---
+
+#### ocx ghost profile add
+
+Create a new profile with optional copying from an existing profile.
+
+##### Usage
+
+```bash
+ocx ghost profile add <name> [options]
+```
+
+##### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `name` | Profile name (required) |
+
+##### Options
+
+| Option | Description |
+|--------|-------------|
+| `--from <profile>` | Clone configuration from existing profile |
+
+##### Examples
+
+```bash
+# Create new empty profile
+ocx ghost profile add work
+
+# Create profile cloned from default
+ocx ghost profile add work --from default
+
+# Create profile with spaces in name (auto-converted)
+ocx ghost profile add "Client ACME"
+```
+
+##### Notes
+
+- Profile names must be valid filesystem names
+- Spaces are automatically converted to hyphens
+- Invalid characters trigger an error
+- Cannot create a profile that already exists
+
+---
+
+#### ocx ghost profile use
+
+Switch to a different profile by updating the `current` symlink.
+
+##### Usage
+
+```bash
+ocx ghost profile use <name>
+```
+
+##### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `name` | Profile name to activate (required) |
+
+##### Examples
+
+```bash
+# Switch to work profile
+ocx ghost profile use work
+
+# Use with --profile flag (immediately use profile)
+ocx ghost profile add new-project && ocx ghost profile use new-project
+```
+
+---
+
+#### ocx ghost profile remove
+
+Delete a profile permanently. Cannot delete the last remaining profile.
+
+##### Usage
+
+```bash
+ocx ghost profile remove <name> [options]
+```
+
+##### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `name` | Profile name to delete (required) |
+
+##### Options
+
+| Option | Description |
+|--------|-------------|
+| `-f, --force` | Skip confirmation and allow deleting current profile |
+
+##### Examples
+
+```bash
+# Remove profile (prompts for confirmation)
+ocx ghost profile remove old-project
+
+# Force remove without confirmation
+ocx ghost profile remove old-project --force
+
+# Remove current profile and switch to another
+ocx ghost profile remove current --force && ocx ghost profile use default
+```
+
+##### Notes
+
+- Adding `--force` skips the confirmation prompt
+- Using `--force` on the current profile automatically switches to `default` after deletion
+- Cannot delete the last remaining profile (use `--force` to override)
+
+---
+
+#### ocx ghost profile show
+
+Display configuration for a profile (defaults to current).
+
+##### Usage
+
+```bash
+ocx ghost profile show [name] [options]
+```
+
+##### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `name` | Profile name (optional, defaults to current) |
+
+##### Options
+
+| Option | Description |
+|--------|-------------|
+| `--json` | Output as JSON |
+| `--cwd <path>` | Working directory (default: current directory) |
+| `-q, --quiet` | Suppress output |
+
+##### Examples
+
+```bash
+# Show current profile config
+ocx ghost profile show
+
+# Show work profile config
+ocx ghost profile show work
+
+# Get JSON output
+ocx ghost profile show --json
+```
+
+##### Output
+
+```bash
+$ ocx ghost profile show
+Profile: default
+Config file: /Users/username/.config/opencode/profiles/default/ghost.jsonc
+
+Registries:
+  kdco: https://registry.kdco.dev
+
+Component path: .opencode
+Include patterns:
+  (none)
+Exclude patterns:
+  (none)
+```
+
+---
+
+#### ocx ghost profile config
+
+Open profile configuration in your `$EDITOR`.
+
+##### Usage
+
+```bash
+ocx ghost profile config [name]
+```
+
+##### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `name` | Profile name (optional, defaults to current) |
+
+##### Environment
+
+- **`$EDITOR`**: Text editor to use (e.g., `vim`, `nano`, `code`)
+- **`$VISUAL`**: Fallback editor if `$EDITOR` not set
+
+##### Examples
+
+```bash
+# Edit current profile config
+ocx ghost profile config
+
+# Edit work profile config
+ocx ghost profile config work
+```
+
+##### Notes
+
+- Opens `ghost.jsonc` at `~/.config/opencode/profiles/<name>/ghost.jsonc`
+- Falls back to `vi` if neither `$EDITOR` nor `$VISUAL` are set
+
+---
+
+### Ghost Config (Current Profile)
+
+Open current profile configuration in your `$EDITOR`.
+
+#### Usage
+
+```bash
+ocx ghost config [options]
+```
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--profile, -p <name>` | Specify profile (overrides resolution priority) |
+
+#### Examples
+
+```bash
+# Edit current profile
+ocx ghost config
+
+# Edit specific profile
+ocx ghost config --profile work
+```
+
+---
+
+### Ghost Init
+
+Initialize ghost mode with a default profile at `~/.config/opencode/profiles/default/`.
+
+#### Usage
+
+```bash
+ocx ghost init [options]
+```
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--profile, -p <name>` | Initialize with specific profile name (default: "default") |
+| `--cwd <path>` | Working directory (default: current directory) |
+
+#### Examples
+
+```bash
+# Initialize ghost mode
+ocx ghost init
+
+# Initialize with work profile
+ocx ghost init --profile work
+```
+
+#### Output Files
+
+```
+~/.config/opencode/profiles/
+└── default/
+    └── ghost.jsonc
+```
+
+---
+
+### Ghost Migrate
+
+Migrate legacy ghost configuration from `~/.config/ocx/` to the multi-profile directory structure at `~/.config/opencode/profiles/`.
+
+#### Usage
+
+```bash
+ocx ghost migrate [options]
+```
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--dry-run` | Preview changes without applying them |
+
+#### Examples
+
+```bash
+# Preview migration
+ocx ghost migrate --dry-run
+
+# Execute migration (backs up old config)
+ocx ghost migrate
+```
+
+#### Changes
+
+- **Before**: `~/.config/ocx/ghost.jsonc`
+- **After**: `~/.config/opencode/profiles/default/ghost.jsonc`
+- **Backup**: `~/.config/ocx.bak/` (original directory moved)
+
+#### Dry Run Output
+
+```bash
+$ ocx ghost migrate --dry-run
+Would migrate ghost config from ~/.config/ocx to ~/.config/opencode/profiles/default
+Would backup: ~/.config/ocx → ~/.config/ocx.bak
+Starting profile: default
+✔ Migration ready to execute
+```
+
+---
+
+### Ghost Opencode
+
+Run OpenCode with ghost configuration isolated from project files.
+
+#### Usage
+
+```bash
+ocx ghost opencode [args...] [options]
+```
+
+#### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `args` | Arguments to pass to OpenCode |
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--profile, -p <name>` | Specify ghost profile to use |
+
+#### Examples
+
+```bash
+# Run OpenCode with current ghost config
+ocx ghost opencode
+
+# Run OpenCode with specific profile
+ocx ghost opencode --profile work
+
+# Pass arguments to OpenCode
+ocx ghost opencode -- /path/to/file.md
+```
+
+#### How It Works
+
+1. **Profile Resolution**: Uses profile resolution priority to select configuration
+2. **OpenCode Discovery**: Finds all OpenCode files from the project
+3. **Apply Filters**: Uses `include`/`exclude` patterns from ghost config
+4. **Symlink Farm**: Creates temporary directory with symlinks to filtered files
+5. **Git Integration**: Sets `GIT_WORK_TREE` and `GIT_DIR` to see real project
+6. **Spawn OpenCode**: Runs OpenCode from temp directory with ghost config via env vars
+7. **Cleanup**: Removes temp directory on exit
+
+---
+
+### Ghost Commands Error Codes
+
+| Error | Exit Code | Description |
+|-------|-----------|-------------|
+| `ProfileNotFoundError` | 66 | Profile does not exist |
+| `ProfileExistsError` | 1 | Profile already exists (use `ghost profile use` to switch) |
+| `InvalidProfileNameError` | 1 | Invalid characters in profile name |
+| `NoProfilesRemainingError` | 1 | Cannot delete last remaining profile |
+
+---
+
+### Ghost Commands JSON Output Schemas
+
+#### Profile List Schema
+
+```json
+{
+  "profiles": ["default", "work", "client-acme"],
+  "current": "default"
+}
+```
+
+- `profiles`: Array of all available profile names
+- `current`: Name of the currently active profile
