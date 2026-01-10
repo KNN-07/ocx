@@ -31,9 +31,6 @@ export const sharedOptions = {
 
 	/** Verbose output */
 	verbose: () => new Option("-v, --verbose", "Verbose output"),
-
-	/** Disable CLI self-update checks for this invocation */
-	noSelfUpdate: () => new Option("--no-self-update", "Disable CLI update checks"),
 }
 
 // =============================================================================

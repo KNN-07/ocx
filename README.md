@@ -116,11 +116,18 @@ ocx self update           # Update to latest version
 ocx self update --force   # Reinstall even if up to date
 ```
 
-OCX automatically checks for updates after commands and displays a notification when a new version is available. Control this behavior with:
+OCX automatically checks for updates after commands and displays a notification when a new version is available. Control this behavior with environment variables:
 
-- `selfUpdate: "notify" | "auto" | "off"` in ghost.jsonc
-- `--no-self-update` flag
-- `OCX_NO_UPDATE_CHECK=1` environment variable
+- `OCX_SELF_UPDATE=off` - Disable all update checks
+- `OCX_NO_UPDATE_CHECK=1` - Alternative way to disable update checks (equivalent to `OCX_SELF_UPDATE=off`)
+
+```bash
+# Disable permanently in shell profile
+export OCX_SELF_UPDATE=off
+
+# Disable for single command
+OCX_SELF_UPDATE=off ocx add button
+```
 
 ### Ghost Mode — Your setup, any repo
 

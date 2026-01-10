@@ -81,14 +81,6 @@ export const ghostConfigSchema = z.object({
 	 * Example: `["vendor/**", "node_modules/**"]`
 	 */
 	exclude: z.array(globPatternSchema).optional(),
-
-	/**
-	 * Controls CLI self-update behavior.
-	 * - "auto": Automatically download and install updates
-	 * - "notify": Check for updates and notify, but don't install
-	 * - "off": Disable update checks entirely
-	 */
-	selfUpdate: z.enum(["auto", "notify", "off"]).default("notify"),
 })
 
 export type GhostConfig = z.infer<typeof ghostConfigSchema>

@@ -114,15 +114,24 @@ When running `ocx self update`, OCX verifies the downloaded binary against the p
 - Man-in-the-middle attacks during download
 - Tampered releases
 
-### Enterprise Configuration
+### Disabling Update Notifications
 
-For additional security in enterprise environments:
+Control update checks via environment variables:
 
-| Setting | Purpose |
-|---------|---------|
-| `selfUpdate: "off"` | Disable automatic update checks in ghost.jsonc |
-| `OCX_NO_UPDATE_CHECK=1` | Environment variable to skip update checks |
-| `--no-self-update` | CLI flag to skip update check for single invocation |
+| Variable | Value | Behavior |
+|----------|-------|----------|
+| `OCX_SELF_UPDATE` | `off` | Disable all update checks |
+| `OCX_NO_UPDATE_CHECK` | `1` | Disable all update checks (alternative) |
+
+```bash
+# Disable permanently in shell profile
+export OCX_SELF_UPDATE=off
+
+# Disable for single command
+OCX_SELF_UPDATE=off ocx add button
+```
+
+Update checks are automatically disabled in CI environments.
 
 ### Internal Binary Hosting
 

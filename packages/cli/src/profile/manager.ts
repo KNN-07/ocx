@@ -27,7 +27,6 @@ import { profileNameSchema } from "./schema.js"
 const DEFAULT_GHOST_CONFIG: GhostConfig = {
 	$schema: "https://ocx.kdco.dev/schemas/ghost.json",
 	registries: {},
-	selfUpdate: "notify",
 }
 
 /**

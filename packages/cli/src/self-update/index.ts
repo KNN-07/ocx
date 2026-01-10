@@ -11,8 +11,6 @@
  */
 
 import type { Command } from "commander"
-import { ghostConfigExists, loadGhostConfig } from "../ghost/config.js"
-import type { GhostConfig } from "../schemas/ghost.js"
 import { checkForUpdate } from "./check.js"
 import { notifyUpdate } from "./notify.js"
 
@@ -25,30 +23,17 @@ import { notifyUpdate } from "./notify.js"
  * Returns false if any condition indicates we should skip.
  */
 function shouldCheckForUpdate(): boolean {
-	// Skip if CI environment
-	if (process.env.CI) return false
-
 	// Skip if explicitly disabled via env
+	if (process.env.OCX_SELF_UPDATE === "off") return false
 	if (process.env.OCX_NO_UPDATE_CHECK) return false
+
+	// Skip in CI environments
+	if (process.env.CI) return false
 
 	// Skip if not a TTY (can't display notification anyway)
 	if (!process.stdout.isTTY) return false
 
 	return true
-}
-
-/**
- * Load the selfUpdate setting from ghost config.
- * Returns the config value or "notify" as default if ghost mode isn't initialized.
- */
-async function getSelfUpdateSetting(): Promise<GhostConfig["selfUpdate"]> {
-	// If ghost mode isn't initialized, use default behavior
-	if (!(await ghostConfigExists())) {
-		return "notify"
-	}
-
-	const config = await loadGhostConfig()
-	return config.selfUpdate
 }
 
 // =============================================================================
@@ -71,19 +56,11 @@ export function registerUpdateCheckHook(program: Command): void {
 			return
 		}
 
-		// Skip if --no-self-update flag was passed
-		const opts = program.opts()
-		if (opts.selfUpdate === false) return
-
 		// Check environment conditions
 		if (!shouldCheckForUpdate()) return
 
 		// Non-blocking check with silent failure
 		try {
-			// Check ghost config selfUpdate setting (Early Exit: Law 1)
-			const selfUpdateSetting = await getSelfUpdateSetting()
-			if (selfUpdateSetting === "off") return
-
 			const result = await checkForUpdate()
 			if (result?.updateAvailable) {
 				notifyUpdate(result.current, result.latest)
