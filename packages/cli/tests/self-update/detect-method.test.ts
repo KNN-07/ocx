@@ -8,7 +8,12 @@
 
 import { describe, expect, it } from "bun:test"
 import type { InstallMethod } from "../../src/self-update/detect-method"
-import { detectInstallMethod, getExecutablePath } from "../../src/self-update/detect-method"
+import {
+	detectInstallMethod,
+	getExecutablePath,
+	parseInstallMethod,
+} from "../../src/self-update/detect-method"
+import { SelfUpdateError } from "../../src/utils/errors"
 
 // =============================================================================
 // detectInstallMethod
@@ -84,6 +89,56 @@ describe("InstallMethod type", () => {
 		// This test documents the expected install methods
 		const validMethods: InstallMethod[] = ["curl", "npm", "pnpm", "bun", "yarn", "brew", "unknown"]
 		expect(validMethods).toHaveLength(7)
+	})
+})
+
+// =============================================================================
+// parseInstallMethod
+// =============================================================================
+
+describe("parseInstallMethod", () => {
+	it("should parse valid method: curl", () => {
+		expect(parseInstallMethod("curl")).toBe("curl")
+	})
+
+	it("should parse valid method: npm", () => {
+		expect(parseInstallMethod("npm")).toBe("npm")
+	})
+
+	it("should parse valid method: pnpm", () => {
+		expect(parseInstallMethod("pnpm")).toBe("pnpm")
+	})
+
+	it("should parse valid method: bun", () => {
+		expect(parseInstallMethod("bun")).toBe("bun")
+	})
+
+	it("should parse valid method: yarn", () => {
+		expect(parseInstallMethod("yarn")).toBe("yarn")
+	})
+
+	it("should parse valid method: brew", () => {
+		expect(parseInstallMethod("brew")).toBe("brew")
+	})
+
+	it("should throw SelfUpdateError for invalid method", () => {
+		expect(() => parseInstallMethod("invalid")).toThrow(SelfUpdateError)
+	})
+
+	it("should include valid methods in error message", () => {
+		try {
+			parseInstallMethod("bad")
+		} catch (error) {
+			expect(error).toBeInstanceOf(SelfUpdateError)
+			expect((error as SelfUpdateError).message).toContain("curl")
+			expect((error as SelfUpdateError).message).toContain("npm")
+			expect((error as SelfUpdateError).message).toContain("Invalid install method")
+		}
+	})
+
+	it("should throw for unknown (not a valid input)", () => {
+		// "unknown" is a valid InstallMethod return value but not a valid input to parse
+		expect(() => parseInstallMethod("unknown")).toThrow(SelfUpdateError)
 	})
 })
 

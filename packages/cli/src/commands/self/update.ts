@@ -19,7 +19,11 @@
 
 import type { Command } from "commander"
 import { checkForUpdate } from "../../self-update/check.js"
-import { detectInstallMethod, type InstallMethod } from "../../self-update/detect-method.js"
+import {
+	detectInstallMethod,
+	type InstallMethod,
+	parseInstallMethod,
+} from "../../self-update/detect-method.js"
 import {
 	atomicReplace,
 	cleanupTempFile,
@@ -58,7 +62,7 @@ interface UpdateOptions {
  * @param options - Command options (--force, --method)
  */
 async function updateCommand(options: UpdateOptions): Promise<void> {
-	const method = options.method ? (options.method as InstallMethod) : detectInstallMethod()
+	const method = options.method ? parseInstallMethod(options.method) : detectInstallMethod()
 
 	// Check current version
 	const result = await checkForUpdate()

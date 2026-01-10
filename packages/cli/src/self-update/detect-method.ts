@@ -10,6 +10,8 @@
  * - Intentional Naming: Self-documenting function names
  */
 
+import { SelfUpdateError } from "../utils/errors"
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -27,6 +29,53 @@
 export type InstallMethod = "curl" | "npm" | "pnpm" | "bun" | "yarn" | "brew" | "unknown"
 
 // =============================================================================
+// PARSING (Law 2: Parse, Don't Validate)
+// =============================================================================
+
+/**
+ * Parse and validate an install method string.
+ * @param input - The method string to parse
+ * @returns A valid InstallMethod
+ * @throws SelfUpdateError if input is invalid
+ */
+export function parseInstallMethod(input: string): InstallMethod {
+	const VALID_METHODS = ["curl", "npm", "pnpm", "bun", "yarn", "brew"] as const
+	const method = VALID_METHODS.find((m) => m === input)
+	if (!method) {
+		throw new SelfUpdateError(
+			`Invalid install method: "${input}"\nValid methods: ${VALID_METHODS.join(", ")}`,
+		)
+	}
+	return method
+}
+
+// =============================================================================
+// DETECTION PREDICATES (Law 5: Intentional Naming)
+// =============================================================================
+
+/** Check if running as compiled binary (Bun single-file executable) */
+const isCompiledBinary = () => Bun.main.startsWith("/$bunfs/")
+
+/** Check if installed via Bun global */
+const isBunGlobalInstall = (path: string) =>
+	path.includes("/.bun/bin") || path.includes("/.bun/install/global")
+
+/** Check if installed via pnpm global */
+const isPnpmGlobalInstall = (path: string) =>
+	path.includes("/.pnpm/") || path.includes("/pnpm/global")
+
+/** Check if installed via Yarn global */
+const isYarnGlobalInstall = (path: string) =>
+	path.includes("/.yarn/") || path.includes("/yarn/global")
+
+/** Check if installed via Homebrew */
+const isBrewInstall = (path: string) => path.includes("/Cellar/") || path.includes("/homebrew/")
+
+/** Check if installed via npm global */
+const isNpmGlobalInstall = (path: string) =>
+	path.includes("/.npm/") || path.includes("/node_modules/")
+
+// =============================================================================
 // INSTALLATION DETECTION
 // =============================================================================
 
@@ -38,47 +87,33 @@ export type InstallMethod = "curl" | "npm" | "pnpm" | "bun" | "yarn" | "brew" | 
  * 1. Compiled binary: Bun.main starts with `/$bunfs/` (bun's virtual filesystem)
  * 2. Script path patterns: Analyze process.argv[1] for package manager directories
  * 3. npm_config_user_agent: Works for npx/pnpx/bunx invocations
- * 4. Exec path fallback: Check the runtime binary location
- * 5. Default: "unknown" if no patterns match
+ * 4. Default: "unknown" if no patterns match
  *
  * @returns The detected installation method
  */
 export function detectInstallMethod(): InstallMethod {
-	// 1. Check for compiled binary (Bun single-file executable)
-	if (typeof Bun !== "undefined" && Bun.main.startsWith("/$bunfs/")) {
+	// Compiled binary detection (curl install)
+	if (isCompiledBinary()) {
 		return "curl"
 	}
 
-	// 2. Analyze script path for package manager patterns
-	const scriptPath = process.argv[1] || ""
+	const scriptPath = process.argv[1] ?? ""
 
-	// npm patterns
-	if (scriptPath.includes("/.npm/") || scriptPath.includes("/npm/")) return "npm"
+	// Package manager detection using predicates
+	if (isBunGlobalInstall(scriptPath)) return "bun"
+	if (isPnpmGlobalInstall(scriptPath)) return "pnpm"
+	if (isYarnGlobalInstall(scriptPath)) return "yarn"
+	if (isBrewInstall(scriptPath)) return "brew"
+	if (isNpmGlobalInstall(scriptPath)) return "npm"
 
-	// pnpm patterns
-	if (scriptPath.includes("/.pnpm/") || scriptPath.includes("/pnpm/")) return "pnpm"
-
-	// yarn patterns (Classic - Berry doesn't support global)
-	if (scriptPath.includes("/.yarn/") || scriptPath.includes("/yarn/global/")) return "yarn"
-
-	// bun patterns
-	if (scriptPath.includes("/.bun/") || scriptPath.includes("/bun/")) return "bun"
-
-	// homebrew patterns (Intel and Apple Silicon)
-	if (scriptPath.includes("/Cellar/") || scriptPath.includes("/homebrew/")) return "brew"
-
-	// 3. Fallback: check npm_config_user_agent (works for npx/pnpx/bunx)
-	const userAgent = process.env.npm_config_user_agent || ""
+	// Fallback: check npm_config_user_agent
+	const userAgent = process.env.npm_config_user_agent ?? ""
 	if (userAgent.includes("pnpm")) return "pnpm"
 	if (userAgent.includes("yarn")) return "yarn"
 	if (userAgent.includes("bun")) return "bun"
 	if (userAgent.includes("npm")) return "npm"
 
-	// 4. Check process.execPath as last resort
-	const execPath = process.execPath
-	if (execPath.includes("/.bun/")) return "bun"
-	if (execPath.includes("/node")) return "npm"
-
+	// Unknown - will show helpful message to user
 	return "unknown"
 }
 
