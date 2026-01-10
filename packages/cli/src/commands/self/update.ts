@@ -4,7 +4,10 @@
  * Updates OCX to the latest version using the appropriate method:
  * - curl: Download binary directly and replace
  * - npm: Run `npm install -g ocx@version`
- * - bun: Run `bun add -g ocx@version`
+ * - pnpm: Run `pnpm install -g ocx@version`
+ * - bun: Run `bun install -g ocx@version`
+ * - yarn: Run `yarn global add ocx@version`
+ * - brew: Run `brew upgrade ocx`
  *
  * Follows the 5 Laws of Elegant Defense:
  * - Early Exit: Return early if already up to date (unless --force)
@@ -16,7 +19,7 @@
 
 import type { Command } from "commander"
 import { checkForUpdate } from "../../self-update/check.js"
-import { detectInstallMethod } from "../../self-update/detect-method.js"
+import { detectInstallMethod, type InstallMethod } from "../../self-update/detect-method.js"
 import {
 	atomicReplace,
 	cleanupTempFile,
@@ -42,6 +45,7 @@ const SEMVER_PATTERN = /^\d+\.\d+\.\d+(-[\w.]+)?$/
 
 interface UpdateOptions {
 	force?: boolean
+	method?: string
 }
 
 // =============================================================================
@@ -51,10 +55,10 @@ interface UpdateOptions {
 /**
  * Execute the self-update command.
  *
- * @param options - Command options (--force)
+ * @param options - Command options (--force, --method)
  */
 async function updateCommand(options: UpdateOptions): Promise<void> {
-	const method = detectInstallMethod()
+	const method = options.method ? (options.method as InstallMethod) : detectInstallMethod()
 
 	// Check current version
 	const result = await checkForUpdate()
@@ -78,13 +82,13 @@ async function updateCommand(options: UpdateOptions): Promise<void> {
 			break
 		}
 
-		case "npm": {
-			await updateViaPackageManager("npm", current, targetVersion)
-			break
-		}
-
-		case "bun": {
-			await updateViaPackageManager("bun", current, targetVersion)
+		case "npm":
+		case "pnpm":
+		case "bun":
+		case "yarn":
+		case "brew":
+		case "unknown": {
+			await updateViaPackageManager(method, current, targetVersion)
 			break
 		}
 	}
@@ -138,13 +142,26 @@ async function updateViaCurl(current: string, targetVersion: string): Promise<vo
 }
 
 /**
- * Update via npm or bun package manager.
+ * Run a package manager command using Bun.spawn.
+ * Throws SelfUpdateError on failure.
+ */
+async function runPackageManager(cmd: string[]): Promise<void> {
+	const proc = Bun.spawn(cmd, { stdout: "pipe", stderr: "pipe" })
+	const exitCode = await proc.exited
+	if (exitCode !== 0) {
+		const stderr = await new Response(proc.stderr).text()
+		throw new SelfUpdateError(`Package manager command failed: ${stderr.trim()}`)
+	}
+}
+
+/**
+ * Update via package manager.
  * Shells out to the package manager's global install command.
  *
  * SECURITY: Validates version format before invoking package manager.
  */
 async function updateViaPackageManager(
-	manager: "npm" | "bun",
+	method: Exclude<InstallMethod, "curl">,
 	current: string,
 	targetVersion: string,
 ): Promise<void> {
@@ -153,41 +170,64 @@ async function updateViaPackageManager(
 		throw new SelfUpdateError(`Invalid version format: ${targetVersion}`)
 	}
 
-	const spin = createSpinner({ text: `Updating via ${manager}...` })
+	const spin = createSpinner({ text: `Updating via ${method}...` })
 	spin.start()
 
-	const args =
-		manager === "npm"
-			? ["install", "-g", `ocx@${targetVersion}`]
-			: ["add", "-g", `ocx@${targetVersion}`]
-
 	try {
-		const proc = Bun.spawn([manager, ...args], {
-			stdout: "pipe",
-			stderr: "pipe",
-		})
-
-		const exitCode = await proc.exited
-
-		if (exitCode !== 0) {
-			const stderr = await new Response(proc.stderr).text()
-			spin.fail(`Update failed`)
-			throw new SelfUpdateError(
-				`${manager} install failed (exit ${exitCode}):\n${stderr.trim() || "Unknown error"}`,
-			)
+		switch (method) {
+			case "npm": {
+				await runPackageManager(["npm", "install", "-g", `ocx@${targetVersion}`])
+				break
+			}
+			case "pnpm": {
+				await runPackageManager(["pnpm", "install", "-g", `ocx@${targetVersion}`])
+				break
+			}
+			case "bun": {
+				await runPackageManager(["bun", "install", "-g", `ocx@${targetVersion}`])
+				break
+			}
+			case "yarn": {
+				await runPackageManager(["yarn", "global", "add", `ocx@${targetVersion}`])
+				break
+			}
+			case "brew": {
+				// Disable Homebrew auto-update for faster execution
+				const proc = Bun.spawn(["brew", "upgrade", "ocx"], {
+					stdout: "pipe",
+					stderr: "pipe",
+					env: { ...process.env, HOMEBREW_NO_AUTO_UPDATE: "1" },
+				})
+				const exitCode = await proc.exited
+				if (exitCode !== 0) {
+					const stderr = await new Response(proc.stderr).text()
+					throw new SelfUpdateError(`Homebrew upgrade failed: ${stderr.trim()}`)
+				}
+				break
+			}
+			case "unknown": {
+				throw new SelfUpdateError(
+					"Could not detect install method. Update manually with one of:\n" +
+						"  npm install -g ocx@latest\n" +
+						"  pnpm install -g ocx@latest\n" +
+						"  bun install -g ocx@latest\n" +
+						"  yarn global add ocx@latest",
+				)
+			}
 		}
 
-		spin.succeed(`Updated via ${manager}`)
+		spin.succeed(`Updated via ${method}`)
 		notifyUpdated(current, targetVersion)
 	} catch (error) {
 		// Re-throw SelfUpdateError as-is
 		if (error instanceof SelfUpdateError) {
+			spin.fail(`Update failed`)
 			throw error
 		}
 
 		spin.fail(`Update failed`)
 		throw new SelfUpdateError(
-			`Failed to run ${manager}: ${error instanceof Error ? error.message : String(error)}`,
+			`Failed to run ${method}: ${error instanceof Error ? error.message : String(error)}`,
 		)
 	}
 }
@@ -206,6 +246,10 @@ export function registerSelfUpdateCommand(parent: Command): void {
 		.command("update")
 		.description("Update OCX to the latest version")
 		.option("-f, --force", "Reinstall even if already up to date")
+		.option(
+			"-m, --method <method>",
+			"Override install method detection (npm|pnpm|bun|yarn|brew|curl)",
+		)
 		.action(async (options: UpdateOptions) => {
 			try {
 				await updateCommand(options)

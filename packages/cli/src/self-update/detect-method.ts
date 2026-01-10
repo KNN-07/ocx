@@ -17,47 +17,69 @@
 /**
  * Possible installation methods for OCX.
  * - "curl": Standalone compiled binary (installed via curl script)
- * - "bun": Installed globally via `bun add -g`
  * - "npm": Installed globally via `npm install -g`
+ * - "pnpm": Installed globally via `pnpm add -g`
+ * - "bun": Installed globally via `bun add -g`
+ * - "yarn": Installed globally via `yarn global add` (Classic only, Berry doesn't support global)
+ * - "brew": Installed via Homebrew
+ * - "unknown": Unable to determine installation method
  */
-export type InstallMethod = "curl" | "npm" | "bun"
+export type InstallMethod = "curl" | "npm" | "pnpm" | "bun" | "yarn" | "brew" | "unknown"
 
 // =============================================================================
 // INSTALLATION DETECTION
 // =============================================================================
 
 /**
- * Detect how OCX was installed.
+ * Detect how OCX was installed by analyzing paths.
+ * Uses O(1) path analysis instead of slow shell commands.
  *
  * Detection priority:
  * 1. Compiled binary: Bun.main starts with `/$bunfs/` (bun's virtual filesystem)
- * 2. Bun global: execPath contains `.bun/install` or `bun/bin`
- * 3. npm global: execPath contains `node_modules` or `npm`
- * 4. Default: "curl" (standalone binary fallback)
+ * 2. Script path patterns: Analyze process.argv[1] for package manager directories
+ * 3. npm_config_user_agent: Works for npx/pnpx/bunx invocations
+ * 4. Exec path fallback: Check the runtime binary location
+ * 5. Default: "unknown" if no patterns match
  *
  * @returns The detected installation method
  */
 export function detectInstallMethod(): InstallMethod {
-	// Check if running as compiled binary first (most common case)
-	// Bun.main will start with "/$bunfs/" for compiled binaries
+	// 1. Check for compiled binary (Bun single-file executable)
 	if (typeof Bun !== "undefined" && Bun.main.startsWith("/$bunfs/")) {
 		return "curl"
 	}
 
+	// 2. Analyze script path for package manager patterns
+	const scriptPath = process.argv[1] || ""
+
+	// npm patterns
+	if (scriptPath.includes("/.npm/") || scriptPath.includes("/npm/")) return "npm"
+
+	// pnpm patterns
+	if (scriptPath.includes("/.pnpm/") || scriptPath.includes("/pnpm/")) return "pnpm"
+
+	// yarn patterns (Classic - Berry doesn't support global)
+	if (scriptPath.includes("/.yarn/") || scriptPath.includes("/yarn/global/")) return "yarn"
+
+	// bun patterns
+	if (scriptPath.includes("/.bun/") || scriptPath.includes("/bun/")) return "bun"
+
+	// homebrew patterns (Intel and Apple Silicon)
+	if (scriptPath.includes("/Cellar/") || scriptPath.includes("/homebrew/")) return "brew"
+
+	// 3. Fallback: check npm_config_user_agent (works for npx/pnpx/bunx)
+	const userAgent = process.env.npm_config_user_agent || ""
+	if (userAgent.includes("pnpm")) return "pnpm"
+	if (userAgent.includes("yarn")) return "yarn"
+	if (userAgent.includes("bun")) return "bun"
+	if (userAgent.includes("npm")) return "npm"
+
+	// 4. Check process.execPath as last resort
 	const execPath = process.execPath
+	if (execPath.includes("/.bun/")) return "bun"
+	if (execPath.includes("/node")) return "npm"
 
-	// Check for bun global install path patterns
-	if (execPath.includes(".bun/install") || execPath.includes("bun/bin")) {
-		return "bun"
-	}
-
-	// Check for npm/node global install path patterns
-	if (execPath.includes("node_modules") || execPath.includes("npm")) {
-		return "npm"
-	}
-
-	// Default to curl (standalone binary)
-	return "curl"
+	return "unknown"
 }
 
 // =============================================================================
