@@ -11,6 +11,7 @@
  */
 
 import type { Command } from "commander"
+import { parseEnvBool } from "../utils/env.js"
 import { checkForUpdate } from "./check.js"
 import { notifyUpdate } from "./notify.js"
 
@@ -25,7 +26,7 @@ import { notifyUpdate } from "./notify.js"
 function shouldCheckForUpdate(): boolean {
 	// Skip if explicitly disabled via env
 	if (process.env.OCX_SELF_UPDATE === "off") return false
-	if (process.env.OCX_NO_UPDATE_CHECK) return false
+	if (parseEnvBool(process.env.OCX_NO_UPDATE_CHECK, false)) return false
 
 	// Skip in CI environments
 	if (process.env.CI) return false
@@ -75,5 +76,9 @@ export function registerUpdateCheckHook(program: Command): void {
 // RE-EXPORTS
 // =============================================================================
 
+export type { VersionCheckResult, VersionProvider } from "./check.js"
 export { checkForUpdate } from "./check.js"
+export { getDownloadBaseUrl, getDownloadUrl } from "./download.js"
 export { notifyUpdate, notifyUpdated, notifyUpToDate } from "./notify.js"
+export type { VersionProvider as IVersionProvider } from "./types.js"
+export { BuildTimeVersionProvider, defaultVersionProvider } from "./version-provider.js"

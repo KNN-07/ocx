@@ -204,6 +204,101 @@ describe("checkForUpdate with mocked registry", () => {
 })
 
 // =============================================================================
+// VersionProvider injection tests
+// =============================================================================
+
+describe("checkForUpdate with injected VersionProvider", () => {
+	let mockFetchPackageVersion: ReturnType<typeof mock>
+
+	beforeEach(() => {
+		// Create a mock function for fetchPackageVersion
+		mockFetchPackageVersion = mock(() =>
+			Promise.resolve({ name: "ocx", version: "2.0.0" } as NpmPackageVersion),
+		)
+
+		// Mock the npm-registry module
+		mock.module("../../src/utils/npm-registry.js", () => ({
+			fetchPackageVersion: mockFetchPackageVersion,
+		}))
+	})
+
+	afterEach(() => {
+		mock.restore()
+	})
+
+	it("uses injected version provider", async () => {
+		const { checkForUpdate } = await importCheckModule()
+
+		// Inject a non-dev version to bypass the early exit
+		const result = await checkForUpdate({ version: "1.0.0" })
+
+		// Should return update available since 1.0.0 < 2.0.0
+		expect(result).not.toBeNull()
+		if (result) {
+			expect(result.current).toBe("1.0.0")
+			expect(result.latest).toBe("2.0.0")
+			expect(result.updateAvailable).toBe(true)
+		}
+	})
+
+	it("returns null for empty version", async () => {
+		const { checkForUpdate } = await importCheckModule()
+
+		// Empty string falls back to "0.0.0-dev" which returns null
+		const result = await checkForUpdate({ version: "" })
+		expect(result).toBeNull()
+	})
+
+	it("returns updateAvailable false when current >= latest", async () => {
+		// Mock returns older version
+		mockFetchPackageVersion.mockResolvedValue({
+			name: "ocx",
+			version: "1.0.0",
+		} as NpmPackageVersion)
+
+		const { checkForUpdate } = await importCheckModule()
+
+		// Current version is newer than latest
+		const result = await checkForUpdate({ version: "2.0.0" })
+
+		expect(result).not.toBeNull()
+		if (result) {
+			expect(result.current).toBe("2.0.0")
+			expect(result.latest).toBe("1.0.0")
+			expect(result.updateAvailable).toBe(false)
+		}
+	})
+
+	it("returns updateAvailable false when versions match", async () => {
+		mockFetchPackageVersion.mockResolvedValue({
+			name: "ocx",
+			version: "1.5.0",
+		} as NpmPackageVersion)
+
+		const { checkForUpdate } = await importCheckModule()
+
+		const result = await checkForUpdate({ version: "1.5.0" })
+
+		expect(result).not.toBeNull()
+		if (result) {
+			expect(result.current).toBe("1.5.0")
+			expect(result.latest).toBe("1.5.0")
+			expect(result.updateAvailable).toBe(false)
+		}
+	})
+
+	it("handles network error gracefully with injected version", async () => {
+		mockFetchPackageVersion.mockRejectedValue(new Error("Network error"))
+
+		const { checkForUpdate } = await importCheckModule()
+
+		// Should return null on network error (silent failure)
+		const result = await checkForUpdate({ version: "1.0.0" })
+		expect(result).toBeNull()
+	})
+})
+
+// =============================================================================
 // VersionCheckResult type tests
 // =============================================================================
 

@@ -20,11 +20,12 @@ import { SelfUpdateError } from "../utils/errors"
  * Possible installation methods for OCX.
  * - "curl": Standalone compiled binary (installed via curl script)
  * - "npm": Installed globally via `npm install -g`
+ * - "yarn": Installed globally via `yarn global add`
  * - "pnpm": Installed globally via `pnpm add -g`
  * - "bun": Installed globally via `bun add -g`
  * - "unknown": Unable to determine installation method
  */
-export type InstallMethod = "curl" | "npm" | "pnpm" | "bun" | "unknown"
+export type InstallMethod = "curl" | "npm" | "yarn" | "pnpm" | "bun" | "unknown"
 
 // =============================================================================
 // PARSING (Law 2: Parse, Don't Validate)
@@ -37,7 +38,7 @@ export type InstallMethod = "curl" | "npm" | "pnpm" | "bun" | "unknown"
  * @throws SelfUpdateError if input is invalid
  */
 export function parseInstallMethod(input: string): InstallMethod {
-	const VALID_METHODS = ["curl", "npm", "pnpm", "bun"] as const
+	const VALID_METHODS = ["curl", "npm", "yarn", "pnpm", "bun"] as const
 	const method = VALID_METHODS.find((m) => m === input)
 	if (!method) {
 		throw new SelfUpdateError(
@@ -49,20 +50,29 @@ export function parseInstallMethod(input: string): InstallMethod {
 
 // =============================================================================
 // DETECTION PREDICATES (Law 5: Intentional Naming)
+// Most specific patterns first to avoid false positives
 // =============================================================================
 
 /** Check if running as compiled binary (Bun single-file executable) */
 const isCompiledBinary = () => Bun.main.startsWith("/$bunfs/")
 
-/** Check if installed via Bun global */
-const isBunGlobalInstall = (path: string) =>
-	path.includes("/.bun/bin") || path.includes("/.bun/install/global")
+/** Check if running via npx/bunx/pnpx temp execution (not a persistent install) */
+const isTempExecution = (path: string) =>
+	path.includes("/_npx/") || path.includes("/.cache/bunx/") || path.includes("/.pnpm/_temp/")
+
+/** Check if installed via Yarn global */
+const isYarnGlobalInstall = (path: string) =>
+	path.includes("/.yarn/global") || path.includes("/.config/yarn/global")
 
 /** Check if installed via pnpm global */
 const isPnpmGlobalInstall = (path: string) =>
 	path.includes("/.pnpm/") || path.includes("/pnpm/global")
 
-/** Check if installed via npm global */
+/** Check if installed via Bun global */
+const isBunGlobalInstall = (path: string) =>
+	path.includes("/.bun/bin") || path.includes("/.bun/install/global")
+
+/** Check if installed via npm global (generic node_modules - least specific) */
 const isNpmGlobalInstall = (path: string) =>
 	path.includes("/.npm/") || path.includes("/node_modules/")
 
@@ -74,11 +84,15 @@ const isNpmGlobalInstall = (path: string) =>
  * Detect how OCX was installed by analyzing paths.
  * Uses O(1) path analysis instead of slow shell commands.
  *
- * Detection priority:
+ * Detection priority (MOST SPECIFIC FIRST):
  * 1. Compiled binary: Bun.main starts with `/$bunfs/` (bun's virtual filesystem)
- * 2. Script path patterns: Analyze process.argv[1] for package manager directories
- * 3. npm_config_user_agent: Works for npx/pnpx/bunx invocations
- * 4. Default: "unknown" if no patterns match
+ * 2. Temp execution: npx/bunx/pnpx temp paths (not a persistent install)
+ * 3. Yarn global: `/.yarn/global` or `/.config/yarn/global` paths
+ * 4. pnpm global: `/.pnpm/` or `/pnpm/global` paths
+ * 5. Bun global: `/.bun/bin` or `/.bun/install/global` paths
+ * 6. npm global: Generic `/node_modules/` (least specific, checked last)
+ * 7. npm_config_user_agent: Fallback for package manager invocations
+ * 8. Default: "unknown" if no patterns match
  *
  * @returns The detected installation method
  */
@@ -90,13 +104,25 @@ export function detectInstallMethod(): InstallMethod {
 
 	const scriptPath = process.argv[1] ?? ""
 
-	// Package manager detection using predicates
-	if (isBunGlobalInstall(scriptPath)) return "bun"
+	// Package manager detection - MOST SPECIFIC FIRST
+	// Temp execution paths (npx/bunx/pnpx) - not a persistent install
+	if (isTempExecution(scriptPath)) return "unknown"
+
+	// Yarn global - must check before generic node_modules
+	if (isYarnGlobalInstall(scriptPath)) return "yarn"
+
+	// pnpm global - specific pnpm paths
 	if (isPnpmGlobalInstall(scriptPath)) return "pnpm"
+
+	// Bun global - specific bun paths
+	if (isBunGlobalInstall(scriptPath)) return "bun"
+
+	// npm global - generic node_modules (LEAST SPECIFIC, checked last)
 	if (isNpmGlobalInstall(scriptPath)) return "npm"
 
 	// Fallback: check npm_config_user_agent
 	const userAgent = process.env.npm_config_user_agent ?? ""
+	if (userAgent.includes("yarn")) return "yarn"
 	if (userAgent.includes("pnpm")) return "pnpm"
 	if (userAgent.includes("bun")) return "bun"
 	if (userAgent.includes("npm")) return "npm"

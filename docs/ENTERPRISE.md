@@ -145,3 +145,20 @@ For air-gapped or restricted environments, you can mirror OCX releases internall
 export OCX_DOWNLOAD_URL="https://internal.corp.com/ocx/releases"
 ocx self update
 ```
+
+The URL should point to a directory structure matching GitHub releases:
+
+```
+https://internal.corp.com/ocx/releases/
+├── v1.0.0/
+│   ├── ocx-darwin-arm64
+│   ├── ocx-darwin-x64
+│   ├── ocx-linux-arm64
+│   ├── ocx-linux-x64
+│   ├── ocx-windows-x64.exe
+│   └── SHA256SUMS.txt
+└── v1.0.1/
+    └── ...
+```
+
+The download URL is constructed as `${OCX_DOWNLOAD_URL}/v${version}/${binary-name}`, where binary names match the platform (e.g., `ocx-darwin-arm64` for macOS ARM64).

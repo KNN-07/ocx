@@ -11,6 +11,8 @@
  */
 
 import { fetchPackageVersion } from "../utils/npm-registry.js"
+import type { VersionProvider } from "./types.js"
+import { defaultVersionProvider } from "./version-provider.js"
 
 // =============================================================================
 // TYPES
@@ -26,6 +28,9 @@ export interface VersionCheckResult {
 	updateAvailable: boolean
 }
 
+// Re-export for convenience
+export type { VersionProvider } from "./types.js"
+
 // =============================================================================
 // CONSTANTS
 // =============================================================================
@@ -39,17 +44,6 @@ const PACKAGE_NAME = "ocx"
 // =============================================================================
 // VERSION UTILITIES
 // =============================================================================
-
-// Version injected at build time
-declare const __VERSION__: string
-
-/**
- * Get the current OCX CLI version.
- * Falls back to "0.0.0-dev" during development.
- */
-function getCurrentVersion(): string {
-	return typeof __VERSION__ !== "undefined" ? __VERSION__ : "0.0.0-dev"
-}
 
 /**
  * Parse a semver string into components.
@@ -105,10 +99,14 @@ function compareSemver(a: string, b: string): number | null {
  * Uses npm registry with 200ms timeout to ensure non-blocking UX.
  * Returns null on timeout or any error (silent failure by design).
  *
+ * @param versionProvider - Optional version provider for dependency injection (testing)
  * @returns Version check result, or null if check failed/timed out
  */
-export async function checkForUpdate(): Promise<VersionCheckResult | null> {
-	const current = getCurrentVersion()
+export async function checkForUpdate(
+	versionProvider?: VersionProvider,
+): Promise<VersionCheckResult | null> {
+	const provider = versionProvider ?? defaultVersionProvider
+	const current = provider.version || "0.0.0-dev"
 
 	// Early exit: dev version, don't check
 	if (current === "0.0.0-dev") {
@@ -116,29 +114,12 @@ export async function checkForUpdate(): Promise<VersionCheckResult | null> {
 	}
 
 	try {
-		// Create abort controller for timeout
-		const controller = new AbortController()
-		const timeoutId = setTimeout(() => controller.abort(), VERSION_CHECK_TIMEOUT_MS)
-
-		// Race fetch against timeout using AbortSignal
-		const fetchPromise = fetchPackageVersion(PACKAGE_NAME)
-
-		// We need to wrap fetch in a race since fetchPackageVersion has its own timeout
-		const result = await Promise.race([
-			fetchPromise,
-			new Promise<null>((_, reject) => {
-				controller.signal.addEventListener("abort", () => {
-					reject(new Error("Version check timed out"))
-				})
-			}),
-		])
-
-		clearTimeout(timeoutId)
-
-		// Early exit: race returned null (shouldn't happen, but guard)
-		if (!result) {
-			return null
-		}
+		// Fetch with timeout signal - aborts the actual HTTP request on timeout
+		const result = await fetchPackageVersion(
+			PACKAGE_NAME,
+			undefined,
+			AbortSignal.timeout(VERSION_CHECK_TIMEOUT_MS),
+		)
 
 		const latest = result.version
 

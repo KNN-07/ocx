@@ -22,6 +22,9 @@ import { getExecutablePath } from "./detect-method.js"
 /** GitHub repository for OCX releases */
 const GITHUB_REPO = "kdcokenny/ocx"
 
+/** Default base URL for downloading OCX releases from GitHub */
+const DEFAULT_DOWNLOAD_BASE_URL = `https://github.com/${GITHUB_REPO}/releases/download`
+
 /**
  * Platform map matching build-binary.ts targets.
  * Maps `${process.arch}-${process.platform}` to binary filename.
@@ -45,10 +48,27 @@ const PLATFORM_MAP: Record<string, string> = {
 // =============================================================================
 
 /**
+ * Get the base URL for downloading OCX releases.
+ * Supports OCX_DOWNLOAD_URL for enterprise/air-gapped environments.
+ *
+ * @returns Base URL for release downloads (without trailing slash)
+ */
+export function getDownloadBaseUrl(): string {
+	const envUrl = process.env.OCX_DOWNLOAD_URL
+
+	if (envUrl) {
+		// Normalize: remove trailing slash(es)
+		return envUrl.replace(/\/+$/, "")
+	}
+
+	return DEFAULT_DOWNLOAD_BASE_URL
+}
+
+/**
  * Get download URL for a specific version.
  *
  * @param version - Version to download (without 'v' prefix)
- * @returns GitHub release download URL
+ * @returns Release download URL (from GitHub or OCX_DOWNLOAD_URL override)
  * @throws SelfUpdateError if platform is unsupported
  */
 export function getDownloadUrl(version: string): string {
@@ -63,7 +83,8 @@ export function getDownloadUrl(version: string): string {
 		)
 	}
 
-	return `https://github.com/${GITHUB_REPO}/releases/download/v${version}/${target}`
+	const baseUrl = getDownloadBaseUrl()
+	return `${baseUrl}/v${version}/${target}`
 }
 
 // =============================================================================

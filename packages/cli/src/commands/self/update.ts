@@ -31,7 +31,7 @@ import {
 import { notifyUpdated, notifyUpToDate } from "../../self-update/notify.js"
 import { fetchChecksums, verifyChecksum } from "../../self-update/verify.js"
 import { SelfUpdateError } from "../../utils/errors.js"
-import { handleError } from "../../utils/handle-error.js"
+import { wrapAction } from "../../utils/handle-error.js"
 import { createSpinner } from "../../utils/spinner.js"
 
 // =============================================================================
@@ -179,6 +179,10 @@ async function updateViaPackageManager(
 				await runPackageManager(["npm", "install", "-g", `ocx@${targetVersion}`])
 				break
 			}
+			case "yarn": {
+				await runPackageManager(["yarn", "global", "add", `ocx@${targetVersion}`])
+				break
+			}
 			case "pnpm": {
 				await runPackageManager(["pnpm", "install", "-g", `ocx@${targetVersion}`])
 				break
@@ -228,11 +232,9 @@ export function registerSelfUpdateCommand(parent: Command): void {
 		.description("Update OCX to the latest version")
 		.option("-f, --force", "Reinstall even if already up to date")
 		.option("-m, --method <method>", "Override install method detection (curl|npm|pnpm|bun)")
-		.action(async (options: UpdateOptions) => {
-			try {
+		.action(
+			wrapAction(async (options: UpdateOptions) => {
 				await updateCommand(options)
-			} catch (error) {
-				handleError(error)
-			}
-		})
+			}),
+		)
 }

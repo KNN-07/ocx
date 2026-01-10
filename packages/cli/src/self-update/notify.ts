@@ -1,3 +1,25 @@
+// Copyright 2024-2026 the OCX authors. MIT license.
+
+/**
+ * Self-update notification display for terminal output.
+ *
+ * Provides Rustup-style update notifications with terminal-aware formatting.
+ * Follows the 5 Laws of Elegant Defense:
+ *
+ * - **Early Exit**: TTY check before output
+ * - **Intentional Naming**: {@linkcode notifyUpdate}, {@linkcode notifyUpdated}, {@linkcode notifyUpToDate}
+ *
+ * @example
+ * ```ts
+ * import { notifyUpdate } from "./notify"
+ *
+ * notifyUpdate("1.0.0", "1.1.0")
+ * // Prints: "info: update available - 1.1.0 (current: 1.0.0)"
+ * ```
+ *
+ * @module
+ */
+
 import kleur from "kleur"
 
 /**
