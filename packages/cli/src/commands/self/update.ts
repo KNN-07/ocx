@@ -6,8 +6,6 @@
  * - npm: Run `npm install -g ocx@version`
  * - pnpm: Run `pnpm install -g ocx@version`
  * - bun: Run `bun install -g ocx@version`
- * - yarn: Run `yarn global add ocx@version`
- * - brew: Run `brew upgrade ocx`
  *
  * Follows the 5 Laws of Elegant Defense:
  * - Early Exit: Return early if already up to date (unless --force)
@@ -89,8 +87,6 @@ async function updateCommand(options: UpdateOptions): Promise<void> {
 		case "npm":
 		case "pnpm":
 		case "bun":
-		case "yarn":
-		case "brew":
 		case "unknown": {
 			await updateViaPackageManager(method, current, targetVersion)
 			break
@@ -191,31 +187,12 @@ async function updateViaPackageManager(
 				await runPackageManager(["bun", "install", "-g", `ocx@${targetVersion}`])
 				break
 			}
-			case "yarn": {
-				await runPackageManager(["yarn", "global", "add", `ocx@${targetVersion}`])
-				break
-			}
-			case "brew": {
-				// Disable Homebrew auto-update for faster execution
-				const proc = Bun.spawn(["brew", "upgrade", "ocx"], {
-					stdout: "pipe",
-					stderr: "pipe",
-					env: { ...process.env, HOMEBREW_NO_AUTO_UPDATE: "1" },
-				})
-				const exitCode = await proc.exited
-				if (exitCode !== 0) {
-					const stderr = await new Response(proc.stderr).text()
-					throw new SelfUpdateError(`Homebrew upgrade failed: ${stderr.trim()}`)
-				}
-				break
-			}
 			case "unknown": {
 				throw new SelfUpdateError(
 					"Could not detect install method. Update manually with one of:\n" +
 						"  npm install -g ocx@latest\n" +
 						"  pnpm install -g ocx@latest\n" +
-						"  bun install -g ocx@latest\n" +
-						"  yarn global add ocx@latest",
+						"  bun install -g ocx@latest",
 				)
 			}
 		}
@@ -250,10 +227,7 @@ export function registerSelfUpdateCommand(parent: Command): void {
 		.command("update")
 		.description("Update OCX to the latest version")
 		.option("-f, --force", "Reinstall even if already up to date")
-		.option(
-			"-m, --method <method>",
-			"Override install method detection (npm|pnpm|bun|yarn|brew|curl)",
-		)
+		.option("-m, --method <method>", "Override install method detection (curl|npm|pnpm|bun)")
 		.action(async (options: UpdateOptions) => {
 			try {
 				await updateCommand(options)

@@ -22,11 +22,9 @@ import { SelfUpdateError } from "../utils/errors"
  * - "npm": Installed globally via `npm install -g`
  * - "pnpm": Installed globally via `pnpm add -g`
  * - "bun": Installed globally via `bun add -g`
- * - "yarn": Installed globally via `yarn global add` (Classic only, Berry doesn't support global)
- * - "brew": Installed via Homebrew
  * - "unknown": Unable to determine installation method
  */
-export type InstallMethod = "curl" | "npm" | "pnpm" | "bun" | "yarn" | "brew" | "unknown"
+export type InstallMethod = "curl" | "npm" | "pnpm" | "bun" | "unknown"
 
 // =============================================================================
 // PARSING (Law 2: Parse, Don't Validate)
@@ -39,7 +37,7 @@ export type InstallMethod = "curl" | "npm" | "pnpm" | "bun" | "yarn" | "brew" | 
  * @throws SelfUpdateError if input is invalid
  */
 export function parseInstallMethod(input: string): InstallMethod {
-	const VALID_METHODS = ["curl", "npm", "pnpm", "bun", "yarn", "brew"] as const
+	const VALID_METHODS = ["curl", "npm", "pnpm", "bun"] as const
 	const method = VALID_METHODS.find((m) => m === input)
 	if (!method) {
 		throw new SelfUpdateError(
@@ -63,13 +61,6 @@ const isBunGlobalInstall = (path: string) =>
 /** Check if installed via pnpm global */
 const isPnpmGlobalInstall = (path: string) =>
 	path.includes("/.pnpm/") || path.includes("/pnpm/global")
-
-/** Check if installed via Yarn global */
-const isYarnGlobalInstall = (path: string) =>
-	path.includes("/.yarn/") || path.includes("/yarn/global")
-
-/** Check if installed via Homebrew */
-const isBrewInstall = (path: string) => path.includes("/Cellar/") || path.includes("/homebrew/")
 
 /** Check if installed via npm global */
 const isNpmGlobalInstall = (path: string) =>
@@ -102,14 +93,11 @@ export function detectInstallMethod(): InstallMethod {
 	// Package manager detection using predicates
 	if (isBunGlobalInstall(scriptPath)) return "bun"
 	if (isPnpmGlobalInstall(scriptPath)) return "pnpm"
-	if (isYarnGlobalInstall(scriptPath)) return "yarn"
-	if (isBrewInstall(scriptPath)) return "brew"
 	if (isNpmGlobalInstall(scriptPath)) return "npm"
 
 	// Fallback: check npm_config_user_agent
 	const userAgent = process.env.npm_config_user_agent ?? ""
 	if (userAgent.includes("pnpm")) return "pnpm"
-	if (userAgent.includes("yarn")) return "yarn"
 	if (userAgent.includes("bun")) return "bun"
 	if (userAgent.includes("npm")) return "npm"
 

@@ -22,6 +22,7 @@ ocx <command>
 - [`ocx search`](#ocx-search) - Search for components
 - [`ocx registry`](#ocx-registry) - Manage registries
 - [`ocx build`](#ocx-build) - Build a registry from source
+- [`ocx self update`](#ocx-self-update) - Update OCX to latest version
 
 ---
 
@@ -710,6 +711,39 @@ my-registry/
 
 ---
 
+## ocx self update
+
+Update OCX to the latest version.
+
+```bash
+ocx self update [options]
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `-m, --method <method>` | Override install method detection (curl\|npm\|pnpm\|bun) |
+| `--force` | Force update even if already on latest version |
+
+### Examples
+
+```bash
+# Update to latest version
+ocx self update
+
+# Force reinstall via npm
+ocx self update --method npm --force
+```
+
+### Notes
+
+- OCX automatically detects how it was installed and uses the appropriate update method
+- For curl-installed binaries, downloads from GitHub releases with SHA256 verification
+- For npm/pnpm/bun installs, uses the respective package manager's global install
+
+---
+
 ## Global Options
 
 These options are available on all commands:
@@ -787,6 +821,8 @@ Lock file tracking installed components (managed automatically):
 |----------|-------------|
 | `OCX_NO_COLOR` | Disable colored output |
 | `NO_COLOR` | Standard no-color flag |
+| `OCX_SELF_UPDATE` | Set to `off` to disable self-update functionality |
+| `OCX_NO_UPDATE_CHECK` | Set to `1` to disable update notifications on startup |
 
 ---
 

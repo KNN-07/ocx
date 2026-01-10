@@ -107,28 +107,6 @@ Like **Cargo**, OCX resolves dependencies, pins versions, and verifies integrity
 
 [Full CLI Reference →](./docs/CLI.md)
 
-### Self Update
-
-Update OCX to the latest version:
-
-```bash
-ocx self update           # Update to latest version
-ocx self update --force   # Reinstall even if up to date
-```
-
-OCX automatically checks for updates after commands and displays a notification when a new version is available. Control this behavior with environment variables:
-
-- `OCX_SELF_UPDATE=off` - Disable all update checks
-- `OCX_NO_UPDATE_CHECK=1` - Alternative way to disable update checks (equivalent to `OCX_SELF_UPDATE=off`)
-
-```bash
-# Disable permanently in shell profile
-export OCX_SELF_UPDATE=off
-
-# Disable for single command
-OCX_SELF_UPDATE=off ocx add button
-```
-
 ### Ghost Mode — Your setup, any repo
 
 Ghost mode lets you work in repositories without modifying them, using your own portable configuration and profile isolation. Perfect for drive-by contributions to open source projects—or keeping work and personal configs completely separate.

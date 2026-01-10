@@ -22,7 +22,7 @@ import { SelfUpdateError } from "../../src/utils/errors"
 describe("detectInstallMethod", () => {
 	it("returns a valid install method", () => {
 		const method = detectInstallMethod()
-		const validMethods: InstallMethod[] = ["curl", "npm", "pnpm", "bun", "yarn", "brew", "unknown"]
+		const validMethods: InstallMethod[] = ["curl", "npm", "pnpm", "bun", "unknown"]
 		expect(validMethods).toContain(method)
 	})
 
@@ -87,8 +87,8 @@ describe("getExecutablePath", () => {
 describe("InstallMethod type", () => {
 	it("includes all expected package managers", () => {
 		// This test documents the expected install methods
-		const validMethods: InstallMethod[] = ["curl", "npm", "pnpm", "bun", "yarn", "brew", "unknown"]
-		expect(validMethods).toHaveLength(7)
+		const validMethods: InstallMethod[] = ["curl", "npm", "pnpm", "bun", "unknown"]
+		expect(validMethods).toHaveLength(5)
 	})
 })
 
@@ -111,14 +111,6 @@ describe("parseInstallMethod", () => {
 
 	it("should parse valid method: bun", () => {
 		expect(parseInstallMethod("bun")).toBe("bun")
-	})
-
-	it("should parse valid method: yarn", () => {
-		expect(parseInstallMethod("yarn")).toBe("yarn")
-	})
-
-	it("should parse valid method: brew", () => {
-		expect(parseInstallMethod("brew")).toBe("brew")
 	})
 
 	it("should throw SelfUpdateError for invalid method", () => {
@@ -164,24 +156,9 @@ describe("detectInstallMethod path analysis", () => {
 		expect(typeof method).toBe("string")
 	})
 
-	it("detects yarn from path containing /.yarn/", () => {
-		// Pattern: scriptPath.includes("/.yarn/") || scriptPath.includes("/yarn/global/")
-		// In real usage, paths like /home/user/.yarn/bin/ocx would match
-		// Note: Only Yarn Classic (v1) supports global installs
-		const method = detectInstallMethod()
-		expect(typeof method).toBe("string")
-	})
-
 	it("detects bun from path containing /.bun/", () => {
 		// Pattern: scriptPath.includes("/.bun/") || scriptPath.includes("/bun/")
 		// In real usage, paths like /home/user/.bun/bin/ocx would match
-		const method = detectInstallMethod()
-		expect(typeof method).toBe("string")
-	})
-
-	it("detects brew from path containing /Cellar/", () => {
-		// Pattern: scriptPath.includes("/Cellar/") || scriptPath.includes("/homebrew/")
-		// In real usage, paths like /opt/homebrew/Cellar/ocx/1.0.0/bin/ocx would match
 		const method = detectInstallMethod()
 		expect(typeof method).toBe("string")
 	})
@@ -191,7 +168,7 @@ describe("detectInstallMethod path analysis", () => {
 		// the function returns "unknown"
 		const method = detectInstallMethod()
 		// Just verify it's a valid InstallMethod
-		const validMethods: InstallMethod[] = ["curl", "npm", "pnpm", "bun", "yarn", "brew", "unknown"]
+		const validMethods: InstallMethod[] = ["curl", "npm", "pnpm", "bun", "unknown"]
 		expect(validMethods).toContain(method)
 	})
 })
