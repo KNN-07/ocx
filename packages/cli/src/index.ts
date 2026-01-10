@@ -14,8 +14,11 @@ import { registerGhostCommand } from "./commands/ghost/index.js"
 import { registerInitCommand } from "./commands/init.js"
 import { registerRegistryCommand } from "./commands/registry.js"
 import { registerSearchCommand } from "./commands/search.js"
+import { registerSelfCommand } from "./commands/self/index.js"
 import { registerUpdateCommand } from "./commands/update.js"
+import { registerUpdateCheckHook } from "./self-update/index.js"
 import { handleError } from "./utils/index.js"
+import { sharedOptions } from "./utils/shared-options.js"
 
 // Version injected at build time
 declare const __VERSION__: string
@@ -26,6 +29,7 @@ async function main() {
 		.name("ocx")
 		.description("OpenCode Extensions - Install agents, skills, plugins, and commands")
 		.version(version)
+		.addOption(sharedOptions.noSelfUpdate())
 
 	// Register all commands using the registration pattern
 	registerInitCommand(program)
@@ -36,6 +40,10 @@ async function main() {
 	registerRegistryCommand(program)
 	registerBuildCommand(program)
 	registerGhostCommand(program)
+	registerSelfCommand(program)
+
+	// Register update check hook (runs after each command)
+	registerUpdateCheckHook(program)
 
 	// Parse and handle errors
 	await program.parseAsync(process.argv)
