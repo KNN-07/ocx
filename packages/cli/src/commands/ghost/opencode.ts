@@ -14,6 +14,7 @@ import type { Command } from "commander"
 import { ProfileManager } from "../../profile/manager.js"
 import { getProfileDir, getProfileOpencodeConfig } from "../../profile/paths.js"
 import { ProfilesNotInitializedError } from "../../utils/errors.js"
+import { createFileSync, type FileSyncHandle, normalizePath } from "../../utils/file-sync.js"
 import { getGitInfo } from "../../utils/git-context.js"
 import { detectGitRepo, handleError, logger } from "../../utils/index.js"
 import { sharedOptions } from "../../utils/shared-options.js"
@@ -102,19 +103,25 @@ async function runGhostOpenCode(args: string[], options: GhostOpenCodeOptions): 
 
 	// Inject profile overlay - everything in profile dir except ghost.jsonc
 	// This includes opencode.jsonc, AGENTS.md, .opencode/, etc.
-	await injectProfileOverlay(tempDir, profileDir, ghostConfig.include)
-
-	// Determine if terminal should be renamed (Law 1: compute once, use in closure)
-	// Precedence: CLI flag > config > default(true)
-	const shouldRename = options.rename !== false && ghostConfig.renameWindow !== false
+	const overlayFiles = await injectProfileOverlay(tempDir, profileDir, ghostConfig.include)
 
 	// Track cleanup state to prevent double cleanup
 	let cleanupDone = false
+	let fileSync: FileSyncHandle | undefined
+
+	// Start real-time file sync - syncs new files from temp dir to project
+	// Pass overlay files to prevent profile configs from syncing back to project
+	fileSync = createFileSync(tempDir, cwd, { overlayFiles })
+
 	const performCleanup = async () => {
 		if (cleanupDone) return
 		cleanupDone = true
 		await cleanupSymlinkFarm(tempDir)
 	}
+
+	// Determine if terminal should be renamed (Law 1: compute once, use in closure)
+	// Precedence: CLI flag > config > default(true)
+	const shouldRename = options.rename !== false && ghostConfig.renameWindow !== false
 
 	// Safety net: sync cleanup on exit using rename-to-removing pattern
 	// This ensures SIGKILL resilience: if rename succeeds but rm is interrupted,
@@ -123,6 +130,11 @@ async function runGhostOpenCode(args: string[], options: GhostOpenCodeOptions): 
 		// Only restore if we renamed (Law 3: Atomic Predictability)
 		if (shouldRename) {
 			restoreTerminalTitle()
+		}
+
+		// Best-effort file sync close - can't await in sync handler
+		if (fileSync) {
+			fileSync.close().catch(() => {})
 		}
 
 		if (!cleanupDone && tempDir) {
@@ -178,14 +190,41 @@ async function runGhostOpenCode(args: string[], options: GhostOpenCodeOptions): 
 	try {
 		// Wait for child to exit
 		const exitCode = await proc.exited
-		process.exit(exitCode)
-	} finally {
-		// ALWAYS runs - success, error, or throw
-		// Cleanup signal handlers to prevent memory leaks
+
+		// Cleanup BEFORE process.exit (fixes race condition)
 		process.off("SIGINT", sigintHandler)
 		process.off("SIGTERM", sigtermHandler)
 		process.off("exit", exitHandler)
+
+		// Close file sync and report status
+		if (fileSync) {
+			await fileSync.close()
+			const syncCount = fileSync.getSyncCount()
+			const failures = fileSync.getFailures()
+			if (syncCount > 0 && !options.quiet) {
+				logger.info(`Synced ${syncCount} new files to project`)
+			}
+			if (failures.length > 0) {
+				logger.warn(`${failures.length} files failed to sync`)
+				for (const f of failures) {
+					logger.debug(`  ${f.path}: ${f.error.message}`)
+				}
+			}
+		}
+
 		await performCleanup()
+		process.exit(exitCode)
+	} catch (error) {
+		// Error during spawn/wait - still cleanup
+		process.off("SIGINT", sigintHandler)
+		process.off("SIGTERM", sigtermHandler)
+		process.off("exit", exitHandler)
+
+		if (fileSync) {
+			await fileSync.close()
+		}
+		await performCleanup()
+		throw error
 	}
 }
 
@@ -217,8 +256,11 @@ async function injectProfileOverlay(
 	tempDir: string,
 	profileDir: string,
 	includePatterns: string[],
-): Promise<void> {
+): Promise<Set<string>> {
 	const entries = await readdir(profileDir, { withFileTypes: true, recursive: true })
+
+	// Track all injected files for overlay exclusion (Law 3: Atomic Predictability)
+	const injectedFiles = new Set<string>()
 
 	// Pre-compile globs once before the loop (performance optimization)
 	const compiledIncludePatterns = includePatterns.map((p) => new Glob(p))
@@ -229,6 +271,11 @@ async function injectProfileOverlay(
 
 		// Law 1: Early Exit - skip ghost.jsonc (our config, not OpenCode's)
 		if (relativePath === "ghost.jsonc") continue
+
+		// Law 1: Early Exit - skip .gitignore (critical for file-sync)
+		// The profile's .gitignore is for the profile dir, not the project.
+		// Copying it would overwrite the project's symlinked .gitignore and break file-sync filtering.
+		if (relativePath === ".gitignore") continue
 
 		// Law 1: Early Exit - skip if user explicitly included the project version
 		// This lets users keep project AGENTS.md by including it explicitly
@@ -242,5 +289,11 @@ async function injectProfileOverlay(
 		// Ensure parent directory exists and copy file
 		await mkdir(path.dirname(destPath), { recursive: true })
 		await copyFile(path.join(entry.parentPath, entry.name), destPath)
+
+		// Track normalized path for overlay exclusion
+		injectedFiles.add(normalizePath(relativePath))
 	}
+
+	// Return immutable copy (Law 3: Atomic Predictability)
+	return new Set(injectedFiles)
 }
