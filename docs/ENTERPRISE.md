@@ -105,3 +105,60 @@ Running `ocx diff` compares your local files against the upstream registry and u
 ## Air-Gapped Environments
 
 Since OCX is a single binary and registries are simple static JSON files, you can easily mirror registries internally and point OCX to local network URLs.
+
+## CLI Binary Verification
+
+When running `ocx self update`, OCX verifies the downloaded binary against the published SHA256SUMS.txt file in GitHub Releases. This protects against:
+
+- Compromised CDN/mirror serving malicious binaries
+- Man-in-the-middle attacks during download
+- Tampered releases
+
+### Disabling Update Notifications
+
+Control update checks via environment variables:
+
+| Variable | Value | Behavior |
+|----------|-------|----------|
+| `OCX_SELF_UPDATE` | `off` | Disable all update checks |
+| `OCX_NO_UPDATE_CHECK` | `1` | Disable all update checks (alternative) |
+
+```bash
+# Disable permanently in shell profile
+export OCX_SELF_UPDATE=off
+
+# Disable for single command
+OCX_SELF_UPDATE=off ocx add button
+```
+
+Update checks are automatically disabled in CI environments.
+
+### Internal Binary Hosting
+
+For air-gapped or restricted environments, you can mirror OCX releases internally:
+
+1. Download releases from GitHub to your internal server
+2. Include the SHA256SUMS.txt file for integrity verification
+3. Set `OCX_DOWNLOAD_URL` environment variable to your internal mirror URL
+
+```bash
+export OCX_DOWNLOAD_URL="https://internal.corp.com/ocx/releases"
+ocx self update
+```
+
+The URL should point to a directory structure matching GitHub releases:
+
+```
+https://internal.corp.com/ocx/releases/
+├── v1.0.0/
+│   ├── ocx-darwin-arm64
+│   ├── ocx-darwin-x64
+│   ├── ocx-linux-arm64
+│   ├── ocx-linux-x64
+│   ├── ocx-windows-x64.exe
+│   └── SHA256SUMS.txt
+└── v1.0.1/
+    └── ...
+```
+
+The download URL is constructed as `${OCX_DOWNLOAD_URL}/v${version}/${binary-name}`, where binary names match the platform (e.g., `ocx-darwin-arm64` for macOS ARM64).

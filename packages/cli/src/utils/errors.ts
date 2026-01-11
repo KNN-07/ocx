@@ -11,6 +11,7 @@ export type ErrorCode =
 	| "CONFLICT"
 	| "PERMISSION_ERROR"
 	| "INTEGRITY_ERROR"
+	| "UPDATE_ERROR"
 
 export const EXIT_CODES = {
 	SUCCESS: 0,
@@ -77,6 +78,13 @@ export class IntegrityError extends OCXError {
 			`Use 'ocx update ${component}' to intentionally update this component.`
 		super(message, "INTEGRITY_ERROR", EXIT_CODES.INTEGRITY)
 		this.name = "IntegrityError"
+	}
+}
+
+export class SelfUpdateError extends OCXError {
+	constructor(message: string) {
+		super(message, "UPDATE_ERROR", EXIT_CODES.GENERAL)
+		this.name = "SelfUpdateError"
 	}
 }
 

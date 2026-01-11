@@ -195,11 +195,15 @@ export function isNpmSpecifier(input: string): boolean {
  * Validate that an npm package exists on the registry.
  *
  * @param packageName - The npm package name (may be scoped like @scope/pkg)
+ * @param signal - Optional AbortSignal for request cancellation
  * @returns Package metadata from npm registry
  * @throws NotFoundError if package doesn't exist (404)
  * @throws NetworkError for other fetch failures
  */
-export async function validateNpmPackage(packageName: string): Promise<NpmPackageMetadata> {
+export async function validateNpmPackage(
+	packageName: string,
+	signal?: AbortSignal,
+): Promise<NpmPackageMetadata> {
 	// Guard: validate package name first
 	validateNpmPackageName(packageName)
 
@@ -211,17 +215,15 @@ export async function validateNpmPackage(packageName: string): Promise<NpmPackag
 	const url = `${NPM_REGISTRY_BASE}/${encodedName}`
 
 	try {
-		const controller = new AbortController()
-		const timeoutId = setTimeout(() => controller.abort(), NPM_FETCH_TIMEOUT_MS)
+		// Use provided signal or create a timeout signal
+		const fetchSignal = signal ?? AbortSignal.timeout(NPM_FETCH_TIMEOUT_MS)
 
 		const response = await fetch(url, {
-			signal: controller.signal,
+			signal: fetchSignal,
 			headers: {
 				Accept: "application/json",
 			},
 		})
-
-		clearTimeout(timeoutId)
 
 		// Handle 404 specifically
 		if (response.status === 404) {
@@ -244,10 +246,8 @@ export async function validateNpmPackage(packageName: string): Promise<NpmPackag
 		}
 
 		// Handle abort/timeout
-		if (error instanceof Error && error.name === "AbortError") {
-			throw new NetworkError(
-				`Request to npm registry timed out after ${NPM_FETCH_TIMEOUT_MS / 1000}s for package \`${packageName}\``,
-			)
+		if (error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError")) {
+			throw new NetworkError(`Request to npm registry timed out for package \`${packageName}\``)
 		}
 
 		// Wrap other errors
@@ -316,6 +316,7 @@ export function validateOpenCodePlugin(packageJson: NpmPackageVersion): PluginVa
  *
  * @param packageName - The npm package name
  * @param version - The specific version (or "latest" to use dist-tags.latest)
+ * @param signal - Optional AbortSignal for request cancellation
  * @returns Version-specific package.json fields
  * @throws NotFoundError if package/version doesn't exist
  * @throws NetworkError for fetch failures
@@ -323,9 +324,10 @@ export function validateOpenCodePlugin(packageJson: NpmPackageVersion): PluginVa
 export async function fetchPackageVersion(
 	packageName: string,
 	version?: string,
+	signal?: AbortSignal,
 ): Promise<NpmPackageVersion> {
 	// First get package metadata to resolve version
-	const metadata = await validateNpmPackage(packageName)
+	const metadata = await validateNpmPackage(packageName, signal)
 
 	// Resolve version: use specified or latest
 	const resolvedVersion = version ?? metadata["dist-tags"].latest

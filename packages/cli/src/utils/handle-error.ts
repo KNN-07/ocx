@@ -65,6 +65,29 @@ interface JsonErrorOutput {
 	}
 }
 
+/**
+ * Wraps a command action with consistent error handling.
+ * Use this to wrap async command handlers in Commander actions.
+ *
+ * @example
+ * program
+ *   .command("add")
+ *   .action(wrapAction(async (options) => {
+ *     // command implementation
+ *   }))
+ */
+export function wrapAction<T extends unknown[]>(
+	action: (...args: T) => void | Promise<void>,
+): (...args: T) => Promise<void> {
+	return async (...args: T) => {
+		try {
+			await action(...args)
+		} catch (error) {
+			handleError(error)
+		}
+	}
+}
+
 function formatErrorAsJson(error: unknown): JsonErrorOutput {
 	if (error instanceof OCXError) {
 		return {

@@ -14,7 +14,9 @@ import { registerGhostCommand } from "./commands/ghost/index.js"
 import { registerInitCommand } from "./commands/init.js"
 import { registerRegistryCommand } from "./commands/registry.js"
 import { registerSearchCommand } from "./commands/search.js"
+import { registerSelfCommand } from "./commands/self/index.js"
 import { registerUpdateCommand } from "./commands/update.js"
+import { registerUpdateCheckHook } from "./self-update/index.js"
 import { handleError } from "./utils/index.js"
 
 // Version injected at build time
@@ -36,6 +38,10 @@ async function main() {
 	registerRegistryCommand(program)
 	registerBuildCommand(program)
 	registerGhostCommand(program)
+	registerSelfCommand(program)
+
+	// Register update check hook (runs after each command)
+	registerUpdateCheckHook(program)
 
 	// Parse and handle errors
 	await program.parseAsync(process.argv)
