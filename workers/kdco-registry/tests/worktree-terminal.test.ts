@@ -190,7 +190,8 @@ describe("worktree-terminal", () => {
 
 			expect(result).toBe("success")
 			expect(capturedPath).not.toBeNull()
-			expect(fs.existsSync(capturedPath!)).toBe(false)
+			if (capturedPath === null) throw new Error("Expected capturedPath to be set")
+			expect(fs.existsSync(capturedPath)).toBe(false)
 		})
 
 		it("cleans up script after failed execution", async () => {
@@ -207,7 +208,8 @@ describe("worktree-terminal", () => {
 			}
 
 			expect(capturedPath).not.toBeNull()
-			expect(fs.existsSync(capturedPath!)).toBe(false)
+			if (capturedPath === null) throw new Error("Expected capturedPath to be set")
+			expect(fs.existsSync(capturedPath)).toBe(false)
 		})
 
 		it("uses .sh extension by default", async () => {
