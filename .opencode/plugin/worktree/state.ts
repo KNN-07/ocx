@@ -10,6 +10,7 @@
 
 import { Database } from "bun:sqlite"
 import * as crypto from "node:crypto"
+import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 import { z } from "zod"
@@ -193,14 +194,7 @@ export async function initStateDb(projectRoot: string): Promise<Database> {
 	const dbDir = path.dirname(dbPath)
 
 	// Create directory synchronously (required before opening DB)
-	const mkdirSync = (dir: string) => {
-		try {
-			Bun.spawnSync(["mkdir", "-p", dir])
-		} catch {
-			// Directory may already exist
-		}
-	}
-	mkdirSync(dbDir)
+	fs.mkdirSync(dbDir, { recursive: true })
 
 	// Open database (creates if doesn't exist)
 	const db = new Database(dbPath)

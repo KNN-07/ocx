@@ -546,6 +546,20 @@ export const WorktreePlugin: Plugin = async (ctx) => {
 						console.warn(`[worktree] Failed to open terminal: ${terminalResult.error}`)
 					}
 
+					// Create a new session in master to avoid concurrent access to the same session
+					// The worktree continues the parent session while master gets a fresh one
+					try {
+						await toolCtx?.client?.tui?.executeCommand?.({ body: { command: "session_new" } })
+					} catch (error) {
+						// Fallback: show toast notification if session_new fails
+						await toolCtx?.client?.toast?.create?.({
+							body: {
+								type: "info",
+								message: "Press Ctrl+X N to create a new session in this terminal",
+							},
+						})
+					}
+
 					// Record session for tracking (used by delete flow)
 					addSession(database, {
 						id: sessionId,
