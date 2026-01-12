@@ -1,0 +1,90 @@
+{
+  "name": "KDCO",
+  "namespace": "kdco",
+  "version": "1.0.0",
+  "author": "kdcokenny",
+  "opencode": "1.1.0",
+  "ocx": "1.0.16",
+  "components": [
+    {
+      "name": "workspace-plugin",
+      "type": "ocx:plugin",
+      "description": "Plan management and rule injection for workspace workflows"
+    },
+    {
+      "name": "background-agents",
+      "type": "ocx:plugin",
+      "description": "Background agent execution - run async tasks while you work"
+    },
+    {
+      "name": "notify",
+      "type": "ocx:plugin",
+      "description": "Native OS notifications - get notified when tasks complete"
+    },
+    {
+      "name": "worktree",
+      "type": "ocx:plugin",
+      "description": "Auto-manages Git worktrees for isolated AI sessions with seamless terminal spawning"
+    },
+    {
+      "name": "plan-protocol",
+      "type": "ocx:skill",
+      "description": "Guidelines for using the plan system"
+    },
+    {
+      "name": "code-philosophy",
+      "type": "ocx:skill",
+      "description": "The 5 Laws of Elegant Defense"
+    },
+    {
+      "name": "frontend-philosophy",
+      "type": "ocx:skill",
+      "description": "The 5 Pillars of Intentional UI"
+    },
+    {
+      "name": "code-review",
+      "type": "ocx:skill",
+      "description": "Structured code review methodology with severity levels and categories"
+    },
+    {
+      "name": "plan-review",
+      "type": "ocx:skill",
+      "description": "Criteria for reviewing implementation plans"
+    },
+    {
+      "name": "researcher",
+      "type": "ocx:agent",
+      "description": "Knowledge architect for external research"
+    },
+    {
+      "name": "scribe",
+      "type": "ocx:agent",
+      "description": "Human-facing content specialist"
+    },
+    {
+      "name": "coder",
+      "type": "ocx:agent",
+      "description": "Technical implementation specialist for writing and modifying code"
+    },
+    {
+      "name": "reviewer",
+      "type": "ocx:agent",
+      "description": "Code review specialist that analyzes code for issues and improvements"
+    },
+    {
+      "name": "review",
+      "type": "ocx:command",
+      "description": "Trigger code review on files or git diffs"
+    },
+    {
+      "name": "workspace",
+      "type": "ocx:bundle",
+      "description": "Full KDCO Workspace experience"
+    },
+    {
+      "name": "philosophy",
+      "type": "ocx:bundle",
+      "description": "Full KDCO Philosophy enforcement"
+    }
+  ]
+}

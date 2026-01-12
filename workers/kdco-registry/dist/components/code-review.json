@@ -1,0 +1,17 @@
+{
+  "name": "code-review",
+  "versions": {
+    "1.0.0": {
+      "name": "code-review",
+      "type": "ocx:skill",
+      "description": "Structured code review methodology with severity levels and categories",
+      "files": [
+        "skill/code-review/SKILL.md"
+      ],
+      "dependencies": []
+    }
+  },
+  "dist-tags": {
+    "latest": "1.0.0"
+  }
+}

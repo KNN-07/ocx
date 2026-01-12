@@ -8,10 +8,24 @@
  * interface for terminal operations with proper concurrency control.
  */
 
+import * as fsSync from "node:fs"
 import * as fs from "node:fs/promises"
 import * as os from "node:os"
 import * as path from "node:path"
 import { z } from "zod"
+
+// =============================================================================
+// TEMP DIRECTORY HELPER
+// =============================================================================
+
+/**
+ * Get the real temp directory path, resolving symlinks.
+ * Critical for macOS where os.tmpdir() returns a symlink (/var/folders -> /private/var/folders).
+ * @see Bun test harness, VS Code, Eclipse Theia for this pattern
+ */
+function getTempDir(): string {
+	return fsSync.realpathSync.native(os.tmpdir())
+}
 
 // =============================================================================
 // TEMP SCRIPT HELPER
@@ -32,7 +46,7 @@ export async function withTempScript<T>(
 	extension: string = ".sh",
 ): Promise<T> {
 	const scriptPath = path.join(
-		os.tmpdir(),
+		getTempDir(),
 		`worktree-${Date.now()}-${Math.random().toString(36).slice(2)}${extension}`,
 	)
 	await Bun.write(scriptPath, scriptContent)
@@ -442,6 +456,23 @@ export async function openTmuxWindow(options: {
 				tmuxArgs.splice(1, 0, "-t", sessionName)
 			}
 
+			// If there's a command to run, create script first and pass it to new-window
+			if (command) {
+				const scriptPath = path.join(getTempDir(), `worktree-${Bun.randomUUIDv7()}.sh`)
+				const escapedCwd = escapeBash(cwd)
+				const escapedCommand = escapeBash(command)
+				const scriptContent = wrapWithSelfCleanup(
+					`cd "${escapedCwd}" || exit 1
+${escapedCommand}
+exec $SHELL`,
+				)
+				await Bun.write(scriptPath, scriptContent)
+				Bun.spawnSync(["chmod", "+x", scriptPath])
+
+				// Add script execution to tmux args
+				tmuxArgs.push("--", "bash", scriptPath)
+			}
+
 			const createResult = Bun.spawnSync(["tmux", ...tmuxArgs])
 
 			if (createResult.exitCode !== 0) {
@@ -449,24 +480,6 @@ export async function openTmuxWindow(options: {
 					success: false,
 					error: `Failed to create tmux window: ${createResult.stderr.toString()}`,
 				}
-			}
-
-			const paneId = createResult.stdout.toString().trim()
-
-			// Execute command if provided
-			if (command) {
-				// Create temp script for safe command execution
-				const scriptPath = path.join(os.tmpdir(), `worktree-${Bun.randomUUIDv7()}.sh`)
-				const escapedCwd = escapeBash(cwd)
-				const escapedCommand = escapeBash(command)
-				const scriptContent = wrapWithSelfCleanup(`cd "${escapedCwd}" && ${escapedCommand}`)
-
-				await Bun.write(scriptPath, scriptContent)
-				await fs.chmod(scriptPath, 0o755)
-
-				// Send script path using literal flag (-l) for security
-				Bun.spawnSync(["tmux", "send-keys", "-t", paneId, "-l", scriptPath])
-				Bun.spawnSync(["tmux", "send-keys", "-t", paneId, "Enter"])
 			}
 
 			// Stabilization delay to let tmux server process the window
@@ -603,7 +616,7 @@ export async function openMacOSTerminal(cwd: string, command?: string): Promise<
 
 				// Fallback: new window (detached) - write script directly
 				detachedScriptPath = path.join(
-					os.tmpdir(),
+					getTempDir(),
 					`worktree-${Date.now()}-${Math.random().toString(36).slice(2)}.sh`,
 				)
 				await Bun.write(detachedScriptPath, scriptContent)
@@ -624,7 +637,7 @@ export async function openMacOSTerminal(cwd: string, command?: string): Promise<
 			case "alacritty": {
 				// Detached spawn - write script directly
 				detachedScriptPath = path.join(
-					os.tmpdir(),
+					getTempDir(),
 					`worktree-${Date.now()}-${Math.random().toString(36).slice(2)}.sh`,
 				)
 				await Bun.write(detachedScriptPath, scriptContent)
@@ -645,7 +658,7 @@ export async function openMacOSTerminal(cwd: string, command?: string): Promise<
 			case "warp": {
 				// Detached spawn - write script directly
 				detachedScriptPath = path.join(
-					os.tmpdir(),
+					getTempDir(),
 					`worktree-${Date.now()}-${Math.random().toString(36).slice(2)}.sh`,
 				)
 				await Bun.write(detachedScriptPath, scriptContent)
@@ -775,7 +788,7 @@ export async function openLinuxTerminal(cwd: string, command?: string): Promise<
 	// Write script directly - it self-deletes via trap
 	// DO NOT use withTempScript - all Linux spawns are detached
 	const scriptPath = path.join(
-		os.tmpdir(),
+		getTempDir(),
 		`worktree-${Date.now()}-${Math.random().toString(36).slice(2)}.sh`,
 	)
 	await Bun.write(scriptPath, scriptContent)
@@ -1007,7 +1020,7 @@ export async function openWindowsTerminal(cwd: string, command?: string): Promis
 	// Write script directly - it self-deletes via goto trick
 	// DO NOT use withTempScript - all Windows spawns are detached
 	const scriptPath = path.join(
-		os.tmpdir(),
+		getTempDir(),
 		`worktree-${Date.now()}-${Math.random().toString(36).slice(2)}.bat`,
 	)
 	await Bun.write(scriptPath, scriptContent)
@@ -1089,7 +1102,7 @@ export async function openWSLTerminal(cwd: string, command?: string): Promise<Te
 	// Write script directly - it self-deletes via trap
 	// DO NOT use withTempScript - all WSL spawns are detached
 	const scriptPath = path.join(
-		os.tmpdir(),
+		getTempDir(),
 		`worktree-${Date.now()}-${Math.random().toString(36).slice(2)}.sh`,
 	)
 	await Bun.write(scriptPath, scriptContent)

@@ -1,0 +1,17 @@
+{
+  "name": "plan-review",
+  "versions": {
+    "1.0.0": {
+      "name": "plan-review",
+      "type": "ocx:skill",
+      "description": "Criteria for reviewing implementation plans",
+      "files": [
+        "skill/plan-review/SKILL.md"
+      ],
+      "dependencies": []
+    }
+  },
+  "dist-tags": {
+    "latest": "1.0.0"
+  }
+}

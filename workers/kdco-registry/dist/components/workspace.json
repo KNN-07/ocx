@@ -1,0 +1,94 @@
+{
+  "name": "workspace",
+  "versions": {
+    "1.0.0": {
+      "name": "workspace",
+      "type": "ocx:bundle",
+      "description": "Full KDCO Workspace experience",
+      "files": [],
+      "dependencies": [
+        "workspace-plugin",
+        "plan-protocol",
+        "researcher",
+        "scribe",
+        "coder",
+        "reviewer",
+        "review",
+        "notify",
+        "worktree",
+        "philosophy"
+      ],
+      "opencode": {
+        "plugin": [
+          "@tarquinen/opencode-dcp@1.1.2",
+          "@franlol/opencode-md-table-formatter@0.0.3"
+        ],
+        "agent": {
+          "plan": {
+            "permission": {
+              "edit": "deny",
+              "write": "deny",
+              "bash": {
+                "*": "deny"
+              },
+              "task": "allow",
+              "worktree_*": "allow"
+            }
+          },
+          "build": {
+            "prompt": "You are a **build orchestrator**. You coordinate implementation through delegation - you do NOT implement directly.\\\\\\\\n\\\\\\\\n## Your Role\\\\\\\\n- Delegate implementation to `coder`\\\\\\\\n- Delegate documentation to `scribe`\\\\\\\\n- Delegate codebase analysis to `explore`\\\\\\\\n- Delegate external research to `researcher`\\\\\\\\n- Interpret results and decide next steps\\\\\\\\n\\\\\\\\n## Critical Constraint\\\\\\\\nYou CANNOT edit files or run commands directly. For ALL implementation and verification, delegate to `coder`.",
+            "permission": {
+              "edit": "deny",
+              "write": "deny",
+              "bash": {
+                "*": "deny"
+              },
+              "task": "allow",
+              "worktree_*": "allow"
+            }
+          },
+          "explore": {
+            "permission": {
+              "edit": "deny",
+              "write": "deny",
+              "bash": {
+                "*": "deny",
+                "ls *": "allow",
+                "tree *": "allow",
+                "pwd": "allow",
+                "cat *": "allow",
+                "head *": "allow",
+                "tail *": "allow",
+                "wc *": "allow",
+                "file *": "allow",
+                "stat *": "allow",
+                "grep *": "allow",
+                "rg *": "allow",
+                "find *": "allow",
+                "git status*": "allow",
+                "git log*": "allow",
+                "git diff*": "allow",
+                "git show*": "allow",
+                "git blame*": "allow",
+                "git branch*": "allow",
+                "git ls-files*": "allow",
+                "uname*": "allow",
+                "hostname": "allow",
+                "whoami": "allow",
+                "which *": "allow",
+                "realpath *": "allow"
+              }
+            }
+          }
+        },
+        "permission": {
+          "webfetch": "deny",
+          "worktree_*": "deny"
+        }
+      }
+    }
+  },
+  "dist-tags": {
+    "latest": "1.0.0"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "notify",
+  "versions": {
+    "1.0.0": {
+      "name": "notify",
+      "type": "ocx:plugin",
+      "description": "Native OS notifications - get notified when tasks complete",
+      "files": [
+        "plugin/notify.ts"
+      ],
+      "dependencies": [],
+      "npmDevDependencies": [
+        "node-notifier@10.0.1",
+        "detect-terminal@2.0.0"
+      ]
+    }
+  },
+  "dist-tags": {
+    "latest": "1.0.0"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "background-agents",
+  "versions": {
+    "1.0.0": {
+      "name": "background-agents",
+      "type": "ocx:plugin",
+      "description": "Background agent execution - run async tasks while you work",
+      "files": [
+        "plugin/background-agents.ts"
+      ],
+      "dependencies": [],
+      "npmDevDependencies": [
+        "unique-names-generator@4.7.1"
+      ],
+      "opencode": {
+        "permission": {
+          "task": "deny"
+        }
+      }
+    }
+  },
+  "dist-tags": {
+    "latest": "1.0.0"
+  }
+}

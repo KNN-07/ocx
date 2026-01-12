@@ -1,0 +1,36 @@
+{
+  "name": "coder",
+  "versions": {
+    "1.0.0": {
+      "name": "coder",
+      "type": "ocx:agent",
+      "description": "Technical implementation specialist for writing and modifying code",
+      "files": [
+        "agent/coder.md"
+      ],
+      "dependencies": [
+        "background-agents"
+      ],
+      "opencode": {
+        "agent": {
+          "coder": {
+            "permission": {
+              "context7_*": "deny",
+              "exa_*": "deny",
+              "gh_grep_*": "deny",
+              "read": "allow",
+              "write": "allow",
+              "edit": "allow",
+              "glob": "allow",
+              "grep": "allow",
+              "bash": "allow"
+            }
+          }
+        }
+      }
+    }
+  },
+  "dist-tags": {
+    "latest": "1.0.0"
+  }
+}
