@@ -14,7 +14,10 @@ import { mkdirSync } from "node:fs"
 import { stat } from "node:fs/promises"
 import * as os from "node:os"
 import * as path from "node:path"
+import type { createOpencodeClient } from "@opencode-ai/sdk"
 import { z } from "zod"
+
+type OpencodeClient = ReturnType<typeof createOpencodeClient>
 
 // =============================================================================
 // TYPES
@@ -63,6 +66,23 @@ const pendingDeleteSchema = z.object({
 	path: z.string().min(1),
 })
 
+/**
+ * Log a warning message using client.app.log if available, otherwise console.warn.
+ * @param client - Optional OpenCode client for proper logging
+ * @param message - Warning message to log
+ */
+function logWarn(client: OpencodeClient | undefined, message: string): void {
+	if (client) {
+		client.app
+			.log({
+				body: { service: "worktree", level: "warn", message },
+			})
+			.catch(() => {})
+	} else {
+		console.warn(message)
+	}
+}
+
 // =============================================================================
 // DATABASE UTILITIES
 // =============================================================================
@@ -80,7 +100,7 @@ const pendingDeleteSchema = z.object({
  * @param projectRoot - Absolute path to the project root
  * @returns 40-char hex SHA (git root) or 16-char hash (fallback)
  */
-export async function getProjectId(projectRoot: string): Promise<string> {
+export async function getProjectId(projectRoot: string, client?: OpencodeClient): Promise<string> {
 	// Guard clause (Law 1)
 	if (!projectRoot || typeof projectRoot !== "string") {
 		throw new Error("getProjectId: projectRoot is required and must be a string")
@@ -93,7 +113,7 @@ export async function getProjectId(projectRoot: string): Promise<string> {
 
 	if (!gitStat) {
 		// .git doesn't exist - not a git repo, use path hash fallback
-		console.warn(`getProjectId: No .git found at ${projectRoot}, using path hash`)
+		logWarn(client, `getProjectId: No .git found at ${projectRoot}, using path hash`)
 		return hashPath(projectRoot)
 	}
 
@@ -140,7 +160,7 @@ export async function getProjectId(projectRoot: string): Promise<string> {
 		if (/^[a-f0-9]{40}$/i.test(cached) || /^[a-f0-9]{16}$/i.test(cached)) {
 			return cached
 		}
-		console.warn(`getProjectId: Invalid cache content at ${cacheFile}, regenerating`)
+		logWarn(client, `getProjectId: Invalid cache content at ${cacheFile}, regenerating`)
 	}
 
 	// Generate project ID from git root commit
@@ -177,16 +197,16 @@ export async function getProjectId(projectRoot: string): Promise<string> {
 				try {
 					await Bun.write(cacheFile, projectId)
 				} catch (e) {
-					console.warn(`getProjectId: Failed to cache project ID:`, e)
+					logWarn(client, `getProjectId: Failed to cache project ID: ${e}`)
 				}
 				return projectId
 			}
 		} else {
 			const stderr = await new Response(proc.stderr).text()
-			console.warn(`getProjectId: git rev-list failed (${exitCode}): ${stderr.trim()}`)
+			logWarn(client, `getProjectId: git rev-list failed (${exitCode}): ${stderr.trim()}`)
 		}
 	} catch (error) {
-		console.warn(`getProjectId: git command failed:`, error)
+		logWarn(client, `getProjectId: git command failed: ${error}`)
 	}
 
 	// Fallback to path hash
@@ -398,7 +418,7 @@ export function getAllSessions(db: Database): Session[] {
  * @param db - Database instance from initStateDb
  * @param spawn - Spawn operation data
  */
-export function setPendingSpawn(db: Database, spawn: PendingSpawn): void {
+export function setPendingSpawn(db: Database, spawn: PendingSpawn, client?: OpencodeClient): void {
 	// Parse at boundary for type safety
 	const parsed = pendingSpawnSchema.parse(spawn)
 
@@ -407,9 +427,9 @@ export function setPendingSpawn(db: Database, spawn: PendingSpawn): void {
 	const existingDelete = getPendingDelete(db)
 
 	if (existingSpawn) {
-		console.warn(`Replacing pending spawn: "${existingSpawn.branch}" → "${parsed.branch}"`)
+		logWarn(client, `Replacing pending spawn: "${existingSpawn.branch}" → "${parsed.branch}"`)
 	} else if (existingDelete) {
-		console.warn(`Pending spawn replacing pending delete for: "${existingDelete.branch}"`)
+		logWarn(client, `Pending spawn replacing pending delete for: "${existingDelete.branch}"`)
 	}
 
 	// Atomic: replace any existing pending operation
@@ -472,7 +492,7 @@ export function clearPendingSpawn(db: Database): void {
  * @param db - Database instance from initStateDb
  * @param del - Delete operation data
  */
-export function setPendingDelete(db: Database, del: PendingDelete): void {
+export function setPendingDelete(db: Database, del: PendingDelete, client?: OpencodeClient): void {
 	// Parse at boundary for type safety
 	const parsed = pendingDeleteSchema.parse(del)
 
@@ -481,9 +501,9 @@ export function setPendingDelete(db: Database, del: PendingDelete): void {
 	const existingSpawn = getPendingSpawn(db)
 
 	if (existingDelete) {
-		console.warn(`Replacing pending delete: "${existingDelete.branch}" → "${parsed.branch}"`)
+		logWarn(client, `Replacing pending delete: "${existingDelete.branch}" → "${parsed.branch}"`)
 	} else if (existingSpawn) {
-		console.warn(`Pending delete replacing pending spawn for: "${existingSpawn.branch}"`)
+		logWarn(client, `Pending delete replacing pending spawn for: "${existingSpawn.branch}"`)
 	}
 
 	// Atomic: replace any existing pending operation

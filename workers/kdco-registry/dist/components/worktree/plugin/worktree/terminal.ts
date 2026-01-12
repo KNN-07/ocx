@@ -12,7 +12,10 @@ import * as fsSync from "node:fs"
 import * as fs from "node:fs/promises"
 import * as os from "node:os"
 import * as path from "node:path"
+import type { createOpencodeClient } from "@opencode-ai/sdk"
 import { z } from "zod"
+
+type OpencodeClient = ReturnType<typeof createOpencodeClient>
 
 // =============================================================================
 // TEMP DIRECTORY HELPER
@@ -25,6 +28,23 @@ import { z } from "zod"
  */
 function getTempDir(): string {
 	return fsSync.realpathSync.native(os.tmpdir())
+}
+
+/**
+ * Log a warning message using client.app.log if available, otherwise console.warn.
+ * @param client - Optional OpenCode client for proper logging
+ * @param message - Warning message to log
+ */
+function logWarn(client: OpencodeClient | undefined, message: string): void {
+	if (client) {
+		client.app
+			.log({
+				body: { service: "worktree", level: "warn", message },
+			})
+			.catch(() => {})
+	} else {
+		console.warn(message)
+	}
 }
 
 // =============================================================================
@@ -44,6 +64,7 @@ export async function withTempScript<T>(
 	scriptContent: string,
 	fn: (scriptPath: string) => Promise<T>,
 	extension: string = ".sh",
+	client?: OpencodeClient,
 ): Promise<T> {
 	const scriptPath = path.join(
 		getTempDir(),
@@ -61,7 +82,7 @@ export async function withTempScript<T>(
 			}
 		} catch (cleanupError) {
 			// Log but don't throw - cleanup is best-effort
-			console.warn(`Failed to cleanup temp script: ${scriptPath}`, cleanupError)
+			logWarn(client, `Failed to cleanup temp script: ${scriptPath}: ${cleanupError}`)
 		}
 	}
 }

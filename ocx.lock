@@ -103,13 +103,14 @@
     "kdco/worktree": {
       "registry": "kdco",
       "version": "1.0.0",
-      "hash": "401eaa2764652fec0612af39dac95accc87915479c21adeb49a8b159a5081d74",
+      "hash": "26b062488e67076a0321744bdfb23ff55f83e1d2b39e568b224a5f9473f443e5",
       "files": [
         ".opencode/plugin/worktree.ts",
         ".opencode/plugin/worktree/state.ts",
         ".opencode/plugin/worktree/terminal.ts"
       ],
-      "installedAt": "2026-01-11T13:52:04.465Z"
+      "installedAt": "2026-01-11T13:52:04.465Z",
+      "updatedAt": "2026-01-12T03:26:15.254Z"
     },
     "kdco/code-philosophy": {
       "registry": "kdco",
