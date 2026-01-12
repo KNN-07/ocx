@@ -9,11 +9,11 @@
  * https://github.com/code-yeongyu/oh-my-opencode
  */
 
-import * as crypto from "node:crypto"
 import * as fs from "node:fs/promises"
 import * as os from "node:os"
 import * as path from "node:path"
 import { type Plugin, type ToolContext, tool } from "@opencode-ai/plugin"
+import { getProjectId } from "./worktree/state"
 import type { createOpencodeClient, Event, Message, Part, TextPart } from "@opencode-ai/sdk"
 import { adjectives, animals, colors, uniqueNamesGenerator } from "unique-names-generator"
 
@@ -1207,11 +1207,9 @@ export const BackgroundAgentsPlugin: Plugin = async (ctx) => {
 	const { client, directory } = ctx
 
 	// Project-level storage directory (shared across sessions)
-	// Matches logic in workspace-plugin.ts
-	const realDir = await fs.realpath(directory)
-	const normalizedDir = realDir.endsWith(path.sep) ? realDir.slice(0, -1) : realDir
-	const projectHash = crypto.createHash("sha256").update(normalizedDir).digest("hex").slice(0, 40)
-	const baseDir = path.join(os.homedir(), ".local", "share", "opencode", "delegations", projectHash)
+	// Uses git root commit hash for cross-worktree consistency
+	const projectId = await getProjectId(directory)
+	const baseDir = path.join(os.homedir(), ".local", "share", "opencode", "delegations", projectId)
 
 	// Ensure base directory exists (for debug logs etc)
 	await fs.mkdir(baseDir, { recursive: true })
