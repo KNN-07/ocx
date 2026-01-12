@@ -12,7 +12,8 @@
  */
 
 import type { Database } from "bun:sqlite"
-import * as fs from "node:fs/promises"
+import * as fs from "node:fs"
+import * as os from "node:os"
 import * as path from "node:path"
 import { type Plugin, tool } from "@opencode-ai/plugin"
 import type { Event } from "@opencode-ai/sdk"
@@ -24,6 +25,7 @@ import {
 	addSession,
 	clearPendingDelete,
 	getPendingDelete,
+	getProjectId,
 	getSession,
 	getWorktreePath,
 	initStateDb,
@@ -31,6 +33,165 @@ import {
 	setPendingDelete,
 } from "./worktree/state"
 import { openTerminal } from "./worktree/terminal"
+
+// =============================================================================
+// WORKTREE ERROR
+// =============================================================================
+
+/**
+ * Centralized error class for worktree operations (from CodeNomad pattern)
+ */
+class WorktreeError extends Error {
+	constructor(
+		message: string,
+		public readonly operation: string,
+		public readonly cause?: unknown,
+	) {
+		super(`${operation}: ${message}`)
+		this.name = "WorktreeError"
+	}
+}
+
+// =============================================================================
+// SESSION FORKING UTILITIES
+// =============================================================================
+
+/** OpenCode SDK client type (untyped - SDK doesn't export proper types) */
+// biome-ignore lint/suspicious/noExplicitAny: SDK client type not exported
+type OpenCodeClient = any
+
+/**
+ * Copy file if source exists. Explicit existence check - NOT silent catch (Law 4).
+ * @returns true if copied, false if source doesn't exist
+ */
+async function copyIfExists(src: string, dest: string): Promise<boolean> {
+	const exists = await fs.promises
+		.access(src)
+		.then(() => true)
+		.catch((e: NodeJS.ErrnoException) => {
+			if (e.code === "ENOENT") return false // Expected: doesn't exist
+			throw e // Unexpected I/O error - fail loud (Law 4)
+		})
+	if (!exists) return false
+
+	await fs.promises.copyFile(src, dest)
+	return true
+}
+
+/**
+ * Copy directory recursively if source exists. Explicit existence check - NOT silent catch (Law 4).
+ * @returns true if copied, false if source doesn't exist
+ */
+async function copyDirIfExists(src: string, dest: string): Promise<boolean> {
+	const exists = await fs.promises
+		.access(src)
+		.then(() => true)
+		.catch((e: NodeJS.ErrnoException) => {
+			if (e.code === "ENOENT") return false
+			throw e
+		})
+	if (!exists) return false
+
+	await fs.promises.cp(src, dest, { recursive: true })
+	return true
+}
+
+/**
+ * Walk up the parentID chain to find the root session.
+ */
+async function getRootSessionID(client: OpenCodeClient, sessionID: string): Promise<string> {
+	let currentID = sessionID
+	for (let depth = 0; depth < 10; depth++) {
+		try {
+			const session = await client.session.get({ path: { id: currentID } })
+			if (!session.data?.parentID) {
+				return currentID // This is the root
+			}
+			currentID = session.data.parentID
+		} catch (error) {
+			console.warn(`[worktree] Failed to fetch parent session for ${currentID}:`, error)
+			return currentID // Fallback: treat as root if parent chain broken
+		}
+	}
+	return currentID
+}
+
+interface ForkResult {
+	forkedSession: { id: string }
+	rootSessionId: string
+	planCopied: boolean
+	delegationsCopied: boolean
+}
+
+/**
+ * Fork session and copy plan/delegations atomically.
+ * Cleans up forked session on failure (Law 3: Atomic Predictability).
+ */
+async function forkWithContext(
+	client: OpenCodeClient,
+	sessionId: string,
+	projectId: string,
+): Promise<ForkResult> {
+	// 1. Validate inputs (Law 1: Guard Clauses)
+	if (!client) throw new WorktreeError("client is required", "forkWithContext")
+	if (!sessionId) throw new WorktreeError("sessionId is required", "forkWithContext")
+	if (!projectId) throw new WorktreeError("projectId is required", "forkWithContext")
+
+	// 2. Get root session ID
+	let rootSessionId: string
+	try {
+		rootSessionId = await getRootSessionID(client, sessionId)
+	} catch (error) {
+		throw new WorktreeError(
+			`Failed to get root session: ${error instanceof Error ? error.message : String(error)}`,
+			"forkWithContext",
+			error,
+		)
+	}
+
+	// 3. Fork session
+	const forkedSession = await client.session.fork({
+		path: { id: sessionId },
+		body: {},
+	})
+
+	// 4. Copy data with cleanup on failure
+	let planCopied = false
+	let delegationsCopied = false
+
+	try {
+		const workspaceBase = path.join(os.homedir(), ".local", "share", "opencode", "workspace")
+		const delegationsBase = path.join(os.homedir(), ".local", "share", "opencode", "delegations")
+
+		const destWorkspaceDir = path.join(workspaceBase, projectId, forkedSession.id)
+		const destDelegationsDir = path.join(delegationsBase, projectId, forkedSession.id)
+
+		await fs.promises.mkdir(destWorkspaceDir, { recursive: true })
+		await fs.promises.mkdir(destDelegationsDir, { recursive: true })
+
+		// Copy plan
+		const srcPlan = path.join(workspaceBase, projectId, rootSessionId, "plan.md")
+		const destPlan = path.join(destWorkspaceDir, "plan.md")
+		planCopied = await copyIfExists(srcPlan, destPlan)
+
+		// Copy delegations
+		const srcDelegations = path.join(delegationsBase, projectId, rootSessionId)
+		delegationsCopied = await copyDirIfExists(srcDelegations, destDelegationsDir)
+	} catch (error) {
+		// Cleanup forked session on failure (best-effort)
+		console.error("forkWithContext: Copy failed, cleaning up forked session", error)
+		await client.session.delete({ path: { id: forkedSession.id } }).catch((e) => {
+			console.error(`[worktree] Failed to cleanup forked session ${forkedSession.id}:`, e)
+		})
+		throw new WorktreeError(
+			`Failed to copy session data: ${error instanceof Error ? error.message : String(error)}`,
+			"forkWithContext",
+			error,
+		)
+	}
+
+	return { forkedSession, rootSessionId, planCopied, delegationsCopied }
+}
 
 /** Maximum retries for database initialization */
 const DB_MAX_RETRIES = 3
@@ -533,12 +694,23 @@ export const WorktreePlugin: Plugin = async (ctx) => {
 						await runHooks(worktreePath, worktreeConfig.hooks.postCreate)
 					}
 
-					const sessionId = toolCtx?.sessionID ?? "unknown"
+					// Fork session with context (replaces --session resume)
+					// Master keeps its session, worktree gets a forked session with copied plan/delegations
+					const projectId = await getProjectId(worktreePath)
+					const { forkedSession, planCopied, delegationsCopied } = await forkWithContext(
+						toolCtx.client,
+						toolCtx.sessionID,
+						projectId,
+					)
 
-					// Spawn terminal IMMEDIATELY (not deferred - avoids race conditions)
+					console.log(
+						`[worktree] Forked session ${forkedSession.id}, plan: ${planCopied}, delegations: ${delegationsCopied}`,
+					)
+
+					// Spawn terminal with forked session
 					const terminalResult = await openTerminal(
 						worktreePath,
-						`opencode --session ${sessionId}`,
+						`opencode --session ${forkedSession.id}`,
 						args.branch,
 					)
 
@@ -546,29 +718,15 @@ export const WorktreePlugin: Plugin = async (ctx) => {
 						console.warn(`[worktree] Failed to open terminal: ${terminalResult.error}`)
 					}
 
-					// Create a new session in master to avoid concurrent access to the same session
-					// The worktree continues the parent session while master gets a fresh one
-					try {
-						await toolCtx?.client?.tui?.executeCommand?.({ body: { command: "session_new" } })
-					} catch (error) {
-						// Fallback: show toast notification if session_new fails
-						await toolCtx?.client?.toast?.create?.({
-							body: {
-								type: "info",
-								message: "Press Ctrl+X N to create a new session in this terminal",
-							},
-						})
-					}
-
-					// Record session for tracking (used by delete flow)
+					// Record forked session for tracking (used by delete flow)
 					addSession(database, {
-						id: sessionId,
+						id: forkedSession.id,
 						branch: args.branch,
 						path: worktreePath,
 						createdAt: new Date().toISOString(),
 					})
 
-					return `Worktree created at ${worktreePath}\n\nA new terminal has been opened with OpenCode.`
+					return `Worktree created at ${worktreePath}\n\nA new terminal has been opened with OpenCode (forked session).`
 				},
 			}),
 

@@ -67,74 +67,137 @@ const pendingDeleteSchema = z.object({
 // =============================================================================
 
 /**
+ * Generate a 16-char hash from a directory path.
+ * Used as fallback when git root commit is unavailable.
+ */
+function hashPath(dir: string): string {
+	const hash = crypto.createHash("sha256").update(dir).digest("hex")
+	return hash.slice(0, 16)
+}
+
+/**
  * Generate a unique project ID from the project root path.
  *
  * Uses the first root commit SHA for stability across renames/moves.
  * Falls back to path hash for non-git repos or empty repos.
  * Caches result in .git/opencode for performance.
  *
+ * Handles git worktrees where .git is a file containing gitdir reference.
+ *
  * @param projectRoot - Absolute path to the project root
  * @returns 40-char hex SHA (git root) or 16-char hash (fallback)
  */
 export async function getProjectId(projectRoot: string): Promise<string> {
-	// Guard: throw if projectRoot empty/invalid
+	// Guard clause (Law 1: Early Exit)
 	if (!projectRoot || typeof projectRoot !== "string") {
-		throw new Error("projectRoot is required")
+		throw new Error("getProjectId: projectRoot is required and must be a string")
+	}
+
+	// Resolve .git path - handle both regular repos and worktrees
+	const gitPath = path.join(projectRoot, ".git")
+	const stat = await fs.promises.stat(gitPath).catch(() => null)
+
+	if (!stat) {
+		// .git doesn't exist - not a git repo, use path hash fallback
+		console.warn(`getProjectId: No .git found at ${projectRoot}, using path hash`)
+		return hashPath(projectRoot)
+	}
+
+	let gitDir = gitPath
+	if (stat.isFile()) {
+		// Worktree case: .git is a file containing gitdir reference
+		const content = await Bun.file(gitPath).text()
+		const match = content.match(/^gitdir:\s*(.+)$/m)
+
+		if (!match) {
+			throw new Error(`getProjectId: .git file exists but has invalid format at ${gitPath}`)
+		}
+
+		// Resolve path (handles both relative and absolute)
+		const gitdirPath = match[1].trim()
+		const resolvedGitdir = path.resolve(projectRoot, gitdirPath)
+
+		// Navigate from .git/worktrees/branch to .git
+		gitDir = path.resolve(resolvedGitdir, "../..")
+
+		// Validate resolved path exists
+		const gitDirStat = await fs.promises.stat(gitDir).catch(() => null)
+		if (!gitDirStat?.isDirectory()) {
+			throw new Error(`getProjectId: Resolved gitdir ${gitDir} is not a directory`)
+		}
 	}
 
 	// Try to read cached ID from .git/opencode
-	const gitDir = path.join(projectRoot, ".git")
 	const cacheFile = path.join(gitDir, "opencode")
-	try {
-		const cached = await Bun.file(cacheFile).text()
+	const cached = await Bun.file(cacheFile)
+		.text()
+		.catch(() => null)
+
+	if (cached) {
 		const trimmed = cached.trim()
-		// Validate: must be 40-char hex SHA
-		if (/^[a-f0-9]{40}$/i.test(trimmed)) {
+		// Validate cache content (40-char hex for git hash, or 16-char for path hash)
+		if (/^[a-f0-9]{40}$/i.test(trimmed) || /^[a-f0-9]{16}$/i.test(trimmed)) {
 			return trimmed
 		}
-	} catch {
-		// Cache miss or read error - continue to compute
+		// Invalid cache - log warning, regenerate
+		console.warn(`getProjectId: Invalid cache content at ${cacheFile}, regenerating`)
 	}
 
 	// Try to get first root commit SHA
+	const proc = Bun.spawn(["git", "rev-list", "--max-parents=0", "--all"], {
+		cwd: projectRoot,
+		stdout: "pipe",
+		stderr: "pipe",
+		env: {
+			...process.env,
+			GIT_DIR: undefined, // Clear to avoid ghost mode interference
+			GIT_WORK_TREE: undefined,
+		},
+	})
+
+	// 5-second timeout to prevent hanging on slow/unresponsive git
+	const timeout = new Promise<string>((_, reject) =>
+		setTimeout(() => reject(new Error("git command timeout")), 5000),
+	)
+
+	let output: string
 	try {
-		const proc = Bun.spawn(["git", "rev-list", "--max-parents=0", "--all"], {
-			cwd: projectRoot,
-			stdout: "pipe",
-			stderr: "pipe",
-		})
-
-		// 5-second timeout to prevent hanging on slow/unresponsive git
-		const timeout = new Promise<string>((_, reject) =>
-			setTimeout(() => reject(new Error("git command timeout")), 5000),
-		)
-
-		const output = await Promise.race([new Response(proc.stdout).text(), timeout])
-		const roots = output
-			.split("\n")
-			.filter(Boolean)
-			.map((s) => s.trim())
-			.toSorted()
-
-		if (roots.length > 0 && /^[a-f0-9]{40}$/i.test(roots[0])) {
-			const projectId = roots[0]
-
-			// Cache the result (warn on failure, don't throw)
-			try {
-				await Bun.write(cacheFile, projectId)
-			} catch (e) {
-				console.warn("Failed to cache project ID:", e)
-			}
-
-			return projectId
-		}
+		output = await Promise.race([new Response(proc.stdout).text(), timeout])
 	} catch {
-		// Git command failed - fallback to path hash
+		// Timeout or read error - fallback to path hash
+		console.warn("getProjectId: git rev-list timed out, using path hash")
+		return hashPath(projectRoot)
 	}
 
-	// Fallback: use current path-hash behavior
-	const hash = crypto.createHash("sha256").update(projectRoot).digest("hex")
-	return hash.slice(0, 16)
+	const exitCode = await proc.exited
+	if (exitCode !== 0) {
+		const stderr = await new Response(proc.stderr).text()
+		console.warn(`getProjectId: git rev-list failed (${exitCode}): ${stderr.trim()}`)
+		return hashPath(projectRoot) // Fallback to path hash
+	}
+
+	const roots = output
+		.split("\n")
+		.filter(Boolean)
+		.map((s) => s.trim())
+		.toSorted()
+
+	if (roots.length > 0 && /^[a-f0-9]{40}$/i.test(roots[0])) {
+		const projectId = roots[0]
+
+		// Cache the result (warn on failure, don't throw)
+		try {
+			await Bun.write(cacheFile, projectId)
+		} catch (e) {
+			console.warn("Failed to cache project ID:", e)
+		}
+
+		return projectId
+	}
+
+	// No valid roots found - fallback to path hash
+	console.warn("getProjectId: No valid git root commits found, using path hash")
+	return hashPath(projectRoot)
 }
 
 /**
