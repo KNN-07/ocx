@@ -9,9 +9,10 @@ import { mkdir, writeFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
 
 import type { Command } from "commander"
+import { type ConfigProvider, LocalConfigProvider } from "../config/provider.js"
 import { fetchComponentVersion, fetchFileContent } from "../registry/fetcher.js"
 import type { OcxLock } from "../schemas/config.js"
-import { readOcxConfig, readOcxLock } from "../schemas/config.js"
+import { readOcxLock } from "../schemas/config.js"
 import {
 	type ComponentFileObject,
 	normalizeComponentManifest,
@@ -24,7 +25,7 @@ import { createSpinner, handleError, logger } from "../utils/index.js"
 // TYPES
 // =============================================================================
 
-interface UpdateOptions {
+export interface UpdateOptions {
 	all?: boolean
 	registry?: string
 	dryRun?: boolean
@@ -78,22 +79,30 @@ export function registerUpdateCommand(program: Command): void {
 
 async function runUpdate(componentNames: string[], options: UpdateOptions): Promise<void> {
 	const cwd = options.cwd ?? process.cwd()
-	const lockPath = join(cwd, "ocx.lock")
+	const provider = await LocalConfigProvider.create(cwd)
+	await runUpdateCore(componentNames, options, provider)
+}
+
+/**
+ * Core update logic shared between local and ghost modes.
+ * Accepts a ConfigProvider to abstract config source.
+ */
+export async function runUpdateCore(
+	componentNames: string[],
+	options: UpdateOptions,
+	provider: ConfigProvider,
+): Promise<void> {
+	const lockPath = join(provider.cwd, "ocx.lock")
+	const registries = provider.getRegistries()
 
 	// -------------------------------------------------------------------------
 	// Guard clauses (Law 1: Early Exit)
 	// -------------------------------------------------------------------------
 
-	// Guard: No config file
-	const config = await readOcxConfig(cwd)
-	if (!config) {
-		throw new ConfigError("No ocx.jsonc found. Run 'ocx init' first.")
-	}
-
 	// Guard: No lock file (nothing installed yet)
-	const lock = await readOcxLock(cwd)
+	const lock = await readOcxLock(provider.cwd)
 	if (!lock || Object.keys(lock.installed).length === 0) {
-		throw new ConfigError("Nothing installed yet. Run 'ocx add <component>' first.")
+		throw new ValidationError("Nothing installed yet. Run 'ocx add <component>' first.")
 	}
 
 	// Guard: No args and no flags
@@ -193,7 +202,7 @@ async function runUpdate(componentNames: string[], options: UpdateOptions): Prom
 			const { namespace, component: componentName } = parseQualifiedComponent(qualifiedName)
 
 			// Get registry config
-			const regConfig = config.registries[namespace]
+			const regConfig = registries[namespace]
 			if (!regConfig) {
 				throw new ConfigError(
 					`Registry '${namespace}' not configured. Component '${qualifiedName}' cannot be updated.`,
@@ -286,7 +295,7 @@ async function runUpdate(componentNames: string[], options: UpdateOptions): Prom
 				)
 				if (!fileObj) continue
 
-				const targetPath = join(cwd, fileObj.target)
+				const targetPath = join(provider.cwd, fileObj.target)
 				const targetDir = dirname(targetPath)
 
 				if (!existsSync(targetDir)) {
