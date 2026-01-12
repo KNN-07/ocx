@@ -8,7 +8,7 @@ description: Criteria for reviewing implementation plans against quality standar
 > **Load this skill** when reviewing implementation plans (not code).
 
 ## TL;DR
-Systematic plan review across 4 categories: Protocol Compliance, Citation Quality, Completeness, and Actionability. Verify plans follow the plan-protocol format and provide actionable implementation guidance.
+Systematic plan review focused on 3 quality categories: Citation Quality, Completeness, and Actionability. Structure is pre-validated by `plan_save`—focus on whether the plan provides actionable implementation guidance.
 
 ## When to Use This Skill
 - When reviewing implementation plans before execution
@@ -20,16 +20,11 @@ Systematic plan review across 4 categories: Protocol Compliance, Citation Qualit
 
 ## Plan Review Checklist
 
-### 1. Plan Protocol Compliance
+### 1. Structure (Pre-validated)
 
-| Requirement | Check |
-|-------------|-------|
-| YAML frontmatter present | `status`, `phase`, `updated` fields |
-| Goal section exists | Clear, one-sentence description |
-| Phases have status markers | `[PENDING]`, `[IN PROGRESS]`, `[COMPLETE]`, `[BLOCKED]` |
-| Single CURRENT marker | Exactly ONE task marked `← CURRENT` |
-| Hierarchical task numbering | Tasks numbered 1.1, 1.2, 2.1, etc. |
-| Valid frontmatter values | status is one of: `not-started`, `in-progress`, `complete`, `blocked` |
+> **Note:** Saved plans are structurally validated by `plan_save` before storage.
+> Format compliance (YAML frontmatter, status markers, CURRENT marker, numbering) is guaranteed.
+> Focus your review on the quality aspects below.
 
 ### 2. Citation Quality
 
@@ -82,9 +77,9 @@ Systematic plan review across 4 categories: Protocol Compliance, Citation Qualit
 
 | Severity | Icon | Criteria | Action Required |
 |----------|------|----------|-----------------|
-| Critical | 🔴 | Missing frontmatter, no goal, multiple CURRENT markers | Must fix before execution |
-| Major | 🟠 | Missing citations for decisions, vague tasks, incomplete phases | Should fix |
-| Minor | 🟡 | Formatting issues, missing notes, minor numbering errors | Nice to fix |
+| Critical | 🔴 | Missing citations for key decisions, no clear goal, unactionable tasks | Must fix before execution |
+| Major | 🟠 | Vague tasks, incomplete phases, missing edge case handling | Should fix |
+| Minor | 🟡 | Missing notes, unclear dependencies, incomplete rationale | Nice to fix |
 | Nitpick | 🟢 | Style preferences, wording suggestions | Optional |
 
 ---
@@ -119,16 +114,14 @@ APPROVE | REQUEST_CHANGES | NEEDS_DISCUSSION
 #### 🟢 Nitpick
 - [Suggestion]
 
-### Plan Protocol Compliance
+### Quality Assessment
 
 | Check | Status |
 |-------|--------|
-| YAML frontmatter | PASS / FAIL |
-| Goal section | PASS / FAIL |
-| Phase status markers | PASS / FAIL |
-| Single CURRENT marker | PASS / FAIL |
-| Citation quality | PASS / FAIL |
-| Task actionability | PASS / FAIL |
+| Goal is specific and measurable | PASS / FAIL |
+| Citations support key decisions | PASS / FAIL |
+| Tasks are actionable | PASS / FAIL |
+| Edge cases addressed | PASS / FAIL |
 
 ### Positive Observations
 - [What's done well - always include at least one]
@@ -138,9 +131,9 @@ APPROVE | REQUEST_CHANGES | NEEDS_DISCUSSION
 
 ## What NOT to Do
 
+- Do NOT re-validate format—`plan_save` handles structural validation
 - Do NOT evaluate code quality (that's code-review's job)
 - Do NOT execute or modify the plan during review
-- Do NOT approve plans with missing frontmatter
 - Do NOT skip citation verification for decisions
 - Do NOT accept vague goals or ambiguous tasks
 - Do NOT forget to note positive observations
@@ -151,9 +144,9 @@ APPROVE | REQUEST_CHANGES | NEEDS_DISCUSSION
 
 Before completing a plan review, verify:
 
-- [ ] All 4 categories analyzed (Protocol, Citations, Completeness, Actionability)
+- [ ] All 3 quality categories analyzed (Citations, Completeness, Actionability)
 - [ ] Severity assigned to each finding
 - [ ] Specific locations noted for all issues
-- [ ] Plan Protocol Compliance table completed
+- [ ] Quality Assessment table completed
 - [ ] Positive observations noted
 - [ ] Output follows the standard format

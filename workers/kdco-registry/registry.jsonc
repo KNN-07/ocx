@@ -148,6 +148,9 @@
 							// Researcher is read-only - no file modifications
 							"write": "deny",
 							"edit": "deny",
+							// Deny plan and todo access - context via delegation prompts
+							"plan_read": "deny",
+							"todoread": "deny",
 							"bash": {
 								"*": "deny",
 								// Allow read-only git and package info commands
@@ -210,7 +213,10 @@
 							"edit": "allow",
 							"glob": "allow",
 							"read": "allow",
-							"write": "allow"
+							"write": "allow",
+							// Deny plan and todo access - context via delegation prompts
+							"plan_read": "deny",
+							"todoread": "deny"
 						}
 					}
 				}
@@ -236,7 +242,10 @@
 							"edit": "allow",
 							"glob": "allow",
 							"grep": "allow",
-							"bash": "allow"
+							"bash": "allow",
+							// Deny plan and todo access - context via delegation prompts
+							"plan_read": "deny",
+							"todoread": "deny"
 						}
 					}
 				}
@@ -265,7 +274,11 @@
 								"git show*": "allow",
 								"git blame*": "allow",
 								"rg *": "allow"
-							}
+							},
+							// Plan and delegation access for citation verification
+							"plan_read": "allow",
+							"delegation_read": "allow",
+							"delegation_list": "allow"
 						}
 					}
 				}
@@ -339,6 +352,9 @@
 						"permission": {
 							"edit": "deny",
 							"write": "deny",
+							// Deny plan and todo access - context via delegation prompts
+							"plan_read": "deny",
+							"todoread": "deny",
 							"bash": {
 								"*": "deny",
 								// Allow read-only filesystem exploration
