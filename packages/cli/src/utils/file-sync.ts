@@ -148,9 +148,12 @@ export function createFileSync(
 	// Chokidar config based on research
 	// followSymlinks: false is CRITICAL - don't follow symlinks
 	// awaitWriteFinish with 200ms stabilityThreshold (per watchpack pattern)
+	const isCI = process.env.CI === "true"
 	const watcher = chokidar.watch(tempDir, {
 		followSymlinks: false,
 		ignoreInitial: true,
+		usePolling: isCI,
+		interval: 100,
 		awaitWriteFinish: {
 			stabilityThreshold: 200,
 			pollInterval: 50,

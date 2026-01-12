@@ -4,8 +4,8 @@ import { lstat, mkdir, rm, symlink } from "node:fs/promises"
 import { join } from "node:path"
 import { createFileSync, type FileSyncHandle } from "../../src/utils/file-sync.js"
 
-// Platform-aware delay (from chokidar tests)
-const DELAY = process.platform === "darwin" ? 100 : 20
+// Uniform delay for all platforms including CI
+const DELAY = 200
 
 // Helper: Create temp directory (from existing OCX patterns)
 async function createTempDir(name: string): Promise<string> {
@@ -332,6 +332,7 @@ describe("file-sync", () => {
 
 			// Create the nested directory structure and file
 			await mkdir(join(tempDir, ".opencode", "skills", "test"), { recursive: true })
+			await delay(200) // Let watcher register new directories
 			await Bun.write(join(tempDir, ".opencode", "skills", "test", "SKILL.md"), "skill content")
 			// Also create a normal nested file to verify nested sync works
 			await Bun.write(join(tempDir, ".opencode", "config.json"), '{"key": "value"}')
