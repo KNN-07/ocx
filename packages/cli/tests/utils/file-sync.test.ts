@@ -91,7 +91,11 @@ describe("file-sync", () => {
 
 			// Modify file
 			await Bun.write(join(tempDir, "modify.txt"), "modified")
-			await delay(300) // Wait for awaitWriteFinish (200ms) + buffer
+			// Poll for content change (Chokidar pattern - robust for CI)
+			await waitFor(() => {
+				if (!existsSync(join(destDir, "modify.txt"))) return false
+				return readFileSync(join(destDir, "modify.txt"), "utf8") === "modified"
+			})
 
 			// Verify modified content
 			verifyFiles({ "modify.txt": "modified" }, destDir)
