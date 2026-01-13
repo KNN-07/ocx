@@ -27,19 +27,7 @@ import { profileNameSchema } from "./schema.js"
 const DEFAULT_GHOST_CONFIG: GhostConfig = {
 	$schema: "https://ocx.kdco.dev/schemas/ghost.json",
 	registries: {},
-	exclude: [
-		// Rule files - recursive (can exist at any depth)
-		"**/AGENTS.md",
-		"**/CLAUDE.md",
-		"**/CONTEXT.md",
-		// Config - root only (one per project)
-		".opencode",
-		"opencode.jsonc",
-		"opencode.json",
-	],
-	include: [],
 	renameWindow: true,
-	maxFiles: 10000,
 }
 
 /**

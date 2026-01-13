@@ -2,7 +2,11 @@
  * Ghost OpenCode Passthrough Tests
  *
  * Tests for the `ocx ghost opencode` command:
+ * - Sets OPENCODE_DISABLE_PROJECT_DISCOVERY=true env var
+ * - Sets OPENCODE_CONFIG_DIR to profile directory
  * - Sets OPENCODE_CONFIG_CONTENT env var correctly
+ * - Sets OCX_PROFILE env var
+ * - Runs directly in project directory (not temp dir)
  * - Passes all arguments through to opencode
  *
  * Note: These tests use a mock script instead of the real opencode binary
@@ -13,7 +17,6 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test"
 import { mkdir, rm } from "node:fs/promises"
 import { join } from "node:path"
 import { getGhostConfigPath, getGhostOpencodeConfigPath } from "../../src/ghost/config.js"
-import { getProfileGhostConfig } from "../../src/profile/paths.js"
 
 // =============================================================================
 // HELPERS
@@ -72,8 +75,12 @@ async function runGhostCLI(
 async function createMockOpencode(dir: string): Promise<string> {
 	const scriptPath = join(dir, "opencode")
 	const script = `#!/bin/bash
-# Output the OPENCODE_CONFIG_CONTENT env var as JSON
+# Output key environment variables for verification
+echo "OPENCODE_DISABLE_PROJECT_DISCOVERY=$OPENCODE_DISABLE_PROJECT_DISCOVERY"
+echo "OPENCODE_CONFIG_DIR=$OPENCODE_CONFIG_DIR"
 echo "OPENCODE_CONFIG_CONTENT=$OPENCODE_CONFIG_CONTENT"
+echo "OCX_PROFILE=$OCX_PROFILE"
+echo "CWD=$(pwd)"
 echo "ARGS=$@"
 exit 0
 `
@@ -143,6 +150,99 @@ describe("ocx ghost opencode", () => {
 		})
 
 		expect(output).toContain("opencode.jsonc")
+	})
+
+	it("should set OPENCODE_DISABLE_PROJECT_DISCOVERY env var", async () => {
+		// Write ghost.jsonc (required for ghost mode to be initialized)
+		const configPath = getGhostConfigPath()
+		await Bun.write(configPath, '{"registries": {}}')
+
+		// Write opencode.jsonc with settings
+		const opencodeConfigPath = getGhostOpencodeConfigPath()
+		await Bun.write(opencodeConfigPath, '{"model": "test"}')
+
+		const { output } = await runGhostCLI(
+			["opencode"],
+			{
+				XDG_CONFIG_HOME: testDir,
+				PATH: `${mockBinDir}:${process.env.PATH}`,
+			},
+			projectDir,
+		)
+
+		// The mock script outputs OPENCODE_DISABLE_PROJECT_DISCOVERY
+		expect(output).toContain("OPENCODE_DISABLE_PROJECT_DISCOVERY=true")
+	})
+
+	it("should set OPENCODE_CONFIG_DIR to profile directory", async () => {
+		// Write ghost.jsonc (required for ghost mode to be initialized)
+		const configPath = getGhostConfigPath()
+		await Bun.write(configPath, '{"registries": {}}')
+
+		// Write opencode.jsonc with settings
+		const opencodeConfigPath = getGhostOpencodeConfigPath()
+		await Bun.write(opencodeConfigPath, '{"model": "test"}')
+
+		const { output } = await runGhostCLI(
+			["opencode"],
+			{
+				XDG_CONFIG_HOME: testDir,
+				PATH: `${mockBinDir}:${process.env.PATH}`,
+			},
+			projectDir,
+		)
+
+		// The mock script outputs OPENCODE_CONFIG_DIR
+		// Should point to profile directory (default profile)
+		expect(output).toContain("OPENCODE_CONFIG_DIR=")
+		expect(output).toContain("profiles/default")
+	})
+
+	it("should set OCX_PROFILE env var", async () => {
+		// Write ghost.jsonc (required for ghost mode to be initialized)
+		const configPath = getGhostConfigPath()
+		await Bun.write(configPath, '{"registries": {}}')
+
+		// Write opencode.jsonc with settings
+		const opencodeConfigPath = getGhostOpencodeConfigPath()
+		await Bun.write(opencodeConfigPath, '{"model": "test"}')
+
+		const { output } = await runGhostCLI(
+			["opencode"],
+			{
+				XDG_CONFIG_HOME: testDir,
+				PATH: `${mockBinDir}:${process.env.PATH}`,
+			},
+			projectDir,
+		)
+
+		// The mock script outputs OCX_PROFILE
+		expect(output).toContain("OCX_PROFILE=default")
+	})
+
+	it("should run opencode in project directory (not temp dir)", async () => {
+		// Write ghost.jsonc (required for ghost mode to be initialized)
+		const configPath = getGhostConfigPath()
+		await Bun.write(configPath, '{"registries": {}}')
+
+		// Write opencode.jsonc with settings
+		const opencodeConfigPath = getGhostOpencodeConfigPath()
+		await Bun.write(opencodeConfigPath, '{"model": "test"}')
+
+		const { output } = await runGhostCLI(
+			["opencode"],
+			{
+				XDG_CONFIG_HOME: testDir,
+				PATH: `${mockBinDir}:${process.env.PATH}`,
+			},
+			projectDir,
+		)
+
+		// The mock script outputs current working directory
+		// Should be the project directory, not a temp symlink farm
+		expect(output).toContain(`CWD=${projectDir}`)
+		// Should NOT contain ocx-ghost temp directory pattern
+		expect(output).not.toMatch(/CWD=.*ocx-ghost-/)
 	})
 
 	it("should set OPENCODE_CONFIG_CONTENT env var correctly", async () => {
@@ -246,101 +346,5 @@ describe("ocx ghost opencode", () => {
 		// It will still run because we have a mock opencode binary, but the flag should be recognized
 		expect(stderr).not.toContain("unknown option")
 		expect(stderr).not.toContain("--no-rename")
-	})
-
-	it("should fail when file count exceeds maxFiles limit", async () => {
-		// Write ghost.jsonc with a very low maxFiles limit
-		const configPath = getProfileGhostConfig("default")
-		await Bun.write(
-			configPath,
-			JSON.stringify({
-				registries: {},
-				maxFiles: 3, // Very low limit
-			}),
-		)
-
-		// Write opencode.jsonc
-		const opencodeConfigPath = getGhostOpencodeConfigPath()
-		await Bun.write(opencodeConfigPath, '{"model": "test"}')
-
-		// Create a project directory with many files to exceed the limit
-		const projectDir = join(testDir, "test-project")
-		await mkdir(projectDir, { recursive: true })
-		for (let i = 0; i < 10; i++) {
-			await Bun.write(join(projectDir, `file${i}.txt`), `content${i}`)
-		}
-
-		// Run from the project directory with many files
-		const { exitCode, output } = await runGhostCLI(
-			["opencode"],
-			{
-				XDG_CONFIG_HOME: testDir,
-				PATH: `${mockBinDir}:${process.env.PATH}`,
-			},
-			projectDir,
-		)
-
-		// Should fail with file limit error (exit code 74 = BSD sysexits FILE_LIMIT)
-		expect(exitCode).toBe(74)
-		expect(output).toContain("File limit exceeded")
-		expect(output).toContain("maxFiles")
-	})
-})
-
-// =============================================================================
-// UNIT TESTS FOR loadGhostOpencodeConfig
-// =============================================================================
-
-describe("loadGhostOpencodeConfig (unit)", () => {
-	// These are already covered in ghost-config.test.ts but included here
-	// for completeness of the opencode passthrough module tests
-
-	let testDir: string
-	const originalXdgConfigHome = process.env.XDG_CONFIG_HOME
-
-	beforeEach(async () => {
-		testDir = await createTempConfigDir("ghost-opencode-unit")
-		process.env.XDG_CONFIG_HOME = testDir
-	})
-
-	afterEach(async () => {
-		if (originalXdgConfigHome === undefined) {
-			delete process.env.XDG_CONFIG_HOME
-		} else {
-			process.env.XDG_CONFIG_HOME = originalXdgConfigHome
-		}
-		await cleanupTempDir(testDir)
-	})
-
-	it("should load opencode config from separate file", async () => {
-		const { loadGhostOpencodeConfig, getGhostOpencodeConfigPath } = await import(
-			"../../src/ghost/config.js"
-		)
-		const { mkdir } = await import("node:fs/promises")
-		const { dirname } = await import("node:path")
-
-		const configPath = getGhostOpencodeConfigPath()
-		await mkdir(dirname(configPath), { recursive: true })
-
-		const opencodeConfig = {
-			model: "gpt-4",
-			customKey: "customValue",
-		}
-		await Bun.write(configPath, JSON.stringify(opencodeConfig))
-
-		const result = await loadGhostOpencodeConfig()
-
-		expect(result).toEqual({
-			model: "gpt-4",
-			customKey: "customValue",
-		})
-	})
-
-	it("should return empty object when file doesn't exist", async () => {
-		const { loadGhostOpencodeConfig } = await import("../../src/ghost/config.js")
-
-		const result = await loadGhostOpencodeConfig()
-
-		expect(result).toEqual({})
 	})
 })

@@ -244,7 +244,6 @@ Ghost mode enables working in repositories without modifying them:
 | `profile/paths.ts` | `src/profile/paths.ts` | Path constants and helpers for profile directories |
 
 | `GhostConfigProvider` | `src/config/provider.ts` | Provides config from current profile |
-| `symlink-farm.ts` | `src/utils/` | Creates temp dir with symlinks |
 | Ghost commands | `src/commands/ghost/` | init, config, registry, add, search, opencode |
 | Profile commands | `src/commands/ghost/profile/` | list, add, remove, use, show, config |
 
@@ -274,33 +273,28 @@ Ghost mode enables working in repositories without modifying them:
 
 ### How `ghost opencode` Works
 
-1. Resolves current profile using priority above
-2. Creates temp directory with symlinks to project:
-   - `exclude` patterns hide files (default: AGENTS.md, .opencode/, opencode.jsonc, etc.)
-   - `include` patterns re-add files from the excluded set
-3. Injects profile overlay (everything in profile dir except `ghost.jsonc`) into temp dir
-   - If user's `include` pattern matches a file, project version is used (not profile overlay)
-4. Sets `GIT_WORK_TREE` and `GIT_DIR` so Git sees real project
-5. Starts real-time file sync that watches the temp directory
-   - New files created by OpenCode are automatically synced to the real project
-   - Deletions are also synced (only for files that were created during the session)
-   - Respects project's `.gitignore` patterns (build artifacts, node_modules, etc. excluded)
-   - OS junk files (`.DS_Store`, `Thumbs.db`) are always excluded
-   - Files appear in the real project immediately (~200ms delay for write completion)
-   - On exit, reports: "Synced X new files to project"
-6. Sets terminal/tmux window name to `ghost[profile]:repo/branch` for session identification
-   - Disabled with `--no-rename` flag or `renameWindow: false` in ghost config
-7. Spawns OpenCode from temp dir with `OCX_PROFILE` env var set
-8. Cleans up temp dir on exit
+1. Resolves current profile using priority: `--profile` flag > `OCX_PROFILE` env > `current` symlink > `default`
+2. Sets terminal/tmux window name to `ghost[profile]:repo/branch` for session identification (if `renameWindow` enabled)
+3. Spawns OpenCode with environment variables:
+   - `OPENCODE_DISABLE_PROJECT_DISCOVERY=true` - prevents loading project configs
+   - `OPENCODE_CONFIG_DIR` - points to profile directory
+   - `OPENCODE_CONFIG_CONTENT` - serialized config (if any)
+   - `OCX_PROFILE` - current profile name
+4. OpenCode runs directly in the project directory
 
-**Customization:** Use `include` to keep specific project files visible (e.g., `["AGENTS.md"]` keeps root AGENTS.md from project instead of profile overlay).
+**Note:** This requires OpenCode with PR #8093 support for `OPENCODE_DISABLE_PROJECT_DISCOVERY`.
 
-**Real-time Sync Limitations:**
-- Sync timing: Files appear after ~200ms write completion delay
-- Crash recovery: On hard crash (SIGKILL), unsynced files remain in temp dir
-- Directory deletion: Only deletes empty directories
-- Rapid create+delete: Files created and deleted within 200ms may not sync
-- Gitignore: Only root `.gitignore` is parsed (nested gitignores not supported)
+#### Migration Note
+
+For profiles that previously had `AGENTS.md`, `CLAUDE.md`, or `CONTEXT.md` files in the profile directory that should be included, add them to the `opencode.jsonc` configuration:
+
+```jsonc
+{
+  "instructions": ["./AGENTS.md"]  // and/or CLAUDE.md, CONTEXT.md
+}
+```
+
+This ensures these files are loaded as instruction files when OpenCode starts.
 
 ### GhostConfigProvider vs ProfileManager
 
