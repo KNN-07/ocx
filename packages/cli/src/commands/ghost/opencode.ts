@@ -373,7 +373,7 @@ async function runGhostOpenCode(args: string[], options: GhostOpenCodeOptions): 
 
 	// Spawn OpenCode directly in the project directory with config via environment
 	proc = Bun.spawn({
-		cmd: ["opencode", ...remainingArgs],
+		cmd: [process.env.OPENCODE_BIN ?? "opencode", ...remainingArgs],
 		cwd: projectDir,
 		env: {
 			...process.env,
