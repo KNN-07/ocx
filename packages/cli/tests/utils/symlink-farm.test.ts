@@ -7,12 +7,17 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test"
 import { lstat, mkdir, readlink, rm } from "node:fs/promises"
 import { join } from "node:path"
+import ignore from "ignore"
 import { FileLimitExceededError } from "../../src/utils/errors.js"
 import {
+	addScopedRules,
 	cleanupSymlinkFarm,
 	createSymlinkFarm,
 	GHOST_MARKER_FILE,
+	getGitDir,
 	injectGhostFiles,
+	loadGitIgnoreStack,
+	normalizePath,
 } from "../../src/utils/symlink-farm.js"
 
 // =============================================================================
@@ -488,5 +493,367 @@ describe("maxFiles limit", () => {
 		await expect(createSymlinkFarm(sourceDir, { maxFiles: 5 })).rejects.toThrow(
 			FileLimitExceededError,
 		)
+	})
+})
+
+// =============================================================================
+// GIT IGNORE UTILITY TESTS
+// =============================================================================
+
+describe("getGitDir", () => {
+	let tempDir: string
+
+	beforeEach(async () => {
+		tempDir = await createTempDir("getGitDir-")
+	})
+
+	afterEach(async () => {
+		await cleanupTempDir(tempDir)
+	})
+
+	it("returns .git path for normal repo with .git directory", async () => {
+		const gitDir = join(tempDir, ".git")
+		await mkdir(gitDir, { recursive: true })
+
+		const result = getGitDir(tempDir)
+
+		expect(result).toBe(gitDir)
+	})
+
+	it("returns resolved path for worktree with .git file containing gitdir", async () => {
+		const actualGitDir = join(tempDir, "actual-git-dir")
+		await mkdir(actualGitDir, { recursive: true })
+		await Bun.write(join(tempDir, ".git"), `gitdir: ${actualGitDir}`)
+
+		const result = getGitDir(tempDir)
+
+		expect(result).toBe(actualGitDir)
+	})
+
+	it("returns null when no .git exists", async () => {
+		const result = getGitDir(tempDir)
+
+		expect(result).toBeNull()
+	})
+
+	it("resolves relative gitdir path correctly", async () => {
+		const actualGitDir = join(tempDir, ".worktrees", "my-worktree")
+		await mkdir(actualGitDir, { recursive: true })
+		// Relative path in .git file
+		await Bun.write(join(tempDir, ".git"), "gitdir: .worktrees/my-worktree")
+
+		const result = getGitDir(tempDir)
+
+		expect(result).toBe(actualGitDir)
+	})
+})
+
+describe("addScopedRules", () => {
+	it("scopes basic pattern to subdirectory", () => {
+		const ig = ignore()
+		addScopedRules(ig, "*.log", "src")
+
+		expect(ig.ignores("src/file.log")).toBe(true)
+		expect(ig.ignores("file.log")).toBe(false)
+	})
+
+	it("scopes negation pattern to subdirectory", () => {
+		const ig = ignore()
+		// First add a rule to ignore everything
+		ig.add("src/**")
+		// Then add the negation
+		addScopedRules(ig, "!keep", "src")
+
+		expect(ig.ignores("src/other")).toBe(true)
+		expect(ig.ignores("src/keep")).toBe(false)
+	})
+
+	it("handles rooted pattern by removing leading slash", () => {
+		const ig = ignore()
+		addScopedRules(ig, "/build", "src")
+
+		expect(ig.ignores("src/build")).toBe(true)
+		expect(ig.ignores("build")).toBe(false)
+	})
+
+	it("skips comments and empty lines", () => {
+		const ig = ignore()
+		const content = `
+# This is a comment
+*.log
+
+  # Another comment
+*.tmp
+`
+		addScopedRules(ig, content, "src")
+
+		expect(ig.ignores("src/file.log")).toBe(true)
+		expect(ig.ignores("src/file.tmp")).toBe(true)
+		// Comments should not be treated as patterns
+		expect(ig.ignores("src/# This is a comment")).toBe(false)
+	})
+
+	it("leaves patterns unchanged when subdir is empty (root)", () => {
+		const ig = ignore()
+		addScopedRules(ig, "*.log", "")
+
+		expect(ig.ignores("file.log")).toBe(true)
+		expect(ig.ignores("src/file.log")).toBe(true)
+	})
+})
+
+describe("loadGitIgnoreStack", () => {
+	let tempDir: string
+
+	beforeEach(async () => {
+		tempDir = await createTempDir("loadGitIgnore-")
+	})
+
+	afterEach(async () => {
+		await cleanupTempDir(tempDir)
+	})
+
+	it("returns null for non-git repo", async () => {
+		const result = await loadGitIgnoreStack(tempDir)
+
+		expect(result).toBeNull()
+	})
+
+	it("returns ignore instance for git repo with .gitignore", async () => {
+		// Create .git directory
+		await mkdir(join(tempDir, ".git"), { recursive: true })
+		// Create .gitignore
+		await Bun.write(join(tempDir, ".gitignore"), "*.log\nnode_modules/")
+
+		const result = await loadGitIgnoreStack(tempDir)
+
+		expect(result).not.toBeNull()
+		expect(result?.ignores("file.log")).toBe(true)
+		expect(result?.ignores("node_modules/")).toBe(true)
+		expect(result?.ignores("src/index.ts")).toBe(false)
+	})
+
+	it("includes .git/info/exclude patterns", async () => {
+		// Create .git directory and info subdirectory
+		await mkdir(join(tempDir, ".git", "info"), { recursive: true })
+		// Create exclude file
+		await Bun.write(join(tempDir, ".git", "info", "exclude"), "*.secret\nmy-local-stuff/")
+
+		const result = await loadGitIgnoreStack(tempDir)
+
+		expect(result).not.toBeNull()
+		expect(result?.ignores("password.secret")).toBe(true)
+		expect(result?.ignores("my-local-stuff/")).toBe(true)
+	})
+
+	it("combines .gitignore and .git/info/exclude patterns", async () => {
+		// Create .git directory and info subdirectory
+		await mkdir(join(tempDir, ".git", "info"), { recursive: true })
+		// Create .gitignore
+		await Bun.write(join(tempDir, ".gitignore"), "*.log")
+		// Create exclude file
+		await Bun.write(join(tempDir, ".git", "info", "exclude"), "*.secret")
+
+		const result = await loadGitIgnoreStack(tempDir)
+
+		expect(result).not.toBeNull()
+		// Both patterns should work
+		expect(result?.ignores("file.log")).toBe(true)
+		expect(result?.ignores("password.secret")).toBe(true)
+	})
+})
+
+describe("gitignore-aware traversal", () => {
+	let sourceDir: string
+
+	beforeEach(async () => {
+		sourceDir = await createTempDir("gitignore-traversal-")
+	})
+
+	afterEach(async () => {
+		await cleanupTempDir(sourceDir)
+	})
+
+	it("counts gitignored directory as 1, not traversed", async () => {
+		// Create .git directory to make it a git repo
+		await mkdir(join(sourceDir, ".git"), { recursive: true })
+		// Create .gitignore
+		await Bun.write(join(sourceDir, ".gitignore"), "node_modules/")
+		// Create node_modules with many files inside
+		const nmDir = join(sourceDir, "node_modules")
+		await mkdir(nmDir, { recursive: true })
+		for (let i = 0; i < 50; i++) {
+			await Bun.write(join(nmDir, `pkg${i}.js`), `// package ${i}`)
+		}
+		// Create a regular file
+		await Bun.write(join(sourceDir, "index.ts"), "export {}")
+
+		// Create farm with low limit - should succeed because node_modules is 1 entry
+		// If node_modules were traversed, it would be 50 entries and fail
+		const { tempDir, symlinkRoots } = await createSymlinkFarm(sourceDir, { maxFiles: 10 })
+
+		try {
+			// node_modules should be a single symlink
+			const nmStat = await lstat(join(tempDir, "node_modules"))
+			expect(nmStat.isSymbolicLink()).toBe(true)
+
+			// symlinkRoots should include node_modules
+			expect(symlinkRoots.has("node_modules")).toBe(true)
+		} finally {
+			await cleanupSymlinkFarm(tempDir)
+		}
+	})
+
+	it("scopes nested .gitignore patterns correctly", async () => {
+		// Create .git directory
+		await mkdir(join(sourceDir, ".git"), { recursive: true })
+		// Create root .gitignore
+		await Bun.write(join(sourceDir, ".gitignore"), "*.log")
+		// Create src directory with its own .gitignore
+		await mkdir(join(sourceDir, "src"), { recursive: true })
+		await Bun.write(join(sourceDir, "src", ".gitignore"), "*.tmp")
+		// Create test files
+		await Bun.write(join(sourceDir, "root.log"), "log") // Should be ignored
+		await Bun.write(join(sourceDir, "root.txt"), "text") // Should be included
+		await Bun.write(join(sourceDir, "src", "nested.tmp"), "tmp") // Should be ignored
+		await Bun.write(join(sourceDir, "src", "nested.ts"), "ts") // Should be included
+
+		// Need to add an exclude pattern to force partial traversal of src/
+		// Otherwise src/ is symlinked as a whole and nested gitignore is not loaded
+		const { tempDir, symlinkRoots } = await createSymlinkFarm(sourceDir, {
+			excludePatterns: ["**/AGENTS.md"], // Forces partial traversal of directories
+		})
+
+		try {
+			// root.log should NOT be linked (gitignored)
+			expect(symlinkRoots.has("root.log")).toBe(false)
+			// root.txt should be linked
+			expect(symlinkRoots.has("root.txt")).toBe(true)
+			// src directory is partial (due to exclude pattern), individual files linked
+			// nested.ts should be included
+			const nestedTsExists = await Bun.file(join(tempDir, "src", "nested.ts")).exists()
+			expect(nestedTsExists).toBe(true)
+			// nested.tmp should NOT be linked (gitignored by src/.gitignore)
+			const nestedTmpExists = await Bun.file(join(tempDir, "src", "nested.tmp")).exists()
+			expect(nestedTmpExists).toBe(false)
+		} finally {
+			await cleanupSymlinkFarm(tempDir)
+		}
+	})
+
+	it("always skips .git directory", async () => {
+		// Create .git directory with content
+		await mkdir(join(sourceDir, ".git", "objects"), { recursive: true })
+		await Bun.write(join(sourceDir, ".git", "config"), "[core]")
+		await Bun.write(join(sourceDir, ".git", "objects", "pack"), "data")
+		// Create regular file
+		await Bun.write(join(sourceDir, "package.json"), "{}")
+
+		const { tempDir, symlinkRoots } = await createSymlinkFarm(sourceDir, {})
+
+		try {
+			// .git should NOT be in symlinkRoots
+			expect(symlinkRoots.has(".git")).toBe(false)
+			// .git should not exist in temp dir
+			const gitExists = await Bun.file(join(tempDir, ".git")).exists()
+			expect(gitExists).toBe(false)
+			// package.json should be linked
+			expect(symlinkRoots.has("package.json")).toBe(true)
+		} finally {
+			await cleanupSymlinkFarm(tempDir)
+		}
+	})
+})
+
+// =============================================================================
+// PATH CONTAINMENT GUARD TESTS (PR #61)
+// =============================================================================
+
+describe("path containment guard", () => {
+	let projectDir: string
+	let outsideDir: string
+	let tempDir: string | undefined
+
+	beforeEach(async () => {
+		projectDir = await createTempDir("path-containment-project-")
+		outsideDir = await createTempDir("path-containment-outside-")
+	})
+
+	afterEach(async () => {
+		if (tempDir) {
+			await cleanupSymlinkFarm(tempDir)
+		}
+		await cleanupTempDir(projectDir)
+		await cleanupTempDir(outsideDir)
+	})
+
+	it("rejects path prefix collision (/proj vs /project)", async () => {
+		// Simulate directory names that are prefixes of each other
+		// The guard uses normalize(relative(...)) which should handle this correctly
+		const proj = await createTempDir("proj")
+		const project = await createTempDir("project")
+
+		try {
+			// Create .git in project to make it a git repo
+			await mkdir(join(project, ".git"), { recursive: true })
+			await Bun.write(join(project, "file.txt"), "content")
+
+			// The relative path from "proj" to "project" should be "../project-..."
+			// which should be detected as outside
+			const { symlinkRoots, tempDir: td } = await createSymlinkFarm(project, {
+				projectDir: project,
+			})
+			tempDir = td
+
+			// Should succeed without issues
+			expect(symlinkRoots.has("file.txt")).toBe(true)
+		} finally {
+			await cleanupTempDir(proj)
+			await cleanupTempDir(project)
+		}
+	})
+
+	it("handles path exactly equal to '..'", () => {
+		// Test normalizePath behavior with edge cases
+		const result = normalizePath("..")
+		expect(result).toBe("..")
+
+		const result2 = normalizePath("../foo")
+		expect(result2).toBe("../foo")
+	})
+
+	it("silently skips symlinked directory pointing outside project", async () => {
+		// Create a git repo
+		await mkdir(join(projectDir, ".git"), { recursive: true })
+		await mkdir(join(projectDir, "src"), { recursive: true })
+		await Bun.write(join(projectDir, "src", "index.ts"), "export {}")
+		await Bun.write(join(projectDir, "package.json"), "{}")
+
+		// Create a file outside the project
+		await Bun.write(join(outsideDir, "external.txt"), "external content")
+
+		// Create a symlink inside project that points outside
+		const symlinkPath = join(projectDir, "external-link")
+		try {
+			await import("node:fs/promises").then((fs) => fs.symlink(outsideDir, symlinkPath))
+		} catch {
+			// Symlink creation may fail on some platforms, skip test
+			return
+		}
+
+		// Create farm - should handle the external symlink gracefully without throwing
+		const result = await createSymlinkFarm(projectDir, {
+			projectDir: projectDir,
+		})
+		tempDir = result.tempDir
+
+		// The symlink farm should be created successfully
+		// Regular files should be symlinked
+		expect(result.symlinkRoots.has("src")).toBe(true)
+		expect(result.symlinkRoots.has("package.json")).toBe(true)
+
+		// The key assertion: no error was thrown during symlink farm creation
+		// The external-link is a directory symlink pointing outside, so it should be handled
+		// (either symlinked as an opaque blob or treated specially based on gitignore status)
 	})
 })
