@@ -228,25 +228,21 @@ interface GhostOpenCodeOptions {
 
 export function registerGhostOpenCodeCommand(parent: Command): void {
 	parent
-		.command("opencode [path]")
-		.description("Launch OpenCode with ghost mode configuration in optional project path")
+		.command("opencode")
+		.description("Launch OpenCode with ghost mode configuration (first arg can be project path)")
 		.option("-p, --profile <name>", "Use specific profile")
 		.option("--no-rename", "Disable terminal/tmux window renaming")
 		.addOption(sharedOptions.json())
 		.addOption(sharedOptions.quiet())
 		.allowUnknownOption()
 		.allowExcessArguments(true)
-		.action(
-			async (pathArg: string | undefined, options: GhostOpenCodeOptions, command: Command) => {
-				try {
-					// Reconstruct args: prepend pathArg if provided, then add any remaining args
-					const args = pathArg ? [pathArg, ...command.args] : command.args
-					await runGhostOpenCode(args, options)
-				} catch (error) {
-					handleError(error, { json: options.json })
-				}
-			},
-		)
+		.action(async (options: GhostOpenCodeOptions, command: Command) => {
+			try {
+				await runGhostOpenCode(command.args, options)
+			} catch (error) {
+				handleError(error, { json: options.json })
+			}
+		})
 }
 
 async function runGhostOpenCode(args: string[], options: GhostOpenCodeOptions): Promise<void> {
