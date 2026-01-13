@@ -16,6 +16,7 @@ import { registerGhostOpenCodeCommand } from "./opencode.js"
 import { registerGhostProfileCommand } from "./profile/index.js"
 import { registerGhostRegistryCommand } from "./registry.js"
 import { registerGhostSearchCommand } from "./search.js"
+import { registerGhostUpdateCommand } from "./update.js"
 
 export function registerGhostCommand(program: Command): void {
 	const ghost = program
@@ -31,4 +32,5 @@ export function registerGhostCommand(program: Command): void {
 	registerGhostSearchCommand(ghost)
 	registerGhostOpenCodeCommand(ghost)
 	registerGhostProfileCommand(ghost)
+	registerGhostUpdateCommand(ghost)
 }
