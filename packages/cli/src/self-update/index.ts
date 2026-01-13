@@ -63,7 +63,7 @@ export function registerUpdateCheckHook(program: Command): void {
 		// Non-blocking check with silent failure
 		try {
 			const result = await checkForUpdate()
-			if (result?.updateAvailable) {
+			if (result.ok && result.updateAvailable) {
 				notifyUpdate(result.current, result.latest)
 			}
 		} catch {
@@ -76,8 +76,8 @@ export function registerUpdateCheckHook(program: Command): void {
 // RE-EXPORTS
 // =============================================================================
 
-export type { VersionCheckResult, VersionProvider } from "./check.js"
-export { checkForUpdate } from "./check.js"
+export type { CheckFailure, CheckResult, VersionCheckResult, VersionProvider } from "./check.js"
+export { checkForUpdate, EXPLICIT_UPDATE_TIMEOUT_MS } from "./check.js"
 export { getDownloadBaseUrl, getDownloadUrl } from "./download.js"
 export { notifyUpdate, notifyUpdated, notifyUpToDate } from "./notify.js"
 export type { VersionProvider as IVersionProvider } from "./types.js"

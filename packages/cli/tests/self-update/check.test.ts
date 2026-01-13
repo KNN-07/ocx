@@ -39,42 +39,46 @@ describe("checkForUpdate", () => {
 	})
 
 	describe("in development mode (__VERSION__ undefined)", () => {
-		it("returns null for dev version (0.0.0-dev)", async () => {
+		it("returns { ok: false, reason: 'dev-version' } for dev version (0.0.0-dev)", async () => {
 			// In dev/test environment, __VERSION__ is undefined -> "0.0.0-dev"
-			// The function should return null immediately without making network calls
+			// The function should return dev-version reason immediately without making network calls
 			const { checkForUpdate } = await importCheckModule()
 
 			const result = await checkForUpdate()
 
-			expect(result).toBeNull()
+			expect(result.ok).toBe(false)
+			if (!result.ok) expect(result.reason).toBe("dev-version")
 			// Should not have made any network calls
 			expect(fetchSpy).not.toHaveBeenCalled()
 		})
 	})
 
 	describe("network failure handling", () => {
-		it("returns null on network error", async () => {
+		it("returns { ok: false } on network error", async () => {
 			// Mock fetch to throw network error
 			fetchSpy.mockRejectedValue(new Error("Network error"))
 
 			// Import the module which uses fetchPackageVersion internally
 			const { checkForUpdate } = await importCheckModule()
 
-			// Since we're in dev mode, it returns null before network call
+			// Since we're in dev mode, it returns dev-version before network call
 			// This test verifies the early exit behavior
 			const result = await checkForUpdate()
-			expect(result).toBeNull()
+			expect(result.ok).toBe(false)
+			// Note: In dev mode it still returns dev-version before network call
+			if (!result.ok) expect(result.reason).toBe("dev-version")
 		})
 
-		it("returns null on timeout", async () => {
+		it("returns { ok: false } on timeout", async () => {
 			// Mock fetch to hang (never resolve)
 			fetchSpy.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 10000)))
 
 			const { checkForUpdate } = await importCheckModule()
 
-			// In dev mode, returns null before attempting fetch
+			// In dev mode, returns dev-version before attempting fetch
 			const result = await checkForUpdate()
-			expect(result).toBeNull()
+			expect(result.ok).toBe(false)
+			if (!result.ok) expect(result.reason).toBe("dev-version")
 		})
 	})
 })
@@ -154,17 +158,18 @@ describe("checkForUpdate with mocked registry", () => {
 			version: "99.0.0",
 		} as NpmPackageVersion)
 
-		// In dev environment, checkForUpdate returns null due to dev version
+		// In dev environment, checkForUpdate returns dev-version reason due to dev version
 		// This test documents the expected behavior for production
 		const { checkForUpdate } = await importCheckModule()
 		const result = await checkForUpdate()
 
-		// Dev mode returns null - this is expected
+		// Dev mode returns { ok: false, reason: 'dev-version' } - this is expected
 		// The test documents that in production with version mismatch, it would work
-		expect(result).toBeNull() // Due to dev version early exit
+		expect(result.ok).toBe(false)
+		if (!result.ok) expect(result.reason).toBe("dev-version")
 	})
 
-	it("returns updateAvailable false when versions match", async () => {
+	it("returns { ok: false } when versions match in dev mode", async () => {
 		// Mock returns same version as current (in production, this would be the current version)
 		mockFetchPackageVersion.mockResolvedValue({
 			name: "ocx",
@@ -174,8 +179,9 @@ describe("checkForUpdate with mocked registry", () => {
 		const { checkForUpdate } = await importCheckModule()
 		const result = await checkForUpdate()
 
-		// Dev mode returns null before checking
-		expect(result).toBeNull()
+		// Dev mode returns dev-version before checking
+		expect(result.ok).toBe(false)
+		if (!result.ok) expect(result.reason).toBe("dev-version")
 	})
 
 	it("handles registry timeout gracefully", async () => {
@@ -187,8 +193,8 @@ describe("checkForUpdate with mocked registry", () => {
 		const { checkForUpdate } = await importCheckModule()
 		const result = await checkForUpdate()
 
-		// Should return null (either from dev version or timeout)
-		expect(result).toBeNull()
+		// Should return { ok: false } (either from dev version or timeout)
+		expect(result.ok).toBe(false)
 	})
 
 	it("handles registry error gracefully", async () => {
@@ -198,8 +204,8 @@ describe("checkForUpdate with mocked registry", () => {
 		const { checkForUpdate } = await importCheckModule()
 		const result = await checkForUpdate()
 
-		// Should return null (silent failure)
-		expect(result).toBeNull()
+		// Should return { ok: false } (silent failure)
+		expect(result.ok).toBe(false)
 	})
 })
 
@@ -233,20 +239,21 @@ describe("checkForUpdate with injected VersionProvider", () => {
 		const result = await checkForUpdate({ version: "1.0.0" })
 
 		// Should return update available since 1.0.0 < 2.0.0
-		expect(result).not.toBeNull()
-		if (result) {
+		expect(result.ok).toBe(true)
+		if (result.ok) {
 			expect(result.current).toBe("1.0.0")
 			expect(result.latest).toBe("2.0.0")
 			expect(result.updateAvailable).toBe(true)
 		}
 	})
 
-	it("returns null for empty version", async () => {
+	it("returns { ok: false, reason: 'dev-version' } for empty version", async () => {
 		const { checkForUpdate } = await importCheckModule()
 
-		// Empty string falls back to "0.0.0-dev" which returns null
+		// Empty string falls back to "0.0.0-dev" which returns dev-version
 		const result = await checkForUpdate({ version: "" })
-		expect(result).toBeNull()
+		expect(result.ok).toBe(false)
+		if (!result.ok) expect(result.reason).toBe("dev-version")
 	})
 
 	it("returns updateAvailable false when current >= latest", async () => {
@@ -261,8 +268,8 @@ describe("checkForUpdate with injected VersionProvider", () => {
 		// Current version is newer than latest
 		const result = await checkForUpdate({ version: "2.0.0" })
 
-		expect(result).not.toBeNull()
-		if (result) {
+		expect(result.ok).toBe(true)
+		if (result.ok) {
 			expect(result.current).toBe("2.0.0")
 			expect(result.latest).toBe("1.0.0")
 			expect(result.updateAvailable).toBe(false)
@@ -279,8 +286,8 @@ describe("checkForUpdate with injected VersionProvider", () => {
 
 		const result = await checkForUpdate({ version: "1.5.0" })
 
-		expect(result).not.toBeNull()
-		if (result) {
+		expect(result.ok).toBe(true)
+		if (result.ok) {
 			expect(result.current).toBe("1.5.0")
 			expect(result.latest).toBe("1.5.0")
 			expect(result.updateAvailable).toBe(false)
@@ -292,9 +299,10 @@ describe("checkForUpdate with injected VersionProvider", () => {
 
 		const { checkForUpdate } = await importCheckModule()
 
-		// Should return null on network error (silent failure)
+		// Should return { ok: false } on network error
+		// The actual reason may be 'network-error' or 'invalid-response' depending on how the error is caught
 		const result = await checkForUpdate({ version: "1.0.0" })
-		expect(result).toBeNull()
+		expect(result.ok).toBe(false)
 	})
 })
 
@@ -302,7 +310,7 @@ describe("checkForUpdate with injected VersionProvider", () => {
 // VersionCheckResult type tests
 // =============================================================================
 
-describe("VersionCheckResult interface", () => {
+describe("CheckResult interface", () => {
 	it("defines the expected shape", async () => {
 		// Import to verify the type is exported
 		const checkModule = await importCheckModule()
@@ -311,12 +319,16 @@ describe("VersionCheckResult interface", () => {
 		expect(typeof checkModule.checkForUpdate).toBe("function")
 	})
 
-	it("returns null or valid result shape", async () => {
+	it("returns CheckResult with ok property", async () => {
 		const { checkForUpdate } = await importCheckModule()
 		const result = await checkForUpdate()
 
-		// Result should be null or have the expected shape
-		if (result !== null) {
+		// Result should always have ok property
+		expect(result).toHaveProperty("ok")
+		expect(typeof result.ok).toBe("boolean")
+
+		if (result.ok) {
+			// Success case has current, latest, updateAvailable
 			expect(result).toHaveProperty("current")
 			expect(result).toHaveProperty("latest")
 			expect(result).toHaveProperty("updateAvailable")
@@ -324,7 +336,22 @@ describe("VersionCheckResult interface", () => {
 			expect(typeof result.latest).toBe("string")
 			expect(typeof result.updateAvailable).toBe("boolean")
 		} else {
-			expect(result).toBeNull()
+			// Failure case has reason
+			expect(result).toHaveProperty("reason")
+			expect(["dev-version", "timeout", "network-error", "invalid-response"]).toContain(
+				result.reason,
+			)
 		}
+	})
+
+	it("accepts custom timeout parameter", async () => {
+		const { checkForUpdate, EXPLICIT_UPDATE_TIMEOUT_MS } = await importCheckModule()
+
+		// Verify the constant is exported
+		expect(EXPLICIT_UPDATE_TIMEOUT_MS).toBe(10_000)
+
+		// Verify function accepts timeout parameter (will still return dev-version in test env)
+		const result = await checkForUpdate(undefined, 5000)
+		expect(result.ok).toBe(false)
 	})
 })

@@ -16,7 +16,11 @@
  */
 
 import type { Command } from "commander"
-import { checkForUpdate } from "../../self-update/check.js"
+import {
+	type CheckFailure,
+	checkForUpdate,
+	EXPLICIT_UPDATE_TIMEOUT_MS,
+} from "../../self-update/check.js"
 import {
 	detectInstallMethod,
 	type InstallMethod,
@@ -41,6 +45,15 @@ import { createSpinner } from "../../utils/spinner.js"
 /** Semver pattern to validate version format before package manager invocation */
 const SEMVER_PATTERN = /^\d+\.\d+\.\d+(-[\w.]+)?$/
 
+/** Error messages for each failure reason (Law 5: Intentional Naming) */
+const UPDATE_ERROR_MESSAGES: Record<CheckFailure["reason"], string> = {
+	"dev-version":
+		"Cannot check for updates in development mode. Install via npm for update support.",
+	timeout: "Update check timed out after 10s. Try again or check your network.",
+	"network-error": "Cannot reach npm registry. Verify your internet connection.",
+	"invalid-response": "Received invalid response from npm registry. Try again later.",
+}
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -62,12 +75,15 @@ interface UpdateOptions {
 async function updateCommand(options: UpdateOptions): Promise<void> {
 	const method = options.method ? parseInstallMethod(options.method) : detectInstallMethod()
 
-	// Check current version
-	const result = await checkForUpdate()
-	if (!result) {
-		throw new SelfUpdateError("Failed to check for updates")
+	// Check current version with explicit timeout (user is willing to wait)
+	const result = await checkForUpdate(undefined, EXPLICIT_UPDATE_TIMEOUT_MS)
+
+	// Law 1: Early exit for failure
+	if (!result.ok) {
+		throw new SelfUpdateError(UPDATE_ERROR_MESSAGES[result.reason])
 	}
 
+	// Law 2: After guard, result is typed as success
 	const { current, latest, updateAvailable } = result
 
 	// Early exit: already up to date (unless forced)
@@ -87,6 +103,7 @@ async function updateCommand(options: UpdateOptions): Promise<void> {
 		case "npm":
 		case "pnpm":
 		case "bun":
+		case "yarn":
 		case "unknown": {
 			await updateViaPackageManager(method, current, targetVersion)
 			break

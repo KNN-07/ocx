@@ -1,15 +1,17 @@
 /**
- * Self-Update Version Checking
+ * Check for available updates to the OCX CLI.
+ * Returns a discriminated union: { ok: true, ... } for success,
+ * { ok: false, reason: '...' } for failure with typed reason.
  *
- * Checks for newer OCX versions with minimal impact on CLI startup time.
  * Follows the 5 Laws of Elegant Defense:
- * - Early Exit: Return null on any failure (silent)
- * - Parse Don't Validate: Use typed VersionCheckResult
+ * - Early Exit: Return failure reason immediately on error
+ * - Parse Don't Validate: Use typed CheckResult discriminated union
  * - Atomic Predictability: Pure comparison logic
  * - Fail Fast: Abort on timeout, don't block UX
  * - Intentional Naming: Self-documenting function names
  */
 
+import { NetworkError } from "../utils/errors.js"
 import { fetchPackageVersion } from "../utils/npm-registry.js"
 import type { VersionProvider } from "./types.js"
 import { defaultVersionProvider } from "./version-provider.js"
@@ -28,6 +30,17 @@ export interface VersionCheckResult {
 	updateAvailable: boolean
 }
 
+/**
+ * Result of checking for available updates.
+ * Discriminated union: ok=true for success, ok=false with reason for failure.
+ */
+export type CheckResult =
+	| { ok: true; current: string; latest: string; updateAvailable: boolean }
+	| { ok: false; reason: "dev-version" | "timeout" | "network-error" | "invalid-response" }
+
+/** Extract failure type for error message mapping */
+export type CheckFailure = Extract<CheckResult, { ok: false }>
+
 // Re-export for convenience
 export type { VersionProvider } from "./types.js"
 
@@ -37,6 +50,9 @@ export type { VersionProvider } from "./types.js"
 
 /** Timeout for version check - non-blocking UX is priority */
 const VERSION_CHECK_TIMEOUT_MS = 200
+
+/** Timeout for explicit update commands (user is willing to wait) */
+export const EXPLICIT_UPDATE_TIMEOUT_MS = 10_000
 
 /** Package name on npm registry */
 const PACKAGE_NAME = "ocx"
@@ -96,21 +112,26 @@ function compareSemver(a: string, b: string): number | null {
 /**
  * Check if a newer version of OCX is available.
  *
- * Uses npm registry with 200ms timeout to ensure non-blocking UX.
- * Returns null on timeout or any error (silent failure by design).
+ * Uses npm registry with configurable timeout for different contexts:
+ * - Background checks: 200ms (non-blocking UX priority)
+ * - Explicit update command: 10s (user is willing to wait)
+ *
+ * Returns discriminated union: ok=true for success, ok=false with reason for failure.
  *
  * @param versionProvider - Optional version provider for dependency injection (testing)
- * @returns Version check result, or null if check failed/timed out
+ * @param timeoutMs - Timeout in milliseconds (default: 200ms for background checks)
+ * @returns CheckResult with success data or failure reason
  */
 export async function checkForUpdate(
 	versionProvider?: VersionProvider,
-): Promise<VersionCheckResult | null> {
+	timeoutMs: number = VERSION_CHECK_TIMEOUT_MS,
+): Promise<CheckResult> {
 	const provider = versionProvider ?? defaultVersionProvider
 	const current = provider.version || "0.0.0-dev"
 
 	// Early exit: dev version, don't check
 	if (current === "0.0.0-dev") {
-		return null
+		return { ok: false, reason: "dev-version" }
 	}
 
 	try {
@@ -118,7 +139,7 @@ export async function checkForUpdate(
 		const result = await fetchPackageVersion(
 			PACKAGE_NAME,
 			undefined,
-			AbortSignal.timeout(VERSION_CHECK_TIMEOUT_MS),
+			AbortSignal.timeout(timeoutMs),
 		)
 
 		const latest = result.version
@@ -128,16 +149,30 @@ export async function checkForUpdate(
 
 		// Early exit: can't compare (invalid versions)
 		if (comparison === null) {
-			return null
+			return { ok: false, reason: "invalid-response" }
 		}
 
 		return {
+			ok: true,
 			current,
 			latest,
 			updateAvailable: comparison > 0,
 		}
-	} catch {
-		// Silent failure - don't block CLI startup for version check
-		return null
+	} catch (error) {
+		// Categorize the failure reason for caller to handle appropriately
+		if (error instanceof Error) {
+			// Timeout/AbortError - request was aborted
+			if (error.name === "AbortError" || error.name === "TimeoutError") {
+				return { ok: false, reason: "timeout" }
+			}
+
+			// Network-level failures
+			if (error instanceof NetworkError || error.name === "NetworkError") {
+				return { ok: false, reason: "network-error" }
+			}
+		}
+
+		// Parse errors or unexpected response shapes
+		return { ok: false, reason: "invalid-response" }
 	}
 }
