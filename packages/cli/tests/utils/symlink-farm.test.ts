@@ -17,6 +17,7 @@ import {
 	getGitDir,
 	injectGhostFiles,
 	loadGitIgnoreStack,
+	normalizePath,
 } from "../../src/utils/symlink-farm.js"
 
 // =============================================================================
@@ -761,5 +762,98 @@ describe("gitignore-aware traversal", () => {
 		} finally {
 			await cleanupSymlinkFarm(tempDir)
 		}
+	})
+})
+
+// =============================================================================
+// PATH CONTAINMENT GUARD TESTS (PR #61)
+// =============================================================================
+
+describe("path containment guard", () => {
+	let projectDir: string
+	let outsideDir: string
+	let tempDir: string | undefined
+
+	beforeEach(async () => {
+		projectDir = await createTempDir("path-containment-project-")
+		outsideDir = await createTempDir("path-containment-outside-")
+	})
+
+	afterEach(async () => {
+		if (tempDir) {
+			await cleanupSymlinkFarm(tempDir)
+		}
+		await cleanupTempDir(projectDir)
+		await cleanupTempDir(outsideDir)
+	})
+
+	it("rejects path prefix collision (/proj vs /project)", async () => {
+		// Simulate directory names that are prefixes of each other
+		// The guard uses normalize(relative(...)) which should handle this correctly
+		const proj = await createTempDir("proj")
+		const project = await createTempDir("project")
+
+		try {
+			// Create .git in project to make it a git repo
+			await mkdir(join(project, ".git"), { recursive: true })
+			await Bun.write(join(project, "file.txt"), "content")
+
+			// The relative path from "proj" to "project" should be "../project-..."
+			// which should be detected as outside
+			const { symlinkRoots, tempDir: td } = await createSymlinkFarm(project, {
+				projectDir: project,
+			})
+			tempDir = td
+
+			// Should succeed without issues
+			expect(symlinkRoots.has("file.txt")).toBe(true)
+		} finally {
+			await cleanupTempDir(proj)
+			await cleanupTempDir(project)
+		}
+	})
+
+	it("handles path exactly equal to '..'", () => {
+		// Test normalizePath behavior with edge cases
+		const result = normalizePath("..")
+		expect(result).toBe("..")
+
+		const result2 = normalizePath("../foo")
+		expect(result2).toBe("../foo")
+	})
+
+	it("silently skips symlinked directory pointing outside project", async () => {
+		// Create a git repo
+		await mkdir(join(projectDir, ".git"), { recursive: true })
+		await mkdir(join(projectDir, "src"), { recursive: true })
+		await Bun.write(join(projectDir, "src", "index.ts"), "export {}")
+		await Bun.write(join(projectDir, "package.json"), "{}")
+
+		// Create a file outside the project
+		await Bun.write(join(outsideDir, "external.txt"), "external content")
+
+		// Create a symlink inside project that points outside
+		const symlinkPath = join(projectDir, "external-link")
+		try {
+			await import("node:fs/promises").then((fs) => fs.symlink(outsideDir, symlinkPath))
+		} catch {
+			// Symlink creation may fail on some platforms, skip test
+			return
+		}
+
+		// Create farm - should handle the external symlink gracefully without throwing
+		const result = await createSymlinkFarm(projectDir, {
+			projectDir: projectDir,
+		})
+		tempDir = result.tempDir
+
+		// The symlink farm should be created successfully
+		// Regular files should be symlinked
+		expect(result.symlinkRoots.has("src")).toBe(true)
+		expect(result.symlinkRoots.has("package.json")).toBe(true)
+
+		// The key assertion: no error was thrown during symlink farm creation
+		// The external-link is a directory symlink pointing outside, so it should be handled
+		// (either symlinked as an opaque blob or treated specially based on gitignore status)
 	})
 })

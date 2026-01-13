@@ -7,10 +7,10 @@
  */
 
 import { randomBytes } from "node:crypto"
-import { existsSync, readFileSync, statSync } from "node:fs"
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs"
 import { mkdir, readdir, rename, rm, stat, symlink } from "node:fs/promises"
 import { homedir, tmpdir } from "node:os"
-import { dirname, isAbsolute, join, posix, relative } from "node:path"
+import { dirname, isAbsolute, join, normalize, posix, relative, sep } from "node:path"
 import ignore, { type Ignore } from "ignore"
 import { FileLimitExceededError } from "./errors"
 import { createPathMatcher, normalizeForMatching, type PathMatcher } from "./pattern-filter"
@@ -60,7 +60,6 @@ export const GHOST_MARKER_FILE = ".ocx-ghost-marker"
 interface SymlinkOperation {
 	type: "directory"
 	source: string
-	target: string
 }
 
 /**
@@ -310,6 +309,15 @@ export async function cleanupOrphanedGhostDirs(tempBase: string = tmpdir()): Pro
  * Compute symlink plan by walking source directory and applying pattern filters.
  * Pure function - no I/O side effects except reading directory.
  *
+ * Gitignore pruning matches git/ripgrep specification:
+ * - Files and directories matching .gitignore patterns are excluded
+ * - Nested .gitignore files are scoped to their containing directory
+ * - `.git/info/exclude` and global gitignore are respected
+ *
+ * IMPORTANT: `includePatterns` cannot re-include files inside gitignored directories.
+ * Once a directory is gitignored, its contents are not traversed and pattern matching
+ * for nested paths does not occur.
+ *
  * @param sourceDir - Current directory being processed (absolute path)
  * @param projectRoot - Root of the project (for normalizing paths)
  * @param matcher - Pre-compiled PathMatcher for efficient pattern matching
@@ -340,7 +348,26 @@ export async function computeSymlinkPlan(
 	}
 
 	// Load nested .gitignore if present (gitignore rules are directory-scoped)
-	const relativeDirPath = normalizePath(relative(projectDir, sourceDir))
+	// Guard: Ensure sourceDir is contained within projectDir before loading .gitignore
+	// This prevents path traversal attacks via symlinks pointing outside the project.
+	// Silent skip matches ripgrep precedent for out-of-tree paths.
+	let resolvedSource: string
+	let resolvedProject: string
+	try {
+		resolvedSource = realpathSync(sourceDir)
+		resolvedProject = realpathSync(projectDir)
+	} catch {
+		// Cannot resolve paths (dangling symlink, permission error) - skip gitignore loading
+		resolvedSource = sourceDir
+		resolvedProject = projectDir
+	}
+	const rel = normalize(relative(resolvedProject, resolvedSource))
+	if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+		// Outside project boundary — silent skip per ripgrep precedent
+		return plan
+	}
+
+	const relativeDirPath = normalizePath(relative(resolvedProject, resolvedSource))
 	const nestedGitignorePath = join(sourceDir, ".gitignore")
 	if (gitIgnore && existsSync(nestedGitignorePath)) {
 		try {
@@ -357,7 +384,6 @@ export async function computeSymlinkPlan(
 		if (entry.name === ".git") continue
 
 		const sourcePath = join(sourceDir, entry.name)
-		const targetPath = join(projectRoot, relative(projectRoot, sourceDir), entry.name)
 		const relativePath = normalizePath(relative(projectDir, sourcePath))
 
 		// Check if gitignored (with trailing slash for directories per gitignore spec)
@@ -375,7 +401,7 @@ export async function computeSymlinkPlan(
 		if (entry.isDirectory()) {
 			if (isGitignored) {
 				// Gitignored directory → symlink atomically, count as 1
-				state.plan.push({ type: "directory", source: sourcePath, target: targetPath })
+				state.plan.push({ type: "directory", source: sourcePath })
 				state.count += 1
 				// Check file limit after counting
 				if (maxFiles > 0 && state.count > maxFiles) {
