@@ -28,6 +28,15 @@ const DEFAULT_GHOST_CONFIG: GhostConfig = {
 	$schema: "https://ocx.kdco.dev/schemas/ghost.json",
 	registries: {},
 	renameWindow: true,
+	exclude: [
+		"**/AGENTS.md",
+		"**/CLAUDE.md",
+		"**/CONTEXT.md",
+		"**/.opencode/**",
+		"**/opencode.jsonc",
+		"**/opencode.json",
+	],
+	include: [],
 }
 
 /**

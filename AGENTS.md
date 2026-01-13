@@ -275,12 +275,17 @@ Ghost mode enables working in repositories without modifying them:
 
 1. Resolves current profile using priority: `--profile` flag > `OCX_PROFILE` env > `current` symlink > `default`
 2. Sets terminal/tmux window name to `ghost[profile]:repo/branch` for session identification (if `renameWindow` enabled)
-3. Spawns OpenCode with environment variables:
+3. **Discovers project instruction files:**
+   - Walks UP from project directory to git root
+   - Finds AGENTS.md, CLAUDE.md, CONTEXT.md at each level
+   - Filters by `exclude`/`include` patterns from ghost.jsonc
+   - Include patterns override exclude patterns (TypeScript/Vite style)
+4. Spawns OpenCode with environment variables:
    - `OPENCODE_DISABLE_PROJECT_DISCOVERY=true` - prevents loading project configs
    - `OPENCODE_CONFIG_DIR` - points to profile directory
-   - `OPENCODE_CONFIG_CONTENT` - serialized config (if any)
+   - `OPENCODE_CONFIG_CONTENT` - serialized config with discovered instructions
    - `OCX_PROFILE` - current profile name
-4. OpenCode runs directly in the project directory
+5. OpenCode runs directly in the project directory
 
 **Note:** This requires OpenCode with PR #8093 support for `OPENCODE_DISABLE_PROJECT_DISCOVERY`.
 
@@ -295,6 +300,33 @@ For profiles that previously had `AGENTS.md`, `CLAUDE.md`, or `CONTEXT.md` files
 ```
 
 This ensures these files are loaded as instruction files when OpenCode starts.
+
+### Instruction File Discovery
+
+Ghost mode discovers project instruction files and passes them to OpenCode. By default, all project instruction files are excluded so only your profile's files are used.
+
+**Default exclude patterns:**
+- `**/AGENTS.md`
+- `**/CLAUDE.md`
+- `**/CONTEXT.md`
+- `**/.opencode/**`
+- `**/opencode.jsonc`
+- `**/opencode.json`
+
+**To include project files**, modify your profile's `ghost.jsonc`:
+
+```jsonc
+{
+  // Include all project AGENTS.md files
+  "exclude": ["**/CLAUDE.md", "**/CONTEXT.md", "**/.opencode/**", "**/opencode.jsonc", "**/opencode.json"],
+  
+  // Or exclude all but include specific ones (TypeScript/Vite style)
+  "exclude": ["**/AGENTS.md"],
+  "include": ["./docs/AGENTS.md"]
+}
+```
+
+Files are discovered deepest-first and profile instructions come last (highest priority).
 
 ### GhostConfigProvider vs ProfileManager
 

@@ -8,9 +8,25 @@
  * by storing registries globally.
  */
 
+import { Glob } from "bun"
 import { z } from "zod"
 import { safeRelativePathSchema } from "./common.js"
 import { registryConfigSchema } from "./config.js"
+
+/**
+ * Validates that a string is a valid glob pattern.
+ */
+const globPatternSchema = z.string().refine(
+	(pattern) => {
+		try {
+			new Glob(pattern)
+			return true
+		} catch {
+			return false
+		}
+	},
+	{ message: "Invalid glob pattern" },
+)
 
 // =============================================================================
 // GHOST CONFIG SCHEMA (ghost.jsonc)
@@ -47,6 +63,31 @@ export const ghostConfigSchema = z.object({
 		.boolean()
 		.default(true)
 		.describe("Set terminal/tmux window name when launching OpenCode"),
+
+	/**
+	 * Glob patterns for project files to exclude from OpenCode discovery.
+	 * Prevents ghost mode from loading project-local configuration files.
+	 */
+	exclude: z
+		.array(globPatternSchema)
+		.default([
+			"**/AGENTS.md",
+			"**/CLAUDE.md",
+			"**/CONTEXT.md",
+			"**/.opencode/**",
+			"**/opencode.jsonc",
+			"**/opencode.json",
+		])
+		.describe("Glob patterns for project files to exclude from OpenCode discovery"),
+
+	/**
+	 * Glob patterns for project files to include (overrides exclude).
+	 * Use when you need specific files from otherwise excluded patterns.
+	 */
+	include: z
+		.array(globPatternSchema)
+		.default([])
+		.describe("Glob patterns for project files to include (overrides exclude)"),
 })
 
 export type GhostConfig = z.infer<typeof ghostConfigSchema>
