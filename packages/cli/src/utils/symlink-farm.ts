@@ -7,9 +7,11 @@
  */
 
 import { randomBytes } from "node:crypto"
+import { existsSync, readFileSync, statSync } from "node:fs"
 import { mkdir, readdir, rename, rm, stat, symlink } from "node:fs/promises"
-import { tmpdir } from "node:os"
-import { dirname, isAbsolute, join, relative } from "node:path"
+import { homedir, tmpdir } from "node:os"
+import { dirname, isAbsolute, join, posix, relative } from "node:path"
+import ignore, { type Ignore } from "ignore"
 import { FileLimitExceededError } from "./errors"
 import { createPathMatcher, normalizeForMatching, type PathMatcher } from "./pattern-filter"
 
@@ -52,10 +54,24 @@ export const REMOVING_SUFFIX = "-removing"
 export const GHOST_MARKER_FILE = ".ocx-ghost-marker"
 
 /**
+ * Symlink operation representing an action to perform.
+ * Files are added to plan.files, directories can be whole or partial.
+ */
+interface SymlinkOperation {
+	type: "directory"
+	source: string
+	target: string
+}
+
+/**
  * Mutable state passed through recursive traversal.
  * Tracks total entries processed for file limit enforcement.
+ * Also tracks directory symlinks for gitignored directories.
  */
-type TraversalState = { count: number }
+type TraversalState = {
+	count: number
+	plan: SymlinkOperation[]
+}
 
 /**
  * Creates a temporary directory with symlinks to the source directory contents,
@@ -68,13 +84,20 @@ type TraversalState = { count: number }
  * @param options - Optional include/exclude patterns for fine-grained control
  * @returns Path to the temporary directory containing symlinks
  */
+/**
+ * Options for creating a symlink farm.
+ */
+export interface SymlinkFarmOptions {
+	includePatterns?: string[]
+	excludePatterns?: string[]
+	maxFiles?: number
+	/** Project directory for loading git ignore stack (defaults to sourceDir) */
+	projectDir?: string
+}
+
 export async function createSymlinkFarm(
 	sourceDir: string,
-	options?: {
-		includePatterns?: string[]
-		excludePatterns?: string[]
-		maxFiles?: number
-	},
+	options?: SymlinkFarmOptions,
 ): Promise<SymlinkFarmResult> {
 	// Guard: sourceDir must be absolute (Law 1: Early Exit)
 	if (!isAbsolute(sourceDir)) {
@@ -88,6 +111,10 @@ export async function createSymlinkFarm(
 	await Bun.write(join(tempDir, GHOST_MARKER_FILE), "")
 
 	try {
+		// Load git ignore stack for respecting .gitignore patterns
+		const projectDir = options?.projectDir ?? sourceDir
+		const gitIgnore = await loadGitIgnoreStack(projectDir)
+
 		// Create PathMatcher once with patterns (Law 2: Parse at boundary)
 		const matcher = createPathMatcher(
 			options?.includePatterns ?? [],
@@ -96,15 +123,35 @@ export async function createSymlinkFarm(
 
 		// Initialize traversal state for file limit tracking
 		const maxFiles = options?.maxFiles ?? 10000
-		const state: TraversalState = { count: 0 }
+		const state: TraversalState = { count: 0, plan: [] }
 
 		// Compute plan (decision phase - pure logic)
-		const plan = await computeSymlinkPlan(sourceDir, sourceDir, matcher, state, maxFiles)
+		const plan = await computeSymlinkPlan(
+			sourceDir,
+			sourceDir,
+			matcher,
+			state,
+			maxFiles,
+			gitIgnore,
+			projectDir,
+		)
 
 		// Execute plan (I/O phase - creates symlinks)
 		// Track all symlinked paths for containment checks during overlay
 		const symlinkRoots = new Set<string>()
 		await executeSymlinkPlan(plan, sourceDir, tempDir, "", symlinkRoots)
+
+		// Execute gitignored directory symlinks (from state.plan)
+		for (const op of state.plan) {
+			const relPath = normalizePath(relative(sourceDir, op.source))
+			const targetPath = join(tempDir, relPath)
+			const parentDir = dirname(targetPath)
+			if (parentDir !== tempDir) {
+				await mkdir(parentDir, { recursive: true })
+			}
+			await symlink(op.source, targetPath)
+			symlinkRoots.add(relPath)
+		}
 
 		return { tempDir, symlinkRoots }
 	} catch (error) {
@@ -266,6 +313,10 @@ export async function cleanupOrphanedGhostDirs(tempBase: string = tmpdir()): Pro
  * @param sourceDir - Current directory being processed (absolute path)
  * @param projectRoot - Root of the project (for normalizing paths)
  * @param matcher - Pre-compiled PathMatcher for efficient pattern matching
+ * @param state - Mutable traversal state for counting and gitignored directory symlinks
+ * @param maxFiles - Maximum number of files to process (0 = unlimited)
+ * @param gitIgnore - Git ignore instance for respecting .gitignore patterns (null if not a git repo)
+ * @param projectDir - Project directory for computing relative paths for gitignore matching
  * @returns Pre-computed symlink plan
  */
 export async function computeSymlinkPlan(
@@ -274,6 +325,8 @@ export async function computeSymlinkPlan(
 	matcher: PathMatcher,
 	state: TraversalState,
 	maxFiles: number,
+	gitIgnore: Ignore | null,
+	projectDir: string,
 ): Promise<SymlinkPlan> {
 	// Guard: sourceDir must be absolute (Law 1: Early Exit)
 	if (!isAbsolute(sourceDir)) {
@@ -286,47 +339,97 @@ export async function computeSymlinkPlan(
 		partialDirs: new Map(),
 	}
 
-	const entries = await readdir(sourceDir, { withFileTypes: true })
-
-	// Count entries BEFORE filtering (fail-fast on massive directories)
-	state.count += entries.length
-
-	// Guard: Check file limit (0 = unlimited)
-	if (maxFiles > 0 && state.count > maxFiles) {
-		throw new FileLimitExceededError(state.count, maxFiles)
+	// Load nested .gitignore if present (gitignore rules are directory-scoped)
+	const relativeDirPath = normalizePath(relative(projectDir, sourceDir))
+	const nestedGitignorePath = join(sourceDir, ".gitignore")
+	if (gitIgnore && existsSync(nestedGitignorePath)) {
+		try {
+			addScopedRules(gitIgnore, readFileSync(nestedGitignorePath, "utf-8"), relativeDirPath)
+		} catch {
+			// Nested .gitignore unreadable - continue without it
+		}
 	}
 
+	const entries = await readdir(sourceDir, { withFileTypes: true })
+
 	for (const entry of entries) {
+		// CRITICAL: Never traverse .git directory
+		if (entry.name === ".git") continue
+
 		const sourcePath = join(sourceDir, entry.name)
-		const relativePath = normalizeForMatching(sourcePath, projectRoot)
+		const targetPath = join(projectRoot, relative(projectRoot, sourceDir), entry.name)
+		const relativePath = normalizePath(relative(projectDir, sourcePath))
+
+		// Check if gitignored (with trailing slash for directories per gitignore spec)
+		const checkPath = entry.isDirectory() ? `${relativePath}/` : relativePath
+		const isGitignored = gitIgnore?.ignores(checkPath) ?? false
 
 		// Law 1: Early Exit - check patterns FIRST for all paths
-		const disposition = matcher.getDisposition(relativePath)
+		const matcherRelativePath = normalizeForMatching(sourcePath, projectRoot)
+		const disposition = matcher.getDisposition(matcherRelativePath)
 
 		if (disposition.type === "excluded") {
 			continue // Skip this path entirely
 		}
 
-		if (disposition.type === "included") {
-			// Fully included - symlink as-is
-			if (entry.isDirectory()) {
-				plan.wholeDirs.push(entry.name)
-			} else {
-				plan.files.push(entry.name)
-			}
-			continue
-		}
-
-		// disposition.type === "partial" - directory needs recursive expansion
 		if (entry.isDirectory()) {
-			const nestedPlan = await computeSymlinkPlan(sourcePath, projectRoot, matcher, state, maxFiles)
+			if (isGitignored) {
+				// Gitignored directory → symlink atomically, count as 1
+				state.plan.push({ type: "directory", source: sourcePath, target: targetPath })
+				state.count += 1
+				// Check file limit after counting
+				if (maxFiles > 0 && state.count > maxFiles) {
+					throw new FileLimitExceededError(state.count, maxFiles)
+				}
+				continue // Don't enter gitignored directories
+			}
+
+			if (disposition.type === "included") {
+				// Fully included - symlink as-is
+				plan.wholeDirs.push(entry.name)
+				state.count += 1
+				// Check file limit after counting
+				if (maxFiles > 0 && state.count > maxFiles) {
+					throw new FileLimitExceededError(state.count, maxFiles)
+				}
+				continue
+			}
+
+			// disposition.type === "partial" - directory needs recursive expansion
+			const nestedPlan = await computeSymlinkPlan(
+				sourcePath,
+				projectRoot,
+				matcher,
+				state,
+				maxFiles,
+				gitIgnore,
+				projectDir,
+			)
 			plan.partialDirs.set(entry.name, nestedPlan)
 		} else {
+			// File handling - skip gitignored files
+			if (isGitignored) continue
+
+			if (disposition.type === "included") {
+				plan.files.push(entry.name)
+				state.count += 1
+				// Check file limit after counting
+				if (maxFiles > 0 && state.count > maxFiles) {
+					throw new FileLimitExceededError(state.count, maxFiles)
+				}
+				continue
+			}
+
 			// Files with "partial" disposition: when there are no include patterns,
 			// this means we're in default exclude-only mode and the file should be included
 			// (it wasn't matched by any exclude pattern, just marked partial due to directory
 			// traversal optimization for nested excludes like **/AGENTS.md)
 			plan.files.push(entry.name)
+			state.count += 1
+			// Check file limit after counting
+			if (maxFiles > 0 && state.count > maxFiles) {
+				throw new FileLimitExceededError(state.count, maxFiles)
+			}
 		}
 	}
 
@@ -384,4 +487,128 @@ export async function executeSymlinkPlan(
 		const nestedRelativePath = relativePath ? `${relativePath}/${dirName}` : dirName
 		await executeSymlinkPlan(nestedPlan, sourcePath, targetPath, nestedRelativePath, symlinkRoots)
 	}
+}
+
+// ============================================================================
+// Git Ignore Utilities
+// ============================================================================
+
+/**
+ * Normalize path separators for cross-platform gitignore matching.
+ */
+export function normalizePath(p: string): string {
+	return p.replace(/\\/g, "/").replace(/\/$/, "")
+}
+
+/**
+ * Get the actual .git directory, handling worktrees where .git is a file.
+ * Returns null if not a git repo.
+ */
+export function getGitDir(projectDir: string): string | null {
+	const gitPath = join(projectDir, ".git")
+	try {
+		const stats = statSync(gitPath)
+		if (stats.isDirectory()) return gitPath
+		if (stats.isFile()) {
+			// Worktree: .git is a file containing "gitdir: <path>"
+			const content = readFileSync(gitPath, "utf-8").trim()
+			const match = content.match(/^gitdir:\s*(.+)$/)
+			if (match?.[1]) {
+				const gitdir = match[1]
+				return isAbsolute(gitdir) ? gitdir : join(projectDir, gitdir)
+			}
+		}
+	} catch {
+		// .git doesn't exist or can't be read
+	}
+	return null
+}
+
+/**
+ * Get global gitignore path from git config.
+ * Falls back to XDG location if not configured.
+ */
+export function getGlobalGitignore(): string | null {
+	const gitconfigPath = join(homedir(), ".gitconfig")
+	try {
+		const content = readFileSync(gitconfigPath, "utf-8")
+		const match = content.match(/excludesfile\s*=\s*(.+)/i)
+		if (match?.[1]) {
+			const p = match[1].trim().replace(/^~/, homedir())
+			if (existsSync(p)) return p
+		}
+	} catch {
+		// .gitconfig doesn't exist or can't be read
+	}
+	const xdgConfig = process.env.XDG_CONFIG_HOME || join(homedir(), ".config")
+	const xdgIgnore = join(xdgConfig, "git", "ignore")
+	return existsSync(xdgIgnore) ? xdgIgnore : null
+}
+
+/**
+ * Add gitignore rules scoped to a subdirectory.
+ * Rewrites patterns to be root-relative.
+ */
+export function addScopedRules(ig: Ignore, content: string, subdir: string): void {
+	for (const line of content.split(/\r?\n/)) {
+		const trimmed = line.trim()
+		if (!trimmed || trimmed.startsWith("#")) continue
+
+		let pattern = trimmed
+		let isNegation = false
+
+		if (pattern.startsWith("!")) {
+			isNegation = true
+			pattern = pattern.slice(1)
+		}
+		if (pattern.startsWith("/")) {
+			pattern = pattern.slice(1) // Rooted pattern
+		}
+
+		const scoped = subdir ? posix.join(subdir, pattern) : pattern
+		ig.add(isNegation ? `!${scoped}` : scoped)
+	}
+}
+
+/**
+ * Load complete git ignore stack for a project.
+ * Returns null if not a git repo (.git not found at root).
+ */
+export async function loadGitIgnoreStack(projectDir: string): Promise<Ignore | null> {
+	const gitDir = getGitDir(projectDir)
+	if (!gitDir) return null // Not a git repo
+
+	const ig = ignore()
+
+	// 1. Global gitignore
+	const globalPath = getGlobalGitignore()
+	if (globalPath) {
+		try {
+			addScopedRules(ig, readFileSync(globalPath, "utf-8"), "")
+		} catch {
+			// Global gitignore unreadable - continue without it
+		}
+	}
+
+	// 2. .git/info/exclude
+	const excludePath = join(gitDir, "info", "exclude")
+	try {
+		if (existsSync(excludePath)) {
+			addScopedRules(ig, readFileSync(excludePath, "utf-8"), "")
+		}
+	} catch {
+		// Exclude file unreadable - continue without it
+	}
+
+	// 3. Root .gitignore
+	const rootGitignore = join(projectDir, ".gitignore")
+	try {
+		if (existsSync(rootGitignore)) {
+			addScopedRules(ig, readFileSync(rootGitignore, "utf-8"), "")
+		}
+	} catch {
+		// Root .gitignore unreadable - continue without it
+	}
+
+	return ig
 }
