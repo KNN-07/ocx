@@ -229,6 +229,15 @@ export function discoverInstructionFiles(projectDir: string, gitRoot: string | n
 }
 
 /**
+ * Normalize a glob pattern by stripping leading "./" for consistent matching.
+ * Discovered paths are repo-relative (e.g. "src/AGENTS.md") so patterns
+ * with "./" prefix (e.g. "./src/AGENTS.md") need normalization to match.
+ */
+function normalizePattern(pattern: string): string {
+	return pattern.startsWith("./") ? pattern.slice(2) : pattern
+}
+
+/**
  * Filter files using TypeScript/Vite style include/exclude.
  * Include overrides exclude, order is preserved.
  */
@@ -236,13 +245,13 @@ export function filterByPatterns(files: string[], exclude: string[], include: st
 	return files.filter((file) => {
 		// Check include first - include overrides exclude
 		for (const pattern of include) {
-			const glob = new Glob(pattern)
+			const glob = new Glob(normalizePattern(pattern))
 			if (glob.match(file)) return true
 		}
 
 		// Check exclude
 		for (const pattern of exclude) {
-			const glob = new Glob(pattern)
+			const glob = new Glob(normalizePattern(pattern))
 			if (glob.match(file)) return false
 		}
 

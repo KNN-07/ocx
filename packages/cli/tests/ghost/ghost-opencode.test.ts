@@ -648,6 +648,28 @@ describe("filterByPatterns", () => {
 		expect(result).toEqual(["src/AGENTS.md"])
 	})
 
+	it("normalizes patterns with leading ./ prefix", () => {
+		const files = ["src/components/AGENTS.md", "AGENTS.md", "src/AGENTS.md"]
+
+		// Include pattern with ./ prefix should match file without ./ prefix
+		const result = filterByPatterns(
+			files,
+			["**/AGENTS.md"], // exclude all
+			["./src/components/AGENTS.md"], // include with ./ prefix
+		)
+
+		expect(result).toEqual(["src/components/AGENTS.md"])
+	})
+
+	it("normalizes exclude patterns with leading ./ prefix", () => {
+		const files = ["src/AGENTS.md", "docs/AGENTS.md"]
+
+		// Exclude pattern with ./ prefix should match file without ./ prefix
+		const result = filterByPatterns(files, ["./src/AGENTS.md"], [])
+
+		expect(result).toEqual(["docs/AGENTS.md"])
+	})
+
 	it("handles default ghost config exclude patterns", () => {
 		const files = ["AGENTS.md", "CLAUDE.md", "CONTEXT.md", "docs/AGENTS.md"]
 
