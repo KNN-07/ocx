@@ -118,10 +118,10 @@ Use these quick checks to verify ghost mode is working correctly:
 | Test | Command | Expected |
 |------|---------|----------|
 | **AGENTS.md excluded** | `ghost opencode run "What does the AGENTS.md say?"` | Should see profile's AGENTS.md, not project's |
-| **AGENTS.md included** | (with `include: ["AGENTS.md"]`) Same command | Should see project's AGENTS.md |
+| **AGENTS.md included** | `ghost opencode run "What does the AGENTS.md say?"` (with `include: ["AGENTS.md"]` in ghost.jsonc) | Should see project's AGENTS.md |
 | **Plugins visible** | `ghost opencode run "What plugins are available?"` | Should list profile's configured plugins |
 | **Skills visible** | `ghost opencode run "What skills do you have?"` | Should list profile's skills |
-| **File sync works** | `ghost opencode run "Create test.txt with 'hello'"` | File should appear in real project |
+| **MCP servers** | `ghost opencode run "What MCP servers are configured?"` | Should list profile's MCP servers |
 | **Gitignore respected** | `ghost opencode run "Create debug.log"` (if *.log gitignored) | File should NOT appear in project |
 
 #### Troubleshooting
@@ -136,15 +136,26 @@ Use these quick checks to verify ghost mode is working correctly:
 #### Why Ghost Mode for Testing?
 
 - **Isolated**: Uses `ocx-dev` profile, separate from your default config
-- **No cleanup needed**: Temp directory is automatically cleaned up
-- **Real-time sync**: New files sync to project immediately (~200ms)
 - **Safe**: Won't affect your working files or git state
-- **Sync reporting**: Exit shows "Synced X new files to project"
 
 #### For AI Agents
 
 When testing OCX features, **always use ghost mode** with the `ocx-dev` profile.
 This prevents accidental modifications to the repository and provides clean isolation.
+
+#### Using a Custom OpenCode Binary
+
+If you have your own fork of OpenCode or want to test with a specific version, use the `OPENCODE_BIN` environment variable:
+
+```bash
+OPENCODE_BIN="/path/to/your/opencode/dist/opencode-darwin-arm64/bin/opencode" \
+ocx ghost opencode
+```
+
+This is useful for:
+- Testing with unreleased OpenCode features
+- Using a custom OpenCode fork
+- Development and debugging
 
 #### Global Config Awareness
 
