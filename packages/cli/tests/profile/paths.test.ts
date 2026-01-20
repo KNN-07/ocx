@@ -69,7 +69,7 @@ describe("getGlobalConfig", () => {
 		const originalXdg = process.env.XDG_CONFIG_HOME
 		try {
 			process.env.XDG_CONFIG_HOME = "/custom/config"
-			expect(getGlobalConfig()).toBe("/custom/config/opencode/config.jsonc")
+			expect(getGlobalConfig()).toBe("/custom/config/opencode/ocx.jsonc")
 		} finally {
 			if (originalXdg !== undefined) {
 				process.env.XDG_CONFIG_HOME = originalXdg
@@ -83,7 +83,7 @@ describe("getGlobalConfig", () => {
 		const originalXdg = process.env.XDG_CONFIG_HOME
 		try {
 			delete process.env.XDG_CONFIG_HOME
-			const expected = join(homedir(), ".config", "opencode", "config.jsonc")
+			const expected = join(homedir(), ".config", "opencode", "ocx.jsonc")
 			expect(getGlobalConfig()).toBe(expected)
 		} finally {
 			if (originalXdg !== undefined) {

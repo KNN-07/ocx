@@ -99,14 +99,14 @@ ocx init my-registry --registry --canary
 
 | File | Description |
 |------|-------------|
-| `.opencode/config.jsonc` | Local project configuration |
+| `.opencode/ocx.jsonc` | Local project configuration |
 | `ocx.lock` | Lock file tracking installed components |
 
 **Global initialization** (`--global`) creates:
 
 ```
 ~/.config/opencode/
-├── config.jsonc              # Global base config
+├── ocx.jsonc                 # Global base config
 └── profiles/
     └── default/
         ├── ocx.jsonc         # Profile OCX settings
@@ -807,7 +807,7 @@ These options are available on all commands:
 
 ### Local Configuration
 
-#### .opencode/config.jsonc
+#### .opencode/ocx.jsonc
 
 Local project configuration created by `ocx init`:
 
@@ -837,7 +837,7 @@ OpenCode-specific configuration (optional):
 
 ### Global Configuration
 
-#### ~/.config/opencode/config.jsonc
+#### ~/.config/opencode/ocx.jsonc
 
 Global base configuration applied to all projects:
 
@@ -1252,10 +1252,10 @@ ocx config edit [options]
 #### Examples
 
 ```bash
-# Edit local .opencode/config.jsonc
+# Edit local .opencode/ocx.jsonc
 ocx config edit
 
-# Edit global config.jsonc
+# Edit global ocx.jsonc
 ocx config edit --global
 
 # Edit specific profile's ocx.jsonc
@@ -1264,8 +1264,8 @@ ocx config edit -p work
 
 #### Notes
 
-- Local config: `.opencode/config.jsonc`
-- Global config: `~/.config/opencode/config.jsonc`
+- Local config: `.opencode/ocx.jsonc`
+- Global config: `~/.config/opencode/ocx.jsonc`
 - Profile config: `~/.config/opencode/profiles/<name>/ocx.jsonc`
 - Falls back to `vi` if neither `$EDITOR` nor `$VISUAL` are set
 
@@ -1350,10 +1350,10 @@ To use a custom OpenCode binary (e.g., development build), set the `bin` option 
 
 Configurations are merged in this order (later sources override earlier ones):
 
-1. Global `config.jsonc`
+1. Global `ocx.jsonc`
 2. Profile's `ocx.jsonc` and `opencode.jsonc`
 3. Apply exclude/include patterns
-4. Local `.opencode/config.jsonc` (if not excluded)
+4. Local `.opencode/ocx.jsonc` (if not excluded)
 5. Local `.opencode/opencode.jsonc` (if not excluded)
 
 ### Instruction File Discovery

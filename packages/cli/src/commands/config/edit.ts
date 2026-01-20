@@ -2,8 +2,8 @@
  * Config Edit Command
  *
  * Open configuration file in the user's preferred editor.
- * --global: edit global config.jsonc
- * default: edit local .opencode/config.jsonc
+ * --global: edit global ocx.jsonc
+ * default: edit local .opencode/ocx.jsonc
  */
 
 import { existsSync } from "node:fs"
@@ -27,7 +27,7 @@ export function registerConfigEditCommand(parent: Command): void {
 	parent
 		.command("edit")
 		.description("Open configuration file in editor")
-		.option("-g, --global", "Edit global config.jsonc")
+		.option("-g, --global", "Edit global ocx.jsonc")
 		.action(async (options: ConfigEditOptions) => {
 			try {
 				await runConfigEdit(options)

@@ -261,7 +261,7 @@ OCX provides a global profile system for managing multiple OpenCode configuratio
 
 ```
 ~/.config/opencode/
-├── config.jsonc              # Global base config
+├── ocx.jsonc                 # Global base config
 └── profiles/
     ├── default/
     │   ├── ocx.jsonc         # Profile OCX settings
@@ -273,7 +273,7 @@ OCX provides a global profile system for managing multiple OpenCode configuratio
         └── AGENTS.md
 
 .opencode/                    # Local config (no profiles)
-├── config.jsonc
+├── ocx.jsonc
 └── opencode.jsonc
 ```
 
@@ -290,12 +290,12 @@ Profiles are resolved in this order:
 
 Configurations are merged in this order (later sources override earlier ones):
 
-1. **Global config.jsonc** - Always applied if it exists
+1. **Global ocx.jsonc** - Always applied if it exists
 2. **Global profile configs** - If a profile is resolved:
    - Profile's `ocx.jsonc` settings
    - Profile's `opencode.jsonc` configuration
 3. **Apply exclude/include patterns** - Filter which local configs to load
-4. **Local .opencode/config.jsonc** - Project-specific config (if not excluded)
+4. **Local .opencode/ocx.jsonc** - Project-specific config (if not excluded)
 5. **Local .opencode/opencode.jsonc** - Project OpenCode config (if not excluded)
 
 ### How `ocx opencode` Works

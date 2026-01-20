@@ -107,10 +107,10 @@ export function findLocalConfigDir(cwd: string): string | null {
 // =============================================================================
 
 /**
- * Get the global base config.jsonc path.
- * @returns Path to ~/.config/opencode/config.jsonc
+ * Get the global base ocx.jsonc path.
+ * @returns Path to ~/.config/opencode/ocx.jsonc
  */
 export function getGlobalConfig(): string {
 	const base = process.env.XDG_CONFIG_HOME || path.join(homedir(), ".config")
-	return path.join(base, "opencode", "config.jsonc")
+	return path.join(base, "opencode", "ocx.jsonc")
 }

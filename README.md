@@ -139,7 +139,7 @@ Profiles keep your configurations isolated and portable:
 
 ```
 ~/.config/opencode/
-├── config.jsonc              # Global base config
+├── ocx.jsonc                 # Global base config
 └── profiles/
     ├── default/
     │   ├── ocx.jsonc         # Profile OCX settings
@@ -174,8 +174,8 @@ Profiles keep your configurations isolated and portable:
 |---------|-------------|
 | `ocx config show` | Show merged configuration |
 | `ocx config show --origin` | Show config with source annotations |
-| `ocx config edit` | Edit local .opencode/config.jsonc |
-| `ocx config edit --global` | Edit global config.jsonc |
+| `ocx config edit` | Edit local .opencode/ocx.jsonc |
+| `ocx config edit --global` | Edit global ocx.jsonc |
 
 **OpenCode commands:**
 
