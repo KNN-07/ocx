@@ -226,7 +226,7 @@ Profile configurations are stored at `~/.config/opencode/profiles/<profile-name>
 
 | Aspect | Normal Mode | Profile Mode |
 |--------|-------------|--------------|
-| Config location | `./ocx.jsonc` in project | `~/.config/opencode/profiles/<name>/ocx.jsonc` |
+| Config location | `./.opencode/ocx.jsonc` in project | `~/.config/opencode/profiles/<name>/ocx.jsonc` |
 | Modifies repo | Yes | No |
 | Per-project settings | Yes | Profile-isolated |
 | Requires `ocx init` | Yes | No (uses profile config) |

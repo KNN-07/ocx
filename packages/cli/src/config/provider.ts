@@ -62,7 +62,9 @@ export class LocalConfigProvider implements ConfigProvider {
 
 		// Guard: No config file (Law 1: Early Exit)
 		if (!config) {
-			throw new ConfigError("No ocx.jsonc found. Run 'ocx init' first.")
+			throw new ConfigError(
+				"No ocx.jsonc found in .opencode/ or project root. Run 'ocx init' first.",
+			)
 		}
 
 		return new LocalConfigProvider(cwd, config)

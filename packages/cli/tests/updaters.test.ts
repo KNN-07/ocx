@@ -6,6 +6,7 @@ import { updateOpencodeJsonConfig } from "../src/updaters/update-opencode-config
 
 describe("updateOpencodeJsonConfig", () => {
 	let testDir: string
+	let opencodeDir: string
 
 	beforeEach(async () => {
 		testDir = join(
@@ -13,7 +14,8 @@ describe("updateOpencodeJsonConfig", () => {
 			"fixtures",
 			`tmp-updater-${Math.random().toString(36).slice(2)}`,
 		)
-		await mkdir(testDir, { recursive: true })
+		opencodeDir = join(testDir, ".opencode")
+		await mkdir(opencodeDir, { recursive: true })
 	})
 
 	afterEach(async () => {
@@ -29,7 +31,7 @@ describe("updateOpencodeJsonConfig", () => {
 
 		expect(result.changed).toBe(true)
 
-		const configPath = join(testDir, "opencode.jsonc")
+		const configPath = join(testDir, ".opencode", "opencode.jsonc")
 		const content = await readFile(configPath, "utf-8")
 		const config = parseJsonc(content)
 
@@ -49,7 +51,7 @@ describe("updateOpencodeJsonConfig", () => {
 
 		expect(result.changed).toBe(true)
 
-		const configPath = join(testDir, "opencode.jsonc")
+		const configPath = join(testDir, ".opencode", "opencode.jsonc")
 		const config = parseJsonc(await readFile(configPath, "utf-8"))
 
 		expect(config.mcp["global-mcp"]).toBeDefined()
@@ -77,7 +79,7 @@ describe("updateOpencodeJsonConfig", () => {
 
 		expect(result.changed).toBe(true)
 
-		const configPath = join(testDir, "opencode.jsonc")
+		const configPath = join(testDir, ".opencode", "opencode.jsonc")
 		const config = parseJsonc(await readFile(configPath, "utf-8"))
 
 		// MCPs should be added
@@ -94,7 +96,7 @@ describe("updateOpencodeJsonConfig", () => {
 	})
 
 	it("should preserve existing config (deep merge)", async () => {
-		// Create existing config
+		// Create existing config in .opencode
 		const existingConfig = {
 			$schema: "https://opencode.ai/config.json",
 			theme: "catppuccin",
@@ -111,7 +113,7 @@ describe("updateOpencodeJsonConfig", () => {
 				},
 			},
 		}
-		await writeFile(join(testDir, "opencode.json"), JSON.stringify(existingConfig, null, 2))
+		await writeFile(join(opencodeDir, "opencode.json"), JSON.stringify(existingConfig, null, 2))
 
 		await updateOpencodeJsonConfig(testDir, {
 			mcp: {
@@ -127,7 +129,7 @@ describe("updateOpencodeJsonConfig", () => {
 			},
 		})
 
-		const configPath = join(testDir, "opencode.json")
+		const configPath = join(opencodeDir, "opencode.json")
 		const config = parseJsonc(await readFile(configPath, "utf-8"))
 
 		// Existing config preserved
@@ -144,13 +146,13 @@ describe("updateOpencodeJsonConfig", () => {
 	})
 
 	it("should overwrite existing values (component wins)", async () => {
-		// Create existing config with MCP already defined
+		// Create existing config with MCP already defined in .opencode
 		const existingConfig = {
 			mcp: {
 				context7: { type: "remote", url: "https://old-url.com" },
 			},
 		}
-		await writeFile(join(testDir, "opencode.json"), JSON.stringify(existingConfig, null, 2))
+		await writeFile(join(opencodeDir, "opencode.json"), JSON.stringify(existingConfig, null, 2))
 
 		await updateOpencodeJsonConfig(testDir, {
 			mcp: {
@@ -159,12 +161,12 @@ describe("updateOpencodeJsonConfig", () => {
 		})
 
 		// New URL should overwrite (ShadCN-style: component wins)
-		const config = parseJsonc(await readFile(join(testDir, "opencode.json"), "utf-8"))
+		const config = parseJsonc(await readFile(join(opencodeDir, "opencode.json"), "utf-8"))
 		expect(config.mcp.context7.url).toBe("https://new-url.com")
 	})
 
 	it("should preserve JSONC comments", async () => {
-		// Create existing config with comments
+		// Create existing config with comments in .opencode
 		const existingContent = `{
   // This is my OpenCode config
   "$schema": "https://opencode.ai/config.json",
@@ -173,7 +175,7 @@ describe("updateOpencodeJsonConfig", () => {
     // Existing MCP servers
   }
 }`
-		await writeFile(join(testDir, "opencode.json"), existingContent)
+		await writeFile(join(opencodeDir, "opencode.json"), existingContent)
 
 		await updateOpencodeJsonConfig(testDir, {
 			mcp: {
@@ -181,7 +183,7 @@ describe("updateOpencodeJsonConfig", () => {
 			},
 		})
 
-		const content = await readFile(join(testDir, "opencode.json"), "utf-8")
+		const content = await readFile(join(opencodeDir, "opencode.json"), "utf-8")
 
 		// Comments should be preserved
 		expect(content).toContain("// This is my OpenCode config")
@@ -194,9 +196,9 @@ describe("updateOpencodeJsonConfig", () => {
 	})
 
 	it("should handle opencode.jsonc extension", async () => {
-		// Create config with .jsonc extension
+		// Create config with .jsonc extension in .opencode
 		const existingConfig = { theme: "opencode" }
-		await writeFile(join(testDir, "opencode.jsonc"), JSON.stringify(existingConfig, null, 2))
+		await writeFile(join(opencodeDir, "opencode.jsonc"), JSON.stringify(existingConfig, null, 2))
 
 		await updateOpencodeJsonConfig(testDir, {
 			mcp: {
@@ -205,7 +207,7 @@ describe("updateOpencodeJsonConfig", () => {
 		})
 
 		// Should update the .jsonc file
-		const config = parseJsonc(await readFile(join(testDir, "opencode.jsonc"), "utf-8"))
+		const config = parseJsonc(await readFile(join(opencodeDir, "opencode.jsonc"), "utf-8"))
 		expect(config.theme).toBe("opencode")
 		expect(config.mcp["test-mcp"]).toBeDefined()
 	})
@@ -215,7 +217,7 @@ describe("updateOpencodeJsonConfig", () => {
 			tools: { webfetch: false, "some-tool": true },
 		})
 
-		const config = parseJsonc(await readFile(join(testDir, "opencode.jsonc"), "utf-8"))
+		const config = parseJsonc(await readFile(join(testDir, ".opencode", "opencode.jsonc"), "utf-8"))
 		expect(config.tools.webfetch).toBe(false)
 		expect(config.tools["some-tool"]).toBe(true)
 	})
@@ -232,7 +234,7 @@ describe("updateOpencodeJsonConfig", () => {
 			},
 		})
 
-		const config = parseJsonc(await readFile(join(testDir, "opencode.jsonc"), "utf-8"))
+		const config = parseJsonc(await readFile(join(testDir, ".opencode", "opencode.jsonc"), "utf-8"))
 		expect(config.mcp["local-mcp"].type).toBe("local")
 		expect(config.mcp["local-mcp"].command).toEqual(["uvx", "some-mcp"])
 		expect(config.mcp["local-mcp"].environment).toEqual({ API_KEY: "{env:API_KEY}" })
@@ -252,7 +254,7 @@ describe("updateOpencodeJsonConfig", () => {
 			},
 		})
 
-		const config = parseJsonc(await readFile(join(testDir, "opencode.jsonc"), "utf-8"))
+		const config = parseJsonc(await readFile(join(testDir, ".opencode", "opencode.jsonc"), "utf-8"))
 		expect(config.mcp["full-mcp"].headers).toEqual({ "X-Custom": "value" })
 		expect(config.mcp["full-mcp"].oauth).toBe(true)
 	})
@@ -264,7 +266,7 @@ describe("updateOpencodeJsonConfig", () => {
 			},
 		})
 
-		const config = parseJsonc(await readFile(join(testDir, "opencode.jsonc"), "utf-8"))
+		const config = parseJsonc(await readFile(join(testDir, ".opencode", "opencode.jsonc"), "utf-8"))
 		expect(config.permission.bash["*"]).toBe("deny")
 		expect(config.permission.bash["git *"]).toBe("allow")
 	})
@@ -274,7 +276,7 @@ describe("updateOpencodeJsonConfig", () => {
 			plugin: ["@some/plugin@1.0.0", "@another/plugin"],
 		})
 
-		const config = parseJsonc(await readFile(join(testDir, "opencode.jsonc"), "utf-8"))
+		const config = parseJsonc(await readFile(join(testDir, ".opencode", "opencode.jsonc"), "utf-8"))
 		expect(config.plugin).toContain("@some/plugin@1.0.0")
 		expect(config.plugin).toContain("@another/plugin")
 	})
@@ -284,7 +286,7 @@ describe("updateOpencodeJsonConfig", () => {
 			instructions: [".opencode/instructions.md", ".opencode/**/*.md"],
 		})
 
-		const config = parseJsonc(await readFile(join(testDir, "opencode.jsonc"), "utf-8"))
+		const config = parseJsonc(await readFile(join(testDir, ".opencode", "opencode.jsonc"), "utf-8"))
 		expect(config.instructions).toContain(".opencode/instructions.md")
 		expect(config.instructions).toContain(".opencode/**/*.md")
 	})
@@ -303,7 +305,7 @@ describe("updateOpencodeJsonConfig", () => {
 			},
 		})
 
-		const config = parseJsonc(await readFile(join(testDir, "opencode.jsonc"), "utf-8"))
+		const config = parseJsonc(await readFile(join(testDir, ".opencode", "opencode.jsonc"), "utf-8"))
 		expect(config.agent.researcher.temperature).toBe(0.7)
 		expect(config.agent.researcher.prompt).toBe("You are a knowledge architect")
 		expect(config.agent.researcher.tools.bash).toBe(true)
@@ -319,7 +321,7 @@ describe("updateOpencodeJsonConfig", () => {
 			},
 		})
 
-		const config = parseJsonc(await readFile(join(testDir, "opencode.jsonc"), "utf-8"))
+		const config = parseJsonc(await readFile(join(testDir, ".opencode", "opencode.jsonc"), "utf-8"))
 		expect(config.permission.bash).toBe("allow")
 		expect(config.permission.edit["*.md"]).toBe("allow")
 		expect(config.permission.edit["*.ts"]).toBe("ask")

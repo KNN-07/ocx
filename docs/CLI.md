@@ -100,7 +100,8 @@ ocx init my-registry --registry --canary
 | File | Description |
 |------|-------------|
 | `.opencode/ocx.jsonc` | Local project configuration |
-| `ocx.lock` | Lock file tracking installed components |
+| `.opencode/opencode.jsonc` | OpenCode-specific configuration (optional) |
+| `.opencode/ocx.lock` | Lock file tracking installed components |
 
 **Global initialization** (`--global`) creates:
 
@@ -886,7 +887,7 @@ Profile-specific OpenCode configuration:
 
 Profile-specific agent instructions (highest priority).
 
-### ocx.lock
+### .opencode/ocx.lock
 
 Lock file tracking installed components (managed automatically):
 

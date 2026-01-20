@@ -214,7 +214,6 @@ Before pushing changes, test the full CLI flow using local registry sources.
 
 ```bash
 # 1. Clean slate - wipe generated files
-rm -f opencode.jsonc ocx.lock ocx.jsonc
 rm -rf .opencode
 
 # 2. Rebuild the CLI
@@ -238,7 +237,7 @@ cat opencode.jsonc
 
 #### Expected Output
 
-After installation, `opencode.jsonc` should contain the component's `opencode` block merged in:
+After installation, `.opencode/opencode.jsonc` should contain the component's `opencode` block merged in:
 - `mcp` section with MCP server definitions
 - `plugin` array with npm packages
 - `tools` section with tool configurations
@@ -254,19 +253,18 @@ Example structure:
 }
 ```
 
-**Note:** OCX follows the ShadCN model - component config is deep-merged directly into your `opencode.jsonc`. You own the file, use git to review changes.
+**Note:** OCX follows the ShadCN model - component config is deep-merged directly into your `.opencode/opencode.jsonc`. You own the file, use git to review changes.
 
 #### Quick Reset Script
 
 For repeated testing (assumes registry is already built):
 
 ```bash
-rm -f opencode.jsonc ocx.lock ocx.jsonc && \
 rm -rf .opencode && \
 ./packages/cli/dist/index.js init && \
 ./packages/cli/dist/index.js registry add "file://$(pwd)/workers/kdco-registry/dist" --name kdco && \
 ./packages/cli/dist/index.js add kdco/workspace --force && \
-cat opencode.jsonc
+cat .opencode/opencode.jsonc
 ```
 
 ## Code Philosophy

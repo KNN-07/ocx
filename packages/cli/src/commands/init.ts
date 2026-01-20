@@ -5,12 +5,12 @@
 
 import { existsSync } from "node:fs"
 import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import type { Command } from "commander"
 import { OCX_SCHEMA_URL } from "../constants.js"
 import { ProfileManager } from "../profile/manager.js"
 import { getProfileOcxConfig, getProfilesDir } from "../profile/paths.js"
-import { ocxConfigSchema } from "../schemas/config.js"
+import { findOcxConfig, ocxConfigSchema } from "../schemas/config.js"
 import { ensureOpencodeConfig } from "../updaters/update-opencode-config.js"
 import {
 	ConflictError,
@@ -69,10 +69,12 @@ export function registerInitCommand(program: Command): void {
 
 async function runInit(options: InitOptions): Promise<void> {
 	const cwd = options.cwd ?? process.cwd()
-	const configPath = join(cwd, "ocx.jsonc")
+
+	// Check for existing config in either location
+	const { path: configPath, exists } = findOcxConfig(cwd)
 
 	// Check for existing config - error if exists (Law 1: Early Exit)
-	if (existsSync(configPath)) {
+	if (exists) {
 		throw new ConflictError(
 			`ocx.jsonc already exists at ${configPath}\n\n` +
 				`To reset, delete the config and run init again:\n` +
@@ -92,6 +94,9 @@ async function runInit(options: InitOptions): Promise<void> {
 
 		// Validate with schema (applies defaults)
 		const config = ocxConfigSchema.parse(rawConfig)
+
+		// Ensure .opencode directory exists
+		await mkdir(dirname(configPath), { recursive: true })
 
 		// Write config file
 		const content = JSON.stringify(config, null, 2)

@@ -30,7 +30,7 @@ describe("ocx registry", () => {
 		expect(exitCode).toBe(0)
 		expect(output).toContain("Added registry: test-reg")
 
-		const configPath = join(testDir, "ocx.jsonc")
+		const configPath = join(testDir, ".opencode", "ocx.jsonc")
 		const configContent = await Bun.file(configPath).text()
 		const config = parseJsonc(configContent)
 		expect(config.registries["test-reg"]).toBeDefined()
@@ -55,7 +55,7 @@ describe("ocx registry", () => {
 		expect(exitCode).toBe(0)
 		expect(output).toContain("Removed registry: test-reg")
 
-		const configPath = join(testDir, "ocx.jsonc")
+		const configPath = join(testDir, ".opencode", "ocx.jsonc")
 		const configContent = await Bun.file(configPath).text()
 		const config = parseJsonc(configContent)
 		expect(config.registries["test-reg"]).toBeUndefined()
@@ -63,7 +63,7 @@ describe("ocx registry", () => {
 
 	it("should fail if adding to locked registries", async () => {
 		// Manually lock registries
-		const configPath = join(testDir, "ocx.jsonc")
+		const configPath = join(testDir, ".opencode", "ocx.jsonc")
 		const configContent = await Bun.file(configPath).text()
 		const config = parseJsonc(configContent)
 		config.lockRegistries = true

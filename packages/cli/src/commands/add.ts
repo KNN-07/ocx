@@ -16,7 +16,7 @@ import { CLI_VERSION, GITHUB_REPO } from "../constants.js"
 import { fetchFileContent, fetchRegistryIndex } from "../registry/fetcher.js"
 import type { ResolvedComponent } from "../registry/resolver.js"
 import { type ResolvedDependencies, resolveDependencies } from "../registry/resolver.js"
-import { type OcxLock, readOcxLock } from "../schemas/config.js"
+import { findOcxLock, type OcxLock, readOcxLock, writeOcxLock } from "../schemas/config.js"
 import type { ComponentFileObject, RegistryIndex } from "../schemas/registry.js"
 import { parseQualifiedComponent } from "../schemas/registry.js"
 import {
@@ -343,7 +343,7 @@ async function runRegistryAddCore(
 	provider: ConfigProvider,
 ): Promise<void> {
 	const cwd = provider.cwd
-	const lockPath = join(cwd, "ocx.lock")
+	const { path: lockPath } = findOcxLock(cwd)
 	const registries = provider.getRegistries()
 
 	// Load or create lock
@@ -553,9 +553,9 @@ async function runRegistryAddCore(
 
 			if (!options.quiet && result.changed) {
 				if (result.created) {
-					logger.info(`Created ${join(cwd, "opencode.jsonc")}`)
+					logger.info(`Created ${result.path}`)
 				} else {
-					logger.info(`Updated ${join(cwd, "opencode.jsonc")}`)
+					logger.info(`Updated ${result.path}`)
 				}
 			}
 		}
@@ -591,7 +591,7 @@ async function runRegistryAddCore(
 		}
 
 		// Save lock file
-		await writeFile(lockPath, JSON.stringify(lock, null, 2), "utf-8")
+		await writeOcxLock(cwd, lock, lockPath)
 
 		if (options.json) {
 			console.log(
