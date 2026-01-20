@@ -10,8 +10,9 @@ import type { Command } from "commander"
 import { OCX_SCHEMA_URL } from "../constants.js"
 import { ocxConfigSchema } from "../schemas/config.js"
 import { ensureOpencodeConfig } from "../updaters/update-opencode-config.js"
-import { ConflictError, NetworkError, ValidationError } from "../utils/errors.js"
+import { ConfigError, ConflictError, NetworkError, ValidationError } from "../utils/errors.js"
 import { createSpinner, handleError, logger } from "../utils/index.js"
+import { getGlobalConfigPath, globalDirectoryExists } from "../utils/paths.js"
 
 const TEMPLATE_REPO = "kdcokenny/ocx"
 const TEMPLATE_PATH = "examples/registry-starter"
@@ -27,6 +28,7 @@ interface InitOptions {
 	canary?: boolean
 	local?: string
 	force?: boolean // Only used for --registry mode
+	global?: boolean
 }
 
 export function registerInitCommand(program: Command): void {
@@ -43,10 +45,13 @@ export function registerInitCommand(program: Command): void {
 		.option("--canary", "Use canary (main branch) instead of latest release")
 		.option("--local <path>", "Use local template directory instead of fetching")
 		.option("-f, --force", "Overwrite existing files (registry mode only)")
+		.option("-g, --global", "Initialize in global OpenCode config (~/.config/opencode)")
 		.action(async (directory: string | undefined, options: InitOptions) => {
 			try {
 				if (options.registry) {
 					await runInitRegistry(directory, options)
+				} else if (options.global) {
+					await runInitGlobal(options)
 				} else {
 					await runInit(options)
 				}
@@ -109,6 +114,64 @@ async function runInit(options: InitOptions): Promise<void> {
 			logger.info("Next steps:")
 			logger.info("  1. Add a registry: ocx registry add <url>")
 			logger.info("  2. Install components: ocx add <component>")
+		}
+	} catch (error) {
+		spin?.fail("Failed to initialize")
+		throw error
+	}
+}
+
+async function runInitGlobal(options: InitOptions): Promise<void> {
+	// Check global directory exists (OpenCode must have been run)
+	if (!(await globalDirectoryExists())) {
+		throw new ConfigError("Global config not found. Run 'opencode' once to initialize, then retry.")
+	}
+
+	const globalPath = getGlobalConfigPath()
+	const configPath = join(globalPath, "ocx.jsonc")
+
+	// Check for existing config - error if exists (Law 1: Early Exit)
+	if (existsSync(configPath)) {
+		throw new ConflictError(
+			`ocx.jsonc already exists at ${configPath}\n\n` +
+				`To reset, delete the config and run init again:\n` +
+				`  rm ${configPath} && ocx init --global`,
+		)
+	}
+
+	const spin = options.quiet ? null : createSpinner({ text: "Initializing global OCX config..." })
+	spin?.start()
+
+	try {
+		// Create minimal config - schema will apply defaults
+		const rawConfig = {
+			$schema: OCX_SCHEMA_URL,
+			registries: {},
+		}
+
+		// Validate with schema (applies defaults)
+		const config = ocxConfigSchema.parse(rawConfig)
+
+		// Write config file
+		const content = JSON.stringify(config, null, 2)
+		await writeFile(configPath, content, "utf-8")
+
+		spin?.succeed("Initialized global OCX configuration")
+
+		if (options.json) {
+			console.log(
+				JSON.stringify({
+					success: true,
+					path: configPath,
+					global: true,
+				}),
+			)
+		} else if (!options.quiet) {
+			logger.info(`Created ${configPath}`)
+			logger.info("")
+			logger.info("Next steps:")
+			logger.info("  1. Add a registry: ocx registry add <url> --global")
+			logger.info("  2. Install components: ocx add <component> --global")
 		}
 	} catch (error) {
 		spin?.fail("Failed to initialize")
