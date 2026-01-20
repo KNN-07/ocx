@@ -9,9 +9,11 @@
 import { Command } from "commander"
 import { registerAddCommand } from "./commands/add.js"
 import { registerBuildCommand } from "./commands/build.js"
+import { registerConfigCommand } from "./commands/config/index.js"
 import { registerDiffCommand } from "./commands/diff.js"
-import { registerGhostCommand } from "./commands/ghost/index.js"
 import { registerInitCommand } from "./commands/init.js"
+import { registerOpencodeCommand } from "./commands/opencode.js"
+import { registerProfileCommand } from "./commands/profile/index.js"
 import { registerRegistryCommand } from "./commands/registry.js"
 import { registerSearchCommand } from "./commands/search.js"
 import { registerSelfCommand } from "./commands/self/index.js"
@@ -37,8 +39,12 @@ async function main() {
 	registerSearchCommand(program)
 	registerRegistryCommand(program)
 	registerBuildCommand(program)
-	registerGhostCommand(program)
 	registerSelfCommand(program)
+
+	// New top-level commands (Phase 5)
+	registerProfileCommand(program)
+	registerConfigCommand(program)
+	registerOpencodeCommand(program)
 
 	// Register update check hook (runs after each command)
 	registerUpdateCheckHook(program)

@@ -1,19 +1,19 @@
 /**
- * Ghost Profile Show Command
+ * Profile Show Command
  *
  * Display detailed information about a profile.
- * Shows the profile name, file paths, and ghost config contents.
+ * Shows the profile name, file paths, and OCX config contents.
  */
 
 import type { Command } from "commander"
-import { ProfileManager } from "../../../profile/manager.js"
+import { ProfileManager } from "../../profile/manager.js"
 import {
 	getProfileAgents,
-	getProfileGhostConfig,
+	getProfileOcxConfig,
 	getProfileOpencodeConfig,
-} from "../../../profile/paths.js"
-import { handleError } from "../../../utils/handle-error.js"
-import { sharedOptions } from "../../../utils/shared-options.js"
+} from "../../profile/paths.js"
+import { handleError } from "../../utils/handle-error.js"
+import { sharedOptions } from "../../utils/shared-options.js"
 
 interface ProfileShowOptions {
 	json?: boolean
@@ -39,8 +39,8 @@ async function runProfileShow(
 ): Promise<void> {
 	const manager = ProfileManager.create()
 
-	// Use provided name or fall back to current profile
-	const profileName = name ?? (await manager.getCurrent())
+	// Use provided name or resolve profile (flag > env > default)
+	const profileName = name ?? (await manager.resolveProfile())
 	const profile = await manager.get(profileName)
 
 	if (options.json) {
@@ -51,7 +51,7 @@ async function runProfileShow(
 	// Human-readable output
 	console.log(`Profile: ${profile.name}`)
 	console.log(`\nFiles:`)
-	console.log(`  ghost.jsonc: ${getProfileGhostConfig(profileName)}`)
+	console.log(`  ocx.jsonc: ${getProfileOcxConfig(profileName)}`)
 
 	if (profile.opencode) {
 		console.log(`  opencode.jsonc: ${getProfileOpencodeConfig(profileName)}`)
@@ -61,6 +61,6 @@ async function runProfileShow(
 		console.log(`  AGENTS.md: ${getProfileAgents(profileName)}`)
 	}
 
-	console.log(`\nGhost Config:`)
-	console.log(JSON.stringify(profile.ghost, null, 2))
+	console.log(`\nOCX Config:`)
+	console.log(JSON.stringify(profile.ocx, null, 2))
 }

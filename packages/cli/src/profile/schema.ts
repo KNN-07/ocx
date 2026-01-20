@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { ghostConfigSchema } from "../schemas/ghost.js"
+import { profileOcxConfigSchema } from "../schemas/ocx.js"
 
 /**
  * Profile name validation schema.
@@ -25,8 +25,8 @@ export type ProfileName = z.infer<typeof profileNameSchema>
 export const profileSchema = z.object({
 	/** Profile name (directory name) */
 	name: profileNameSchema,
-	/** Ghost configuration from ghost.jsonc */
-	ghost: ghostConfigSchema,
+	/** OCX configuration from ocx.jsonc */
+	ocx: profileOcxConfigSchema,
 	/** OpenCode configuration from opencode.jsonc (optional, passthrough) */
 	opencode: z.record(z.unknown()).optional(),
 	/** Whether AGENTS.md exists in this profile */

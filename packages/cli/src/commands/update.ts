@@ -84,7 +84,7 @@ async function runUpdate(componentNames: string[], options: UpdateOptions): Prom
 }
 
 /**
- * Core update logic shared between local and ghost modes.
+ * Core update logic shared between local and profile modes.
  * Accepts a ConfigProvider to abstract config source.
  */
 export async function runUpdateCore(

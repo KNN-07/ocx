@@ -9,10 +9,7 @@
  * Implementations parse config at construction; getters are sync and pure.
  */
 
-import { ProfileManager } from "../profile/manager.js"
-import { getProfileDir } from "../profile/paths.js"
 import { type OcxConfig, type RegistryConfig, readOcxConfig } from "../schemas/config.js"
-import type { GhostConfig } from "../schemas/ghost.js"
 import { ConfigError } from "../utils/errors.js"
 import { getGlobalConfigPath, globalDirectoryExists } from "../utils/paths.js"
 
@@ -79,55 +76,6 @@ export class LocalConfigProvider implements ConfigProvider {
 
 	/** Get the raw config for advanced use cases */
 	getConfig(): OcxConfig {
-		return this.config
-	}
-}
-
-// =============================================================================
-// GHOST CONFIG PROVIDER
-// =============================================================================
-
-/**
- * Provides configuration from ghost mode (~/.config/ocx/ghost.jsonc).
- *
- * Use this when operating in ghost mode (no local project config).
- */
-export class GhostConfigProvider implements ConfigProvider {
-	readonly cwd: string
-	private readonly config: GhostConfig // immutable, parsed at construction
-
-	private constructor(cwd: string, config: GhostConfig) {
-		this.cwd = cwd
-		this.config = config
-	}
-
-	/**
-	 * Static factory - parses at boundary, throws ProfilesNotInitializedError if missing.
-	 *
-	 * Note: The _cwd parameter is kept for API compatibility but ignored.
-	 * Ghost mode always uses the current profile's directory.
-	 *
-	 * @throws ProfilesNotInitializedError if profiles not initialized
-	 * @throws ProfileNotFoundError if current profile doesn't exist
-	 * @throws GhostConfigError if ghost config is invalid
-	 */
-	static async create(_cwd: string): Promise<GhostConfigProvider> {
-		const manager = ProfileManager.create()
-		const profileName = await manager.getCurrent()
-		const profile = await manager.get(profileName)
-		return new GhostConfigProvider(getProfileDir(profileName), profile.ghost)
-	}
-
-	getRegistries(): Record<string, RegistryConfig> {
-		return this.config.registries
-	}
-
-	getComponentPath(): string {
-		return this.config.componentPath ?? ".opencode"
-	}
-
-	/** Get the raw config for advanced use cases */
-	getConfig(): GhostConfig {
 		return this.config
 	}
 }

@@ -1,5 +1,23 @@
+import { existsSync, statSync } from "node:fs"
 import { homedir } from "node:os"
 import path from "node:path"
+
+// =============================================================================
+// FILE NAME CONSTANTS
+// =============================================================================
+
+/** OCX configuration file name */
+export const OCX_CONFIG_FILE = "ocx.jsonc"
+
+/** OpenCode configuration file name */
+export const OPENCODE_CONFIG_FILE = "opencode.jsonc"
+
+/** Local config directory name */
+export const LOCAL_CONFIG_DIR = ".opencode"
+
+// =============================================================================
+// PROFILE PATH HELPERS
+// =============================================================================
 
 /**
  * Get the profiles directory path.
@@ -21,12 +39,12 @@ export function getProfileDir(name: string): string {
 }
 
 /**
- * Get the path to a profile's ghost.jsonc file.
+ * Get the path to a profile's ocx.jsonc file.
  * @param name - Profile name
- * @returns Absolute path to ghost.jsonc
+ * @returns Absolute path to ocx.jsonc
  */
-export function getProfileGhostConfig(name: string): string {
-	return path.join(getProfileDir(name), "ghost.jsonc")
+export function getProfileOcxConfig(name: string): string {
+	return path.join(getProfileDir(name), "ocx.jsonc")
 }
 
 /**
@@ -47,10 +65,52 @@ export function getProfileAgents(name: string): string {
 	return path.join(getProfileDir(name), "AGENTS.md")
 }
 
+// =============================================================================
+// LOCAL CONFIG DISCOVERY
+// =============================================================================
+
 /**
- * Get the path to the current profile symlink.
- * @returns Absolute path to profiles/current symlink
+ * Find the local config directory by walking up from cwd.
+ * Stops at first .opencode/ directory or git root.
+ * @param cwd - Starting directory
+ * @returns Path to .opencode/ directory, or null if not found
  */
-export function getCurrentSymlink(): string {
-	return path.join(getProfilesDir(), "current")
+export function findLocalConfigDir(cwd: string): string | null {
+	let currentDir = cwd
+
+	while (true) {
+		// Check for .opencode/ directory at this level
+		const configDir = path.join(currentDir, LOCAL_CONFIG_DIR)
+		if (existsSync(configDir) && statSync(configDir).isDirectory()) {
+			return configDir
+		}
+
+		// Check if we've hit the git root (.git directory)
+		const gitDir = path.join(currentDir, ".git")
+		if (existsSync(gitDir)) {
+			// At git root, stop searching
+			return null
+		}
+
+		// Move up one directory
+		const parentDir = path.dirname(currentDir)
+		if (parentDir === currentDir) {
+			// Reached filesystem root
+			return null
+		}
+		currentDir = parentDir
+	}
+}
+
+// =============================================================================
+// GLOBAL CONFIG HELPERS
+// =============================================================================
+
+/**
+ * Get the global base config.jsonc path.
+ * @returns Path to ~/.config/opencode/config.jsonc
+ */
+export function getGlobalConfig(): string {
+	const base = process.env.XDG_CONFIG_HOME || path.join(homedir(), ".config")
+	return path.join(base, "opencode", "config.jsonc")
 }

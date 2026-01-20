@@ -1,10 +1,10 @@
 /**
- * Ghost Mode Config Schema
+ * OCX Profile Config Schema
  *
- * Schema for ghost.jsonc - the global OCX configuration file
- * stored at ~/.config/ocx/ghost.jsonc (XDG-compliant).
+ * Schema for ocx.jsonc (within profiles) - the global OCX configuration file
+ * stored at ~/.config/opencode/profiles/<name>/ocx.jsonc (XDG-compliant).
  *
- * Ghost mode allows OCX to work without project-local config files
+ * OCX profiles allow working without project-local config files
  * by storing registries globally.
  */
 
@@ -29,16 +29,16 @@ const globPatternSchema = z.string().refine(
 )
 
 // =============================================================================
-// GHOST CONFIG SCHEMA (ghost.jsonc)
+// PROFILE OCX CONFIG SCHEMA (ocx.jsonc in profiles)
 // =============================================================================
 
 /**
- * Ghost mode configuration schema
+ * OCX profile configuration schema
  *
  * Contains OCX-specific settings (registries, componentPath).
  * OpenCode configuration is stored separately in opencode.jsonc.
  */
-export const ghostConfigSchema = z.object({
+export const profileOcxConfigSchema = z.object({
 	/** Schema URL for IDE support */
 	$schema: z.string().optional(),
 
@@ -46,7 +46,7 @@ export const ghostConfigSchema = z.object({
 	bin: z.string().optional(),
 
 	/**
-	 * Configured registries for ghost mode
+	 * Configured registries for OCX profiles
 	 * Same format as ocx.jsonc registries
 	 */
 	registries: z.record(registryConfigSchema).default({}),
@@ -69,7 +69,7 @@ export const ghostConfigSchema = z.object({
 
 	/**
 	 * Glob patterns for project files to exclude from OpenCode discovery.
-	 * Prevents ghost mode from loading project-local configuration files.
+	 * Prevents OCX profiles from loading project-local configuration files.
 	 */
 	exclude: z
 		.array(globPatternSchema)
@@ -93,4 +93,4 @@ export const ghostConfigSchema = z.object({
 		.describe("Glob patterns for project files to include (overrides exclude)"),
 })
 
-export type GhostConfig = z.infer<typeof ghostConfigSchema>
+export type ProfileOcxConfig = z.infer<typeof profileOcxConfigSchema>

@@ -89,7 +89,7 @@ export function addVerboseOption<T extends { addOption: (opt: Option) => T }>(cm
 
 /**
  * Add output options (json, quiet) to a command.
- * Use this for commands that don't need --cwd (like ghost init).
+ * Use this for commands that don't need --cwd (like profile commands).
  *
  * @example
  * ```typescript

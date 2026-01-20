@@ -26,8 +26,8 @@ export {
 	writeOcxLock,
 } from "./config.js"
 
-// Ghost mode schemas
-export { type GhostConfig, ghostConfigSchema } from "./ghost.js"
+// OCX profile schemas
+export { type ProfileOcxConfig, profileOcxConfigSchema } from "./ocx.js"
 
 // Registry & component schemas
 export {

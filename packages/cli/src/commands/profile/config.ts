@@ -1,19 +1,19 @@
 /**
- * Ghost Profile Config Command
+ * Profile Config Command
  *
- * Open a profile's ghost.jsonc file in the user's preferred editor.
+ * Open a profile's ocx.jsonc file in the user's preferred editor.
  * Uses EDITOR or VISUAL environment variables, falls back to vi.
  */
 
 import type { Command } from "commander"
-import { ProfileManager } from "../../../profile/manager.js"
-import { getProfileGhostConfig } from "../../../profile/paths.js"
-import { handleError } from "../../../utils/handle-error.js"
+import { ProfileManager } from "../../profile/manager.js"
+import { getProfileOcxConfig } from "../../profile/paths.js"
+import { handleError } from "../../utils/handle-error.js"
 
 export function registerProfileConfigCommand(parent: Command): void {
 	parent
 		.command("config [name]")
-		.description("Open profile ghost.jsonc in editor")
+		.description("Open profile ocx.jsonc in editor")
 		.action(async (name: string | undefined) => {
 			try {
 				await runProfileConfig(name)
@@ -26,13 +26,13 @@ export function registerProfileConfigCommand(parent: Command): void {
 async function runProfileConfig(name: string | undefined): Promise<void> {
 	const manager = ProfileManager.create()
 
-	// Use provided name or fall back to current profile
-	const profileName = name ?? (await manager.getCurrent())
+	// Use provided name or resolve profile (flag > env > default)
+	const profileName = name ?? (await manager.resolveProfile())
 
 	// Verify profile exists (fail fast)
 	await manager.get(profileName)
 
-	const configPath = getProfileGhostConfig(profileName)
+	const configPath = getProfileOcxConfig(profileName)
 	const editor = process.env.EDITOR || process.env.VISUAL || "vi"
 
 	const proc = Bun.spawn([editor, configPath], {

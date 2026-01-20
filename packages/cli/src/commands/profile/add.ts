@@ -1,15 +1,15 @@
 /**
- * Ghost Profile Add Command
+ * Profile Add Command
  *
- * Create a new ghost profile.
+ * Create a new global profile.
  * Optionally clone settings from an existing profile.
  */
 
 import type { Command } from "commander"
-import { atomicWrite } from "../../../profile/atomic.js"
-import { ProfileManager } from "../../../profile/manager.js"
-import { getProfileGhostConfig } from "../../../profile/paths.js"
-import { handleError, logger } from "../../../utils/index.js"
+import { atomicWrite } from "../../profile/atomic.js"
+import { ProfileManager } from "../../profile/manager.js"
+import { getProfileOcxConfig } from "../../profile/paths.js"
+import { handleError, logger } from "../../utils/index.js"
 
 interface ProfileAddOptions {
 	from?: string
@@ -18,7 +18,7 @@ interface ProfileAddOptions {
 export function registerProfileAddCommand(parent: Command): void {
 	parent
 		.command("add <name>")
-		.description("Create a new ghost profile")
+		.description("Create a new global profile")
 		.option("--from <profile>", "Clone settings from existing profile")
 		.action(async (name: string, options: ProfileAddOptions) => {
 			try {
@@ -37,8 +37,8 @@ async function runProfileAdd(name: string, options: ProfileAddOptions): Promise<
 		const source = await manager.get(options.from)
 		await manager.add(name)
 
-		// Copy ghost config from source
-		await atomicWrite(getProfileGhostConfig(name), source.ghost)
+		// Copy OCX config from source
+		await atomicWrite(getProfileOcxConfig(name), source.ocx)
 
 		logger.success(`Created profile "${name}" (cloned from "${options.from}")`)
 	} else {

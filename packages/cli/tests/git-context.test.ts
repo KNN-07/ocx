@@ -1,36 +1,114 @@
-import { beforeAll, describe, expect, it } from "bun:test"
+import { afterAll, beforeAll, describe, expect, it } from "bun:test"
+import { mkdir, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { basename } from "node:path"
+import { basename, join } from "node:path"
 import { detectGitRepo, getBranch, getGitInfo, getRepoName } from "../src/utils/git-context.js"
 
+/**
+ * Create a clean environment for git commands.
+ * Removes all git-related env vars to prevent interference from parent processes.
+ */
+function getCleanGitEnv(): NodeJS.ProcessEnv {
+	const {
+		GIT_DIR: _1,
+		GIT_WORK_TREE: _2,
+		GIT_INDEX_FILE: _3,
+		GIT_OBJECT_DIRECTORY: _4,
+		GIT_ALTERNATE_OBJECT_DIRECTORIES: _5,
+		GIT_CEILING_DIRECTORIES: _6,
+		...cleanEnv
+	} = process.env
+
+	// Prevent git from looking outside the test directory
+	return {
+		...cleanEnv,
+		GIT_CEILING_DIRECTORIES: tmpdir(), // Stop searching at tmpdir
+	}
+}
+
 describe("git-context", () => {
-	// Use the current repository for testing real git operations
-	const repoRoot = process.cwd()
-	// Git toplevel may differ from cwd (e.g., when running tests from packages/cli)
-	// getRepoName returns basename of git toplevel, not cwd
-	let expectedRepoName: string
+	// Create a temp git repo for testing real git operations
+	let testRepoRoot: string
+	const testBranchName = "test-branch"
 
 	beforeAll(async () => {
-		// Get the actual git toplevel to compute expected repo name
-		const proc = Bun.spawn(["git", "rev-parse", "--show-toplevel"], {
-			cwd: repoRoot,
+		// Create a unique temporary git repository for testing
+		// Use a unique ID to avoid conflicts
+		const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+		testRepoRoot = join(tmpdir(), `ocx-git-test-${uniqueId}`)
+		await mkdir(testRepoRoot, { recursive: true })
+
+		const gitEnv = getCleanGitEnv()
+
+		// Initialize git repo using sequential commands
+		const gitInit = Bun.spawn(["git", "init"], {
+			cwd: testRepoRoot,
+			env: gitEnv,
 			stdout: "pipe",
 			stderr: "pipe",
 		})
-		await proc.exited
-		const output = await new Response(proc.stdout).text()
-		expectedRepoName = basename(output.trim())
+		await gitInit.exited
+
+		// Configure git user
+		await Bun.spawn(["git", "config", "user.email", "test@example.com"], {
+			cwd: testRepoRoot,
+			env: gitEnv,
+			stdout: "pipe",
+			stderr: "pipe",
+		}).exited
+
+		await Bun.spawn(["git", "config", "user.name", "Test User"], {
+			cwd: testRepoRoot,
+			env: gitEnv,
+			stdout: "pipe",
+			stderr: "pipe",
+		}).exited
+
+		// Create an initial commit (needed for branch operations)
+		await writeFile(join(testRepoRoot, "README.md"), "# Test Repo")
+
+		await Bun.spawn(["git", "add", "README.md"], {
+			cwd: testRepoRoot,
+			env: gitEnv,
+			stdout: "pipe",
+			stderr: "pipe",
+		}).exited
+
+		await Bun.spawn(["git", "commit", "-m", "Initial commit"], {
+			cwd: testRepoRoot,
+			env: gitEnv,
+			stdout: "pipe",
+			stderr: "pipe",
+		}).exited
+
+		// Create and checkout a test branch
+		await Bun.spawn(["git", "checkout", "-b", testBranchName], {
+			cwd: testRepoRoot,
+			env: gitEnv,
+			stdout: "pipe",
+			stderr: "pipe",
+		}).exited
+	})
+
+	afterAll(async () => {
+		// Cleanup the test repository
+		if (testRepoRoot) {
+			await rm(testRepoRoot, { recursive: true, force: true })
+		}
+	})
+
+	afterAll(async () => {
+		// Cleanup the test repository
+		await rm(testRepoRoot, { recursive: true, force: true })
 	})
 
 	describe("getBranch", () => {
 		it("returns a string for a valid git repository", async () => {
-			const branch = await getBranch(repoRoot)
+			const branch = await getBranch(testRepoRoot)
 
 			expect(branch).not.toBeNull()
 			expect(typeof branch).toBe("string")
-			if (branch) {
-				expect(branch.length).toBeGreaterThan(0)
-			}
+			expect(branch).toBe(testBranchName)
 		})
 
 		it("returns null for a non-git directory", async () => {
@@ -44,12 +122,12 @@ describe("git-context", () => {
 
 	describe("getRepoName", () => {
 		it("returns the repository name for a valid git repository", async () => {
-			const repoName = await getRepoName(repoRoot)
+			const repoName = await getRepoName(testRepoRoot)
 
 			expect(repoName).not.toBeNull()
 			expect(typeof repoName).toBe("string")
-			// The repo name is the basename of the git root (works in worktrees too)
-			expect(repoName).toBe(expectedRepoName)
+			// The repo name is the basename of the git root
+			expect(repoName).toBe(basename(testRepoRoot))
 		})
 
 		it("returns null for a non-git directory", async () => {
@@ -62,12 +140,11 @@ describe("git-context", () => {
 
 	describe("getGitInfo", () => {
 		it("returns both repoName and branch for a valid git repository", async () => {
-			const info = await getGitInfo(repoRoot)
+			const info = await getGitInfo(testRepoRoot)
 
 			expect(info).toBeDefined()
-			expect(info.repoName).toBe(expectedRepoName)
-			expect(info.branch).not.toBeNull()
-			expect(typeof info.branch).toBe("string")
+			expect(info.repoName).toBe(basename(testRepoRoot))
+			expect(info.branch).toBe(testBranchName)
 		})
 
 		it("returns null values for both fields in a non-git directory", async () => {
@@ -82,7 +159,7 @@ describe("git-context", () => {
 
 	describe("detectGitRepo", () => {
 		it("returns GitContext for a valid git repository", async () => {
-			const context = await detectGitRepo(repoRoot)
+			const context = await detectGitRepo(testRepoRoot)
 
 			expect(context).not.toBeNull()
 			if (context) {
@@ -103,7 +180,7 @@ describe("git-context", () => {
 		})
 
 		it("returns absolute paths", async () => {
-			const context = await detectGitRepo(repoRoot)
+			const context = await detectGitRepo(testRepoRoot)
 
 			expect(context).not.toBeNull()
 			if (context) {
@@ -127,11 +204,11 @@ describe("git-context", () => {
 				process.env.GIT_WORK_TREE = "/nonexistent/path"
 
 				// Functions should still detect the actual repo correctly
-				const branch = await getBranch(repoRoot)
-				const repoName = await getRepoName(repoRoot)
+				const branch = await getBranch(testRepoRoot)
+				const repoName = await getRepoName(testRepoRoot)
 
-				expect(branch).not.toBeNull()
-				expect(repoName).toBe(expectedRepoName)
+				expect(branch).toBe(testBranchName)
+				expect(repoName).toBe(basename(testRepoRoot))
 			} finally {
 				// Restore original env
 				if (originalGitDir) {

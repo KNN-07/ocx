@@ -8,11 +8,17 @@ import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import type { Command } from "commander"
 import { OCX_SCHEMA_URL } from "../constants.js"
+import { ProfileManager } from "../profile/manager.js"
+import { getProfileOcxConfig, getProfilesDir } from "../profile/paths.js"
 import { ocxConfigSchema } from "../schemas/config.js"
 import { ensureOpencodeConfig } from "../updaters/update-opencode-config.js"
-import { ConfigError, ConflictError, NetworkError, ValidationError } from "../utils/errors.js"
+import {
+	ConflictError,
+	NetworkError,
+	ProfileExistsError,
+	ValidationError,
+} from "../utils/errors.js"
 import { createSpinner, handleError, logger } from "../utils/index.js"
-import { getGlobalConfigPath, globalDirectoryExists } from "../utils/paths.js"
 
 const TEMPLATE_REPO = "kdcokenny/ocx"
 const TEMPLATE_PATH = "examples/registry-starter"
@@ -122,56 +128,45 @@ async function runInit(options: InitOptions): Promise<void> {
 }
 
 async function runInitGlobal(options: InitOptions): Promise<void> {
-	// Check global directory exists (OpenCode must have been run)
-	if (!(await globalDirectoryExists())) {
-		throw new ConfigError("Global config not found. Run 'opencode' once to initialize, then retry.")
+	const manager = ProfileManager.create()
+
+	// Guard: Check if already initialized (Law 1: Early Exit)
+	if (await manager.isInitialized()) {
+		const profilesDir = getProfilesDir()
+		throw new ProfileExistsError(`Global profiles already initialized at ${profilesDir}`)
 	}
 
-	const globalPath = getGlobalConfigPath()
-	const configPath = join(globalPath, "ocx.jsonc")
-
-	// Check for existing config - error if exists (Law 1: Early Exit)
-	if (existsSync(configPath)) {
-		throw new ConflictError(
-			`ocx.jsonc already exists at ${configPath}\n\n` +
-				`To reset, delete the config and run init again:\n` +
-				`  rm ${configPath} && ocx init --global`,
-		)
-	}
-
-	const spin = options.quiet ? null : createSpinner({ text: "Initializing global OCX config..." })
+	const spin = options.quiet ? null : createSpinner({ text: "Initializing global profiles..." })
 	spin?.start()
 
 	try {
-		// Create minimal config - schema will apply defaults
-		const rawConfig = {
-			$schema: OCX_SCHEMA_URL,
-			registries: {},
-		}
+		// Initialize profiles directory with default profile
+		await manager.initialize()
 
-		// Validate with schema (applies defaults)
-		const config = ocxConfigSchema.parse(rawConfig)
+		// Get paths for output
+		const profilesDir = getProfilesDir()
+		const ocxConfigPath = getProfileOcxConfig("default")
 
-		// Write config file
-		const content = JSON.stringify(config, null, 2)
-		await writeFile(configPath, content, "utf-8")
-
-		spin?.succeed("Initialized global OCX configuration")
+		spin?.succeed("Initialized global profiles")
 
 		if (options.json) {
 			console.log(
 				JSON.stringify({
 					success: true,
-					path: configPath,
-					global: true,
+					profilesDir,
+					defaultProfile: "default",
+					ocxConfigPath,
 				}),
 			)
 		} else if (!options.quiet) {
-			logger.info(`Created ${configPath}`)
+			logger.info(`Created ${profilesDir}`)
+			logger.info(`Created profile "default"`)
 			logger.info("")
 			logger.info("Next steps:")
-			logger.info("  1. Add a registry: ocx registry add <url> --global")
-			logger.info("  2. Install components: ocx add <component> --global")
+			logger.info("  1. Edit your profile config: ocx profile config")
+			logger.info("  2. Add registries: ocx registry add <url> --profile default")
+			logger.info("  3. Launch OpenCode: ocx opencode")
+			logger.info("  4. Create more profiles: ocx profile add <name>")
 		}
 	} catch (error) {
 		spin?.fail("Failed to initialize")

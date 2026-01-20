@@ -23,7 +23,7 @@ export interface RegistryAddOptions extends RegistryOptions {
 }
 
 // =============================================================================
-// CORE FUNCTIONS (used by both standard and ghost commands)
+// CORE FUNCTIONS (used by both standard and profile commands)
 // =============================================================================
 
 /**

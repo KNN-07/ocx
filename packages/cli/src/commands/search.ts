@@ -10,6 +10,7 @@ import fuzzysort from "fuzzysort"
 import kleur from "kleur"
 import type { ConfigProvider } from "../config/provider.js"
 import { LocalConfigProvider } from "../config/provider.js"
+import { ConfigResolver } from "../config/resolver.js"
 import { fetchRegistryIndex } from "../registry/fetcher.js"
 import { readOcxLock } from "../schemas/config.js"
 import { createSpinner, handleError, logger, outputJson } from "../utils/index.js"
@@ -22,6 +23,7 @@ export interface SearchOptions {
 	verbose: boolean
 	installed: boolean
 	limit: number
+	profile?: string
 }
 
 /**
@@ -45,6 +47,7 @@ export function registerSearchCommand(program: Command): void {
 		.description("Search for components across registries or list installed")
 		.argument("[query]", "Search query")
 		.option("-i, --installed", "List installed components only", false)
+		.option("-p, --profile <name>", "Use specific profile")
 		.addOption(
 			new Option("-l, --limit <n>", "Limit results").default(20).argParser(parsePositiveInt),
 		)
@@ -86,8 +89,21 @@ export function registerSearchCommand(program: Command): void {
 				return
 			}
 
-			// Search using local config provider
-			const provider = await LocalConfigProvider.create(options.cwd)
+			// Search using ConfigResolver (supports --profile) or LocalConfigProvider
+			let provider: ConfigProvider
+
+			if (options.profile) {
+				// Use ConfigResolver with profile
+				const resolver = await ConfigResolver.create(options.cwd, { profile: options.profile })
+				provider = {
+					cwd: resolver.getCwd(),
+					getRegistries: () => resolver.getRegistries(),
+					getComponentPath: () => resolver.getComponentPath(),
+				}
+			} else {
+				provider = await LocalConfigProvider.create(options.cwd)
+			}
+
 			await runSearchCore(query, options, provider)
 		} catch (error) {
 			handleError(error, { json: options.json })
@@ -97,7 +113,7 @@ export function registerSearchCommand(program: Command): void {
 
 /**
  * Core search logic that accepts a ConfigProvider.
- * This enables reuse across both standard and ghost modes.
+ * This enables reuse across both standard and profile modes.
  */
 export async function runSearchCore(
 	query: string | undefined,

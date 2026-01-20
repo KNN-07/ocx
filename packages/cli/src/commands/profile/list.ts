@@ -1,14 +1,13 @@
 /**
- * Ghost Profile List Command
+ * Profile List Command
  *
- * List all available ghost profiles.
- * Current profile is marked with an asterisk (*).
+ * List all available global profiles.
  */
 
 import type { Command } from "commander"
-import { ProfileManager } from "../../../profile/manager.js"
-import { handleError } from "../../../utils/handle-error.js"
-import { sharedOptions } from "../../../utils/shared-options.js"
+import { ProfileManager } from "../../profile/manager.js"
+import { handleError } from "../../utils/handle-error.js"
+import { sharedOptions } from "../../utils/shared-options.js"
 
 interface ProfileListOptions {
 	json?: boolean
@@ -18,7 +17,7 @@ export function registerProfileListCommand(parent: Command): void {
 	parent
 		.command("list")
 		.alias("ls")
-		.description("List all ghost profiles")
+		.description("List all global profiles")
 		.addOption(sharedOptions.json())
 		.action(async (options: ProfileListOptions) => {
 			try {
@@ -35,18 +34,17 @@ async function runProfileList(options: ProfileListOptions): Promise<void> {
 	// Guard: Check if profiles are initialized
 	if (!(await manager.isInitialized())) {
 		if (options.json) {
-			console.log(JSON.stringify({ profiles: [], current: null }))
+			console.log(JSON.stringify({ profiles: [] }))
 		} else {
-			console.log("No profiles found. Run 'ocx ghost init' to create one.")
+			console.log("No profiles found. Run 'ocx init --global' to create one.")
 		}
 		return
 	}
 
 	const profiles = await manager.list()
-	const current = await manager.getCurrent()
 
 	if (options.json) {
-		console.log(JSON.stringify({ profiles, current }, null, 2))
+		console.log(JSON.stringify({ profiles }, null, 2))
 		return
 	}
 
@@ -56,9 +54,9 @@ async function runProfileList(options: ProfileListOptions): Promise<void> {
 		return
 	}
 
-	// Display profiles with current marker
+	// Display profiles
+	console.log("Global profiles:")
 	for (const name of profiles) {
-		const marker = name === current ? "* " : "  "
-		console.log(`${marker}${name}`)
+		console.log(`  ${name}`)
 	}
 }

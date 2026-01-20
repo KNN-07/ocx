@@ -4,8 +4,8 @@
  * Provides cross-environment terminal identification by setting both
  * the terminal title (via ANSI OSC escape) and tmux window name (if applicable).
  *
- * Terminal renaming can be disabled via ghost config (`renameWindow: false`)
- * or the `--no-rename` CLI flag for `ocx ghost opencode`.
+ * Terminal renaming can be disabled via profile config (`renameWindow: false`)
+ * or the `--no-rename` CLI flag for `ocx opencode`.
  */
 
 import path from "node:path"
@@ -17,7 +17,7 @@ const MAX_BRANCH_LENGTH = 20
 // ============================================================================
 // Terminal Title Stack (Save/Restore)
 // ============================================================================
-// REQUIREMENT: Ghost mode must restore the original terminal title on exit.
+// REQUIREMENT: Profile mode must restore the original terminal title on exit.
 //
 // APPROACH: Uses XTerm's title stack (CSI 22;2t push, CSI 23;2t pop).
 // This follows the pattern used by Vim and Neovim for reliable restoration.
@@ -60,7 +60,7 @@ export function isInsideTmux(): boolean {
  *
  * @example
  * ```ts
- * setTmuxWindowName("ghost: my-project")
+ * setTmuxWindowName("ocx: my-project")
  * ```
  */
 export function setTmuxWindowName(name: string): void {
@@ -86,7 +86,7 @@ export function setTmuxWindowName(name: string): void {
  *
  * @example
  * ```ts
- * setTerminalTitle("ghost: my-project")
+ * setTerminalTitle("ocx: my-project")
  * ```
  */
 export function setTerminalTitle(title: string): void {
@@ -111,8 +111,8 @@ export function setTerminalTitle(title: string): void {
  *
  * @example
  * ```ts
- * // In ghost opencode command
- * setTerminalName(`ghost: ${projectName}`)
+ * // In opencode command
+ * setTerminalName(`ocx: ${projectName}`)
  * ```
  */
 export function setTerminalName(name: string): void {
@@ -130,7 +130,7 @@ export function setTerminalName(name: string): void {
  * @example
  * ```ts
  * saveTerminalTitle()  // Push current title
- * setTerminalName("ghost[default]:repo/main")
+ * setTerminalName("ocx[default]:repo/main")
  * // ... later on exit ...
  * restoreTerminalTitle()  // Pop to restore original
  * ```
@@ -181,9 +181,9 @@ export function restoreTerminalTitle(): void {
 }
 
 /**
- * Formats the terminal name for ghost mode sessions.
+ * Formats the terminal name for profile mode sessions.
  *
- * Format: ghost[profileName]:repoName/branch
+ * Format: ocx[profileName]:repoName/branch
  *
  * @param cwd - Current working directory
  * @param profileName - Active profile name
@@ -193,10 +193,10 @@ export function restoreTerminalTitle(): void {
  * @example
  * ```ts
  * formatTerminalName("/path/to/repo", "default", { repoName: "ocx", branch: "main" })
- * // Returns: "ghost[default]:ocx/main"
+ * // Returns: "ocx[default]:ocx/main"
  *
  * formatTerminalName("/path/to/repo", "work", { repoName: null, branch: null })
- * // Returns: "ghost[work]:repo"
+ * // Returns: "ocx[work]:repo"
  * ```
  */
 export function formatTerminalName(cwd: string, profileName: string, gitInfo: GitInfo): string {
@@ -204,7 +204,7 @@ export function formatTerminalName(cwd: string, profileName: string, gitInfo: Gi
 
 	// Early exit: no branch info
 	if (!gitInfo.branch) {
-		return `ghost[${profileName}]:${repoName}`
+		return `ocx[${profileName}]:${repoName}`
 	}
 
 	// Truncate long branch names to keep terminal title readable
@@ -213,5 +213,5 @@ export function formatTerminalName(cwd: string, profileName: string, gitInfo: Gi
 			? `${gitInfo.branch.slice(0, MAX_BRANCH_LENGTH - 3)}...`
 			: gitInfo.branch
 
-	return `ghost[${profileName}]:${repoName}/${branch}`
+	return `ocx[${profileName}]:${repoName}/${branch}`
 }
