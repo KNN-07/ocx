@@ -8,7 +8,6 @@
 import type { Command } from "commander"
 import { ProfileManager } from "../../profile/manager.js"
 import { getProfileOcxConfig } from "../../profile/paths.js"
-import { ConfigError } from "../../utils/errors.js"
 import { handleError } from "../../utils/handle-error.js"
 
 export function registerProfileConfigCommand(parent: Command): void {
@@ -25,12 +24,7 @@ export function registerProfileConfigCommand(parent: Command): void {
 }
 
 async function runProfileConfig(name: string | undefined): Promise<void> {
-	const manager = ProfileManager.create()
-
-	// Guard: Ensure OCX is initialized
-	if (!(await manager.isInitialized())) {
-		throw new ConfigError("OCX not initialized. Run 'ocx init --global' first.")
-	}
+	const manager = await ProfileManager.requireInitialized()
 
 	// Use provided name or resolve profile (flag > env > default)
 	const profileName = name ?? (await manager.resolveProfile())

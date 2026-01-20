@@ -29,17 +29,7 @@ export function registerProfileListCommand(parent: Command): void {
 }
 
 async function runProfileList(options: ProfileListOptions): Promise<void> {
-	const manager = ProfileManager.create()
-
-	// Guard: Check if profiles are initialized
-	if (!(await manager.isInitialized())) {
-		if (options.json) {
-			console.log(JSON.stringify({ profiles: [], initialized: false }))
-		} else {
-			console.log("OCX not initialized. Run 'ocx init --global' first.")
-		}
-		return
-	}
+	const manager = await ProfileManager.requireInitialized()
 
 	const profiles = await manager.list()
 

@@ -54,6 +54,21 @@ export class ProfileManager {
 	}
 
 	/**
+	 * Get a ProfileManager instance, throwing if OCX is not initialized.
+	 * Use this in commands that require profiles to exist.
+	 *
+	 * @throws ProfilesNotInitializedError if OCX is not initialized
+	 * @returns ProfileManager instance guaranteed to be initialized
+	 */
+	static async requireInitialized(): Promise<ProfileManager> {
+		const manager = ProfileManager.create()
+		if (!(await manager.isInitialized())) {
+			throw new ProfilesNotInitializedError()
+		}
+		return manager
+	}
+
+	/**
 	 * Check if profiles have been initialized.
 	 */
 	async isInitialized(): Promise<boolean> {
