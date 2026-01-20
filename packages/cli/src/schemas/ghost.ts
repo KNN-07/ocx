@@ -13,30 +13,20 @@ import { z } from "zod"
 import { safeRelativePathSchema } from "./common.js"
 import { registryConfigSchema } from "./config.js"
 
-// =============================================================================
-// GLOB PATTERN SCHEMA
-// =============================================================================
-
 /**
- * Valid glob pattern - validated at parse boundary (Law 2).
- * Uses Bun's Glob constructor as the authoritative parser.
+ * Validates that a string is a valid glob pattern.
  */
-const globPatternSchema = z
-	.string()
-	.min(1, "Pattern cannot be empty")
-	.refine((val) => !val.includes("\0"), "Pattern cannot contain null bytes")
-	.refine((val) => val.trim() === val, "Pattern cannot have leading/trailing whitespace")
-	.refine(
-		(val) => {
-			try {
-				new Glob(val)
-				return true
-			} catch {
-				return false
-			}
-		},
-		(val) => ({ message: `Invalid glob pattern: "${val}"` }),
-	)
+const globPatternSchema = z.string().refine(
+	(pattern) => {
+		try {
+			new Glob(pattern)
+			return true
+		} catch {
+			return false
+		}
+	},
+	{ message: "Invalid glob pattern" },
+)
 
 // =============================================================================
 // GHOST CONFIG SCHEMA (ghost.jsonc)
@@ -52,6 +42,9 @@ export const ghostConfigSchema = z.object({
 	/** Schema URL for IDE support */
 	$schema: z.string().optional(),
 
+	/** Path to OpenCode binary. Falls back to OPENCODE_BIN env var, then "opencode". */
+	bin: z.string().optional(),
+
 	/**
 	 * Configured registries for ghost mode
 	 * Same format as ocx.jsonc registries
@@ -66,44 +59,6 @@ export const ghostConfigSchema = z.object({
 	componentPath: safeRelativePathSchema.optional(),
 
 	/**
-	 * Glob patterns to exclude from the symlink farm.
-	 *
-	 * **Semantics (TypeScript-style):**
-	 * 1. `exclude` is applied first — matching files are hidden
-	 * 2. `include` re-adds files from the excluded set (for power users)
-	 *
-	 * Default excludes all OpenCode project files so ghost mode provides
-	 * a clean slate. Override to keep specific files visible.
-	 */
-	exclude: z
-		.array(globPatternSchema)
-		.default([
-			// Rule files - recursive (can exist at any depth)
-			"**/AGENTS.md",
-			"**/CLAUDE.md",
-			"**/CONTEXT.md",
-			// Config - root only (one per project)
-			".opencode",
-			"opencode.jsonc",
-			"opencode.json",
-		])
-		.describe("Glob patterns to exclude from the symlink farm"),
-
-	/**
-	 * Glob patterns to re-include from the excluded set.
-	 *
-	 * Use this to selectively restore files that were excluded.
-	 * Only matches files that were first matched by `exclude`.
-	 *
-	 * Example: ["AGENTS.md"] keeps root AGENTS.md visible while
-	 * still hiding nested ones matched by the recursive pattern.
-	 */
-	include: z
-		.array(globPatternSchema)
-		.default([])
-		.describe("Glob patterns to re-include from excluded set (for power users)"),
-
-	/**
 	 * Whether to set terminal/tmux window name when launching OpenCode.
 	 * Set to false to preserve your existing terminal title.
 	 */
@@ -113,16 +68,29 @@ export const ghostConfigSchema = z.object({
 		.describe("Set terminal/tmux window name when launching OpenCode"),
 
 	/**
-	 * Maximum number of files to process when creating the symlink farm.
-	 * Acts as a safety check against accidentally running in massive directories.
-	 * Set to 0 to disable the limit entirely.
+	 * Glob patterns for project files to exclude from OpenCode discovery.
+	 * Prevents ghost mode from loading project-local configuration files.
 	 */
-	maxFiles: z
-		.number()
-		.int()
-		.min(0, "maxFiles must be non-negative")
-		.default(10000)
-		.describe("Maximum files to process (0 = unlimited)"),
+	exclude: z
+		.array(globPatternSchema)
+		.default([
+			"**/AGENTS.md",
+			"**/CLAUDE.md",
+			"**/CONTEXT.md",
+			"**/.opencode/**",
+			"**/opencode.jsonc",
+			"**/opencode.json",
+		])
+		.describe("Glob patterns for project files to exclude from OpenCode discovery"),
+
+	/**
+	 * Glob patterns for project files to include (overrides exclude).
+	 * Use when you need specific files from otherwise excluded patterns.
+	 */
+	include: z
+		.array(globPatternSchema)
+		.default([])
+		.describe("Glob patterns for project files to include (overrides exclude)"),
 })
 
 export type GhostConfig = z.infer<typeof ghostConfigSchema>

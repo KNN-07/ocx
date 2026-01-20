@@ -875,36 +875,38 @@ Ghost mode uses multi-profile configuration with configuration files stored at `
 |-------|------|---------|-------------|
 | `registries` | `object` | `{}` | Registry name → URL mapping |
 | `componentPath` | `string` | `.opencode` | Where to install components |
-| `include` | `string[]` | `[]` | Glob patterns for project files to include in ghost sessions |
-| `exclude` | `string[]` | `[]` | Glob patterns to filter out from include results |
+| `include` | `string[]` | `[]` | Glob patterns to include (overrides exclude) |
+| `exclude` | `string[]` | `["**/AGENTS.md", "**/CLAUDE.md", "**/CONTEXT.md", ...]` | Glob patterns to exclude |
 | `renameWindow` | `boolean` | `true` | Set terminal/tmux window name when launching OpenCode |
-| `maxFiles` | `number` | `10000` | Maximum files to process when creating symlink farm. Set to 0 for unlimited. Safety check against massive directories. |
+| `bin` | `string?` | - | Path to OpenCode binary. Falls back to OPENCODE_BIN env, then "opencode". |
 
-#### Include/Exclude Patterns
+#### Instruction File Discovery
 
-By default, ghost mode hides all OpenCode project files from the symlink farm. Use `include` and `exclude` to customize:
+Control which project instruction files OpenCode sees via `ghost.jsonc`:
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `exclude` | `["**/AGENTS.md", "**/CLAUDE.md", "**/CONTEXT.md", ...]` | Glob patterns to exclude |
+| `include` | `[]` | Glob patterns to include (overrides exclude) |
+
+Files are discovered by walking UP from project directory to git root. Profile instructions come last (highest priority).
+
+#### Custom OpenCode Binary
+
+To use a custom OpenCode binary, set the `bin` option in your profile's `ghost.jsonc`:
 
 ```jsonc
 {
-  "registries": { "kdco": { "url": "https://registry.kdco.dev" } },
-  
-  // Safety limit for symlink farm creation (0 = unlimited)
-  "maxFiles": 10000,
-  
-  // Include specific OpenCode files in ghost sessions
-  "include": [
-    "**/AGENTS.md",           // Include all AGENTS.md files
-    ".opencode/skills/**"     // Include skills directory
-  ],
-  
-  // Exclude patterns filter the include results  
-  "exclude": [
-    "**/vendor/**"            // But not files in vendor directories
-  ]
+  "bin": "/path/to/custom/opencode"
 }
 ```
 
-This follows the TypeScript-style include/exclude model—`include` selects files, `exclude` filters the results.
+**Resolution order:**
+1. `bin` in ghost.jsonc (profile-specific)
+2. `OPENCODE_BIN` environment variable
+3. `opencode` (system PATH)
+
+Ghost mode runs OpenCode directly in your project directory with profile isolation enabled via environment variables.
 
 ---
 
@@ -1279,15 +1281,15 @@ ocx ghost opencode -- /path/to/file.md
 
 #### How It Works
 
-1. **Profile Resolution**: Uses profile resolution priority to select configuration
-2. **OpenCode Discovery**: Finds all OpenCode files from the project
-3. **Apply Filters**: Uses `include`/`exclude` patterns from ghost config
-4. **Symlink Farm**: Creates temporary directory with symlinks to filtered files
-5. **Git Integration**: Sets `GIT_WORK_TREE` and `GIT_DIR` to see real project
-6. **File Sync**: Watches for new files created in the temp directory and syncs them back to your real project in real-time (respects `.gitignore` patterns)
-7. **Terminal Naming**: Sets terminal/tmux window name to `ghost[profile]:repo/branch` for session identification (unless disabled via `--no-rename` flag or `renameWindow: false` in config)
-8. **Spawn OpenCode**: Runs OpenCode from temp directory with ghost config via env vars
-9. **Cleanup**: Removes temp directory on exit, reports number of synced files
+1. **Profile Resolution**: Resolves current profile using priority: `--profile` flag > `OCX_PROFILE` env > current symlink > default
+2. **Terminal Naming**: Sets terminal/tmux window name (if `renameWindow` enabled in ghost.jsonc)
+3. **Instruction Discovery**: Walks UP from project directory to git root, finding AGENTS.md, CLAUDE.md, CONTEXT.md files at each level
+4. **Pattern Filtering**: Applies `exclude` patterns (default: exclude all instruction files), then `include` patterns (overrides exclude)
+5. **OpenCode Spawn**: Runs OpenCode directly in project directory with:
+   - `OPENCODE_DISABLE_PROJECT_CONFIG=true` - prevents loading project configs
+   - `OPENCODE_CONFIG_DIR` - points to profile directory
+   - `OPENCODE_CONFIG_CONTENT` - serialized config with discovered instructions
+   - `OCX_PROFILE` - current profile name
 
 ---
 

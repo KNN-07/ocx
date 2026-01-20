@@ -165,7 +165,10 @@ Or use the `OCX_PROFILE` environment variable to temporarily switch profiles.
 | `ocx ghost search <query>` | `ocx g search` | Search ghost registries |
 | `ocx ghost opencode [path] [args...]` | `ocx g opencode` | Run OpenCode with ghost config (optional project path) |
 
-> **How it works:** Ghost mode uses symlink isolation to run OpenCode without seeing the project's config. New files created during a ghost session are automatically synced back to your real project in real-time. Ghost mode also sets informative terminal names (`ghost[profile]:repo/branch`) for easy session identification (configurable via `renameWindow` or `--no-rename`). Git, LSPs, and file editing all work normally—changes go directly to the real project files.
+> **How it works:** Ghost mode runs OpenCode with profile isolation:
+> - Uses `OPENCODE_DISABLE_PROJECT_CONFIG` to prevent loading project configs
+> - Applies `exclude`/`include` patterns to control which project instruction files are visible
+> - Profile instructions take priority over project files
 
 #### Config Location
 
@@ -197,7 +200,7 @@ OpenCode configuration for ghost mode is stored alongside it in `opencode.jsonc`
 
 #### Customizing File Visibility
 
-By default, ghost mode hides all OpenCode project files (AGENTS.md, .opencode/, etc.) from the symlink farm. You can customize which files are included using glob patterns in your ghost config:
+By default, ghost mode hides all OpenCode project files (AGENTS.md, .opencode/, etc.) from the isolated environment. OpenCode runs directly in the project directory (no temp dir) with profile config passed via environment variables. You can customize which files are included using glob patterns in your ghost config:
 
 ```jsonc
 // ~/.config/opencode/profiles/default/ghost.jsonc
@@ -206,8 +209,8 @@ By default, ghost mode hides all OpenCode project files (AGENTS.md, .opencode/, 
     "kdco": "https://registry.kdco.dev"
   },
   
-  // Safety limit for symlink farm creation (0 = unlimited)
-  "maxFiles": 10000,
+  // Custom OpenCode binary (optional)
+  "bin": "/path/to/opencode",
   
   // Include specific OpenCode files in ghost sessions
   "include": [
@@ -288,6 +291,13 @@ OCX supports the full range of OpenCode configuration options:
 | Cargo-style union types | ✅ | String shorthand + full objects |
 | File string shorthand | ✅ | Auto-generates target path |
 | MCP URL shorthand | ✅ | `"https://..."` → remote server |
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `OCX_PROFILE` | Override the current profile |
+| `OPENCODE_BIN` | Path to OpenCode binary (overridden by `bin` in ghost.jsonc) |
 
 ## What's Shipped
 

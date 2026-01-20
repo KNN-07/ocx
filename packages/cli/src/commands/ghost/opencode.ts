@@ -1,51 +1,27 @@
 /**
  * Ghost OpenCode Command
  *
- * Launch OpenCode with ghost mode configuration using symlink farm isolation.
- * Creates a temp directory with symlinks to project files, excluding OpenCode
- * config files, to prevent OpenCode from discovering project-level settings.
+ * Launch OpenCode with ghost mode configuration. Uses environment variables
+ * to inject profile settings without modifying project files.
  */
 
-import { existsSync, renameSync, rmSync, statSync } from "node:fs"
-import { copyFile, mkdir, readdir } from "node:fs/promises"
-import path from "node:path"
+import { existsSync, statSync } from "node:fs"
+import path, { join, relative } from "node:path"
 import { Glob } from "bun"
 import type { Command } from "commander"
 import { ProfileManager } from "../../profile/manager.js"
 import { getProfileDir, getProfileOpencodeConfig } from "../../profile/paths.js"
 import { NotFoundError, ProfilesNotInitializedError, ValidationError } from "../../utils/errors.js"
-import { createFileSync, type FileSyncHandle, normalizePath } from "../../utils/file-sync.js"
 import { getGitInfo } from "../../utils/git-context.js"
-import { detectGitRepo, handleError, logger } from "../../utils/index.js"
+import { handleError, logger } from "../../utils/index.js"
 import { isAbsolutePath } from "../../utils/path-helpers.js"
 import { sharedOptions } from "../../utils/shared-options.js"
-import {
-	cleanupOrphanedGhostDirs,
-	cleanupSymlinkFarm,
-	createSymlinkFarm,
-	REMOVING_SUFFIX,
-} from "../../utils/symlink-farm.js"
 import {
 	formatTerminalName,
 	restoreTerminalTitle,
 	saveTerminalTitle,
 	setTerminalName,
 } from "../../utils/terminal-title.js"
-
-/**
- * Files/patterns that are valid OpenCode configuration and should be copied
- * from profile directory to symlink farm. Everything else is ignored.
- * Profile only "fills holes" (excluded patterns) - never overwrites symlinks.
- */
-const PROFILE_OVERLAY_ALLOWED: (string | RegExp)[] = [
-	"opencode.jsonc",
-	"opencode.json",
-	"opencode.yaml",
-	"AGENTS.md",
-	"CLAUDE.md",
-	"CONTEXT.md",
-	/^\.opencode(\/|$)/, // .opencode/ directory and all contents (plugins, etc.)
-]
 
 // =============================================================================
 // PATH RESOLUTION TYPES AND UTILITIES
@@ -192,31 +168,96 @@ export function resolveProjectPath(
 	}
 }
 
+// =============================================================================
+// INSTRUCTION FILE DISCOVERY
+// =============================================================================
+
+const INSTRUCTION_FILES = ["AGENTS.md", "CLAUDE.md", "CONTEXT.md"] as const
+
 /**
- * Check if a path matches the profile overlay allowlist.
- * Uses exact match for strings, regex test for patterns.
+ * Find git root by looking for .git (file or directory).
+ * Returns null if not in a git repo.
  */
-function isAllowedOverlayFile(relativePath: string): boolean {
-	return PROFILE_OVERLAY_ALLOWED.some((pattern) =>
-		typeof pattern === "string" ? relativePath === pattern : pattern.test(relativePath),
-	)
+export function detectGitRoot(startDir: string): string | null {
+	let currentDir = startDir
+
+	while (true) {
+		const gitPath = join(currentDir, ".git")
+		if (existsSync(gitPath)) {
+			return currentDir
+		}
+
+		const parentDir = join(currentDir, "..")
+		if (parentDir === currentDir) return null // filesystem root
+		currentDir = parentDir
+	}
 }
 
 /**
- * Check if a path is within a symlinked directory.
- * Used to prevent profile overlay from writing into project-owned areas.
- * Uses forward slashes only (Unix/Bun assumption).
- *
- * @param relativePath - Path to check (forward slashes)
- * @param symlinkRoots - Set of symlinked paths from createSymlinkFarm
+ * Discover instruction files by walking UP from projectDir to gitRoot.
+ * Returns repo-relative paths, deepest first, alphabetical within each depth.
  */
-function isWithinSymlinkRoot(relativePath: string, symlinkRoots: Set<string>): boolean {
-	for (const root of symlinkRoots) {
-		if (relativePath === root || relativePath.startsWith(`${root}/`)) {
-			return true
+export function discoverInstructionFiles(projectDir: string, gitRoot: string | null): string[] {
+	const root = gitRoot ?? projectDir
+	const discovered: string[] = []
+	let currentDir = projectDir
+
+	// Walk up from projectDir to root
+	while (true) {
+		// Check for each instruction file (alphabetical order)
+		for (const filename of INSTRUCTION_FILES) {
+			const filePath = join(currentDir, filename)
+			if (existsSync(filePath) && statSync(filePath).isFile()) {
+				// Store as relative to root
+				const relativePath = relative(root, filePath)
+				discovered.push(relativePath)
+			}
 		}
+
+		// Stop if we've reached the root
+		if (currentDir === root) break
+
+		// Move up one directory
+		const parentDir = join(currentDir, "..")
+		if (parentDir === currentDir) break // filesystem root
+		currentDir = parentDir
 	}
-	return false
+
+	// Walk starts at deepest (projectDir) and goes up to root,
+	// so discovered array is already in deepest-first order
+	return discovered
+}
+
+/**
+ * Normalize a glob pattern by stripping leading "./" for consistent matching.
+ * Discovered paths are repo-relative (e.g. "src/AGENTS.md") so patterns
+ * with "./" prefix (e.g. "./src/AGENTS.md") need normalization to match.
+ */
+function normalizePattern(pattern: string): string {
+	return pattern.startsWith("./") ? pattern.slice(2) : pattern
+}
+
+/**
+ * Filter files using TypeScript/Vite style include/exclude.
+ * Include overrides exclude, order is preserved.
+ */
+export function filterByPatterns(files: string[], exclude: string[], include: string[]): string[] {
+	return files.filter((file) => {
+		// Check include first - include overrides exclude
+		for (const pattern of include) {
+			const glob = new Glob(normalizePattern(pattern))
+			if (glob.match(file)) return true
+		}
+
+		// Check exclude
+		for (const pattern of exclude) {
+			const glob = new Glob(normalizePattern(pattern))
+			if (glob.match(file)) return false
+		}
+
+		// Not matched by include or exclude - keep it
+		return true
+	})
 }
 
 interface GhostOpenCodeOptions {
@@ -252,9 +293,6 @@ async function runGhostOpenCode(args: string[], options: GhostOpenCodeOptions): 
 		throw new ProfilesNotInitializedError()
 	}
 
-	// Clean up orphaned temp directories from interrupted sessions (SIGKILL resilience)
-	await cleanupOrphanedGhostDirs()
-
 	// Resolve current profile (respects --profile flag, OCX_PROFILE env, or symlink)
 	const profileName = await manager.getCurrent(options.profile)
 	const profile = await manager.get(profileName)
@@ -284,73 +322,41 @@ async function runGhostOpenCode(args: string[], options: GhostOpenCodeOptions): 
 		logger.info(`Using project directory: ${projectDir}`)
 	}
 
-	// Detect git repository context (may be null if not in a git repo)
-	const gitContext = await detectGitRepo(projectDir)
-
-	// Create symlink farm with pattern-based filtering
-	// Exclude patterns handle OpenCode config files (opencode.jsonc, AGENTS.md, .opencode/)
-	const ghostConfig = profile.ghost
-	const { tempDir, symlinkRoots } = await createSymlinkFarm(projectDir, {
-		includePatterns: ghostConfig.include,
-		excludePatterns: ghostConfig.exclude,
-		maxFiles: ghostConfig.maxFiles,
-	})
-
-	// Inject profile overlay - everything in profile dir except ghost.jsonc
-	// This includes opencode.jsonc, AGENTS.md, .opencode/, etc.
-	const overlayFiles = await injectProfileOverlay(
-		tempDir,
-		profileDir,
-		ghostConfig.include,
-		symlinkRoots,
-	)
-
-	// Track cleanup state to prevent double cleanup
-	let cleanupDone = false
-	let fileSync: FileSyncHandle | undefined
-
-	// Start real-time file sync - syncs new files from temp dir to project
-	// Pass overlay files to prevent profile configs from syncing back to project
-	fileSync = createFileSync(tempDir, projectDir, { overlayFiles })
-
-	const performCleanup = async () => {
-		if (cleanupDone) return
-		cleanupDone = true
-		await cleanupSymlinkFarm(tempDir)
-	}
-
 	// Determine if terminal should be renamed (Law 1: compute once, use in closure)
 	// Precedence: CLI flag > config > default(true)
+	const ghostConfig = profile.ghost
 	const shouldRename = options.rename !== false && ghostConfig.renameWindow !== false
 
-	// Safety net: sync cleanup on exit using rename-to-removing pattern
-	// This ensures SIGKILL resilience: if rename succeeds but rm is interrupted,
-	// the -removing directory will be cleaned up on next startup
-	const exitHandler = () => {
-		// Only restore if we renamed (Law 3: Atomic Predictability)
-		if (shouldRename) {
-			restoreTerminalTitle()
-		}
+	// Discover and filter project instruction files
+	const gitRoot = detectGitRoot(projectDir)
+	const discoveredFiles = discoverInstructionFiles(projectDir, gitRoot)
+	const filteredFiles = filterByPatterns(
+		discoveredFiles,
+		ghostConfig.exclude ?? [],
+		ghostConfig.include ?? [],
+	)
 
-		// Best-effort file sync close - can't await in sync handler
-		if (fileSync) {
-			fileSync.close().catch(() => {})
-		}
+	// Convert to absolute paths (relative to git root or project dir)
+	const root = gitRoot ?? projectDir
+	const projectInstructions = filteredFiles.map((f) => join(root, f))
 
-		if (!cleanupDone && tempDir) {
-			try {
-				const removingPath = `${tempDir}${REMOVING_SUFFIX}`
-				renameSync(tempDir, removingPath)
-				rmSync(removingPath, { recursive: true, force: true })
-			} catch {
-				// Best effort cleanup
-			}
-		}
-	}
-	process.on("exit", exitHandler)
+	// Merge with profile instructions (profile comes LAST = highest priority)
+	const profileInstructionsRaw = profile.opencode?.instructions
+	const profileInstructions: string[] = Array.isArray(profileInstructionsRaw)
+		? profileInstructionsRaw
+		: []
+	const allInstructions = [...projectInstructions, ...profileInstructions]
+
+	// Build the config to pass to OpenCode (only if we have instructions or existing config)
+	const configToPass =
+		allInstructions.length > 0 || profile.opencode
+			? {
+					...profile.opencode,
+					instructions: allInstructions.length > 0 ? allInstructions : undefined,
+				}
+			: undefined
 
 	// Setup signal handlers BEFORE spawn to avoid race condition
-	// Use optional chaining since proc is null until spawn completes
 	let proc: ReturnType<typeof Bun.spawn> | null = null
 
 	const sigintHandler = () => proc?.kill("SIGINT")
@@ -359,6 +365,14 @@ async function runGhostOpenCode(args: string[], options: GhostOpenCodeOptions): 
 	process.on("SIGINT", sigintHandler)
 	process.on("SIGTERM", sigtermHandler)
 
+	// Exit handler for terminal title restoration
+	const exitHandler = () => {
+		if (shouldRename) {
+			restoreTerminalTitle()
+		}
+	}
+	process.on("exit", exitHandler)
+
 	// Set terminal name only if enabled (Law 1: Early Exit pattern)
 	if (shouldRename) {
 		saveTerminalTitle()
@@ -366,21 +380,16 @@ async function runGhostOpenCode(args: string[], options: GhostOpenCodeOptions): 
 		setTerminalName(formatTerminalName(projectDir, profileName, gitInfo))
 	}
 
-	// Spawn opencode from the temp directory with config passed via environment
-	// Only set GIT_DIR/GIT_WORK_TREE when actually in a git repository
-	// If profile has opencode.jsonc, pass it via OPENCODE_CONFIG
+	// Spawn OpenCode directly in the project directory with config via environment
 	proc = Bun.spawn({
-		cmd: ["opencode", ...remainingArgs],
-		cwd: tempDir,
+		cmd: [ghostConfig.bin ?? process.env.OPENCODE_BIN ?? "opencode", ...remainingArgs],
+		cwd: projectDir,
 		env: {
 			...process.env,
-			...(profile.opencode && { OPENCODE_CONFIG_CONTENT: JSON.stringify(profile.opencode) }),
+			OPENCODE_DISABLE_PROJECT_CONFIG: "true",
 			OPENCODE_CONFIG_DIR: profileDir,
-			OCX_PROFILE: profileName, // Pass profile to child processes
-			...(gitContext && {
-				GIT_WORK_TREE: gitContext.workTree,
-				GIT_DIR: gitContext.gitDir,
-			}),
+			...(configToPass && { OPENCODE_CONFIG_CONTENT: JSON.stringify(configToPass) }),
+			OCX_PROFILE: profileName,
 		},
 		stdin: "inherit",
 		stdout: "inherit",
@@ -391,121 +400,27 @@ async function runGhostOpenCode(args: string[], options: GhostOpenCodeOptions): 
 		// Wait for child to exit
 		const exitCode = await proc.exited
 
-		// Cleanup BEFORE process.exit (fixes race condition)
+		// Cleanup signal handlers
 		process.off("SIGINT", sigintHandler)
 		process.off("SIGTERM", sigtermHandler)
 		process.off("exit", exitHandler)
 
-		// Close file sync and report status
-		if (fileSync) {
-			await fileSync.close()
-			const syncCount = fileSync.getSyncCount()
-			const failures = fileSync.getFailures()
-			if (syncCount > 0 && !options.quiet) {
-				logger.info(`Synced ${syncCount} new files to project`)
-			}
-			if (failures.length > 0) {
-				logger.warn(`${failures.length} files failed to sync`)
-				for (const f of failures) {
-					logger.debug(`  ${f.path}: ${f.error.message}`)
-				}
-			}
+		// Restore terminal title if we renamed it
+		if (shouldRename) {
+			restoreTerminalTitle()
 		}
 
-		await performCleanup()
 		process.exit(exitCode)
 	} catch (error) {
-		// Error during spawn/wait - still cleanup
+		// Error during spawn/wait - cleanup handlers
 		process.off("SIGINT", sigintHandler)
 		process.off("SIGTERM", sigtermHandler)
 		process.off("exit", exitHandler)
 
-		if (fileSync) {
-			await fileSync.close()
+		if (shouldRename) {
+			restoreTerminalTitle()
 		}
-		await performCleanup()
+
 		throw error
 	}
-}
-
-/**
- * Check if user explicitly included a path via include patterns.
- * When a user explicitly includes a project file, don't overwrite with profile version.
- *
- * @param relativePath - Path relative to project root
- * @param compiledPatterns - Pre-compiled Glob patterns from ghost.jsonc
- * @returns True if user explicitly included this path
- */
-function userExplicitlyIncluded(relativePath: string, compiledPatterns: Glob[]): boolean {
-	// Law 1: Early Exit - no patterns means nothing explicitly included
-	if (compiledPatterns.length === 0) return false
-
-	return compiledPatterns.some((glob) => glob.match(relativePath))
-}
-
-/**
- * Inject allowed config files from profile directory into the symlink farm.
- * Only copies files in PROFILE_OVERLAY_ALLOWED that don't exist in symlinked areas.
- * This ensures profile configs "fill holes" without overwriting project files.
- *
- * @param tempDir - Target temp directory (symlink farm)
- * @param profileDir - Source profile directory
- * @param includePatterns - User's include patterns (to avoid overwriting explicitly included project files)
- * @param symlinkRoots - Set of symlinked paths (to prevent writing into project-owned areas)
- */
-async function injectProfileOverlay(
-	tempDir: string,
-	profileDir: string,
-	includePatterns: string[],
-	symlinkRoots: Set<string>,
-): Promise<Set<string>> {
-	const entries = await readdir(profileDir, { withFileTypes: true, recursive: true })
-
-	// Track all injected files for overlay exclusion (Law 3: Atomic Predictability)
-	const injectedFiles = new Set<string>()
-
-	// Pre-compile globs once before the loop (performance optimization)
-	const compiledIncludePatterns = includePatterns.map((p) => new Glob(p))
-
-	for (const entry of entries) {
-		// Build relative path from profile directory
-		const relativePath = path.relative(profileDir, path.join(entry.parentPath, entry.name))
-
-		// Law 1: Early Exit - skip ghost.jsonc (our config, not OpenCode's)
-		if (relativePath === "ghost.jsonc") continue
-
-		// Law 1: Early Exit - skip .gitignore (critical for file-sync)
-		// The profile's .gitignore is for the profile dir, not the project.
-		// Copying it would overwrite the project's symlinked .gitignore and break file-sync filtering.
-		if (relativePath === ".gitignore") continue
-
-		// Law 1: Early Exit - skip if not an allowed config file (allowlist approach)
-		if (!isAllowedOverlayFile(relativePath)) continue
-
-		// Law 1: Early Exit - skip if within a symlinked directory (project owns this area)
-		if (isWithinSymlinkRoot(relativePath, symlinkRoots)) continue
-
-		// Law 1: Early Exit - skip if user explicitly included the project version
-		// This lets users keep project AGENTS.md by including it explicitly
-		if (userExplicitlyIncluded(relativePath, compiledIncludePatterns)) continue
-
-		// Law 1: Early Exit - skip directories, files create their parents
-		if (entry.isDirectory()) continue
-
-		const destPath = path.join(tempDir, relativePath)
-
-		// Law 1: Early Exit - skip if file already exists (symlink or real file from project)
-		// This is a safety net in case symlinkRoots doesn't cover all cases
-		if (existsSync(destPath)) continue
-
-		// Ensure parent directory exists and copy file
-		await mkdir(path.dirname(destPath), { recursive: true })
-		await copyFile(path.join(entry.parentPath, entry.name), destPath)
-
-		// Track normalized path for overlay exclusion
-		injectedFiles.add(normalizePath(relativePath))
-	}
-
-	// Return immutable copy (Law 3: Atomic Predictability)
-	return new Set(injectedFiles)
 }
