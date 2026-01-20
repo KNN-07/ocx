@@ -10,7 +10,7 @@ import { dirname, join } from "node:path"
 
 import type { Command } from "commander"
 import type { ConfigProvider } from "../config/provider.js"
-import { LocalConfigProvider } from "../config/provider.js"
+import { GlobalConfigProvider, LocalConfigProvider } from "../config/provider.js"
 import { CLI_VERSION, GITHUB_REPO } from "../constants.js"
 import { fetchFileContent, fetchRegistryIndex } from "../registry/fetcher.js"
 import type { ResolvedComponent } from "../registry/resolver.js"
@@ -41,7 +41,13 @@ import {
 	validateNpmPackage,
 	validateOpenCodePlugin,
 } from "../utils/npm-registry.js"
-import { addCommonOptions, addForceOption, addVerboseOption } from "../utils/shared-options.js"
+import { resolveTargetPath } from "../utils/paths.js"
+import {
+	addCommonOptions,
+	addForceOption,
+	addGlobalOption,
+	addVerboseOption,
+} from "../utils/shared-options.js"
 
 // =============================================================================
 // ADD INPUT TYPES (Discriminated Union)
@@ -97,6 +103,7 @@ export interface AddOptions {
 	json?: boolean
 	skipCompatCheck?: boolean
 	trust?: boolean
+	global?: boolean
 }
 
 export function registerAddCommand(program: Command): void {
@@ -118,10 +125,14 @@ export function registerAddCommand(program: Command): void {
 	addCommonOptions(cmd)
 	addForceOption(cmd)
 	addVerboseOption(cmd)
+	addGlobalOption(cmd)
 
 	cmd.action(async (components: string[], options: AddOptions) => {
 		try {
-			const provider = await LocalConfigProvider.create(options.cwd ?? process.cwd())
+			// Create appropriate provider based on --global flag
+			const provider = options.global
+				? await GlobalConfigProvider.create()
+				: await LocalConfigProvider.create(options.cwd ?? process.cwd())
 			await runAddCore(components, options, provider)
 		} catch (error) {
 			handleError(error, { json: options.json })
@@ -399,7 +410,7 @@ async function runRegistryAddCore(
 
 			// Layer 2 path safety: Verify all target paths are inside cwd (runtime containment)
 			for (const file of component.files) {
-				const targetPath = join(cwd, file.target)
+				const targetPath = join(cwd, resolveTargetPath(file.target, !!options.global))
 				assertPathInside(targetPath, cwd)
 			}
 
@@ -412,16 +423,17 @@ async function runRegistryAddCore(
 
 			// Check for file conflicts with components from other namespaces
 			for (const file of component.files) {
-				const targetPath = join(cwd, file.target)
+				const resolvedTarget = resolveTargetPath(file.target, !!options.global)
+				const targetPath = join(cwd, resolvedTarget)
 				if (existsSync(targetPath)) {
 					// File exists - check if it's from the same component (re-install) or different (conflict)
-					const conflictingComponent = findComponentByFile(lock, file.target)
+					const conflictingComponent = findComponentByFile(lock, resolvedTarget)
 					if (conflictingComponent && conflictingComponent !== component.qualifiedName) {
 						fetchSpin?.fail("File conflict detected")
 						throw new ConflictError(
-							`File conflict: ${file.target} already exists (installed by '${conflictingComponent}').\n\n` +
+							`File conflict: ${resolvedTarget} already exists (installed by '${conflictingComponent}').\n\n` +
 								`To resolve:\n` +
-								`  1. Remove existing: rm ${file.target}\n` +
+								`  1. Remove existing: rm ${resolvedTarget}\n` +
 								`  2. Or rename it manually and update references\n` +
 								`  3. Then run: ocx add ${component.qualifiedName}`,
 						)
@@ -443,13 +455,14 @@ async function runRegistryAddCore(
 				const componentFile = component.files.find((f: ComponentFileObject) => f.path === file.path)
 				if (!componentFile) continue
 
-				const targetPath = join(cwd, componentFile.target)
+				const resolvedTarget = resolveTargetPath(componentFile.target, !!options.global)
+				const targetPath = join(cwd, resolvedTarget)
 				if (existsSync(targetPath)) {
 					const existingContent = await Bun.file(targetPath).text()
 					const incomingContent = file.content.toString("utf-8")
 
 					if (!isContentIdentical(existingContent, incomingContent) && !options.force) {
-						allConflicts.push(componentFile.target)
+						allConflicts.push(resolvedTarget)
 					}
 				}
 			}
@@ -479,6 +492,7 @@ async function runRegistryAddCore(
 			const installResult = await installComponent(component, files, cwd, {
 				force: options.force,
 				verbose: options.verbose,
+				isGlobal: options.global,
 			})
 
 			// Log results in verbose mode
@@ -508,7 +522,7 @@ async function runRegistryAddCore(
 				registry: component.registryName,
 				version: index.version,
 				hash: computedHash,
-				files: component.files.map((f) => f.target),
+				files: component.files.map((f) => resolveTargetPath(f.target, !!options.global)),
 				installedAt: new Date().toISOString(),
 			}
 		}
@@ -528,14 +542,19 @@ async function runRegistryAddCore(
 			}
 		}
 
-		// Update .opencode/package.json with npm dependencies
+		// Update package.json with npm dependencies
+		// Global mode: writes to cwd/package.json
+		// Local mode: writes to .opencode/package.json
 		const hasNpmDeps = resolved.npmDependencies.length > 0
 		const hasNpmDevDeps = resolved.npmDevDependencies.length > 0
+		const packageJsonPath = options.global
+			? join(cwd, "package.json")
+			: join(cwd, ".opencode/package.json")
 
 		if (hasNpmDeps || hasNpmDevDeps) {
 			const npmSpin = options.quiet
 				? null
-				: createSpinner({ text: "Updating .opencode/package.json..." })
+				: createSpinner({ text: `Updating ${packageJsonPath}...` })
 			npmSpin?.start()
 
 			try {
@@ -543,13 +562,12 @@ async function runRegistryAddCore(
 					cwd,
 					resolved.npmDependencies,
 					resolved.npmDevDependencies,
+					{ isGlobal: options.global },
 				)
 				const totalDeps = resolved.npmDependencies.length + resolved.npmDevDependencies.length
-				npmSpin?.succeed(
-					`Added ${totalDeps} dependencies to ${join(cwd, ".opencode/package.json")}`,
-				)
+				npmSpin?.succeed(`Added ${totalDeps} dependencies to ${packageJsonPath}`)
 			} catch (error) {
-				npmSpin?.fail("Failed to update .opencode/package.json")
+				npmSpin?.fail(`Failed to update ${packageJsonPath}`)
 				throw error
 			}
 		}
@@ -594,7 +612,7 @@ async function installComponent(
 	component: ResolvedComponent,
 	files: { path: string; content: Buffer }[],
 	cwd: string,
-	_options: { force?: boolean; verbose?: boolean },
+	options: { force?: boolean; verbose?: boolean; isGlobal?: boolean },
 ): Promise<{ written: string[]; skipped: string[]; overwritten: string[] }> {
 	const result = {
 		written: [] as string[],
@@ -606,7 +624,8 @@ async function installComponent(
 		const componentFile = component.files.find((f: ComponentFileObject) => f.path === file.path)
 		if (!componentFile) continue
 
-		const targetPath = join(cwd, componentFile.target)
+		const resolvedTarget = resolveTargetPath(componentFile.target, !!options.isGlobal)
+		const targetPath = join(cwd, resolvedTarget)
 		const targetDir = dirname(targetPath)
 
 		// Check if file exists
@@ -617,14 +636,14 @@ async function installComponent(
 
 			if (isContentIdentical(existingContent, incomingContent)) {
 				// Content is identical - skip silently
-				result.skipped.push(componentFile.target)
+				result.skipped.push(resolvedTarget)
 				continue
 			}
 
 			// Content differs - overwrite (conflicts already checked in pre-flight)
-			result.overwritten.push(componentFile.target)
+			result.overwritten.push(resolvedTarget)
 		} else {
-			result.written.push(componentFile.target)
+			result.written.push(resolvedTarget)
 		}
 
 		// Create directory if needed
@@ -808,33 +827,39 @@ async function ensureManifestFilesAreTracked(opencodeDir: string): Promise<void>
 }
 
 /**
- * Updates .opencode/package.json with new devDependencies and ensures
- * manifest files are tracked by git.
+ * Updates package.json with new devDependencies.
+ * For local mode: writes to .opencode/package.json and ensures git tracking.
+ * For global mode: writes directly to cwd/package.json (no .opencode prefix).
  */
 async function updateOpencodeDevDependencies(
 	cwd: string,
 	npmDeps: string[],
 	npmDevDeps: string[],
+	options: { isGlobal?: boolean } = {},
 ): Promise<void> {
 	// Guard: no deps to process
 	const allDepSpecs = [...npmDeps, ...npmDevDeps]
 	if (allDepSpecs.length === 0) return
 
-	const opencodeDir = join(cwd, ".opencode")
+	// Global mode: write directly to cwd, no .opencode prefix
+	// Local mode: write to .opencode subdirectory
+	const packageDir = options.isGlobal ? cwd : join(cwd, ".opencode")
 
 	// Ensure directory exists
-	await mkdir(opencodeDir, { recursive: true })
+	await mkdir(packageDir, { recursive: true })
 
 	// Parse all deps - fails fast on invalid
 	const parsedDeps = allDepSpecs.map(parseNpmDependency)
 
 	// Read → merge → write
-	const existing = await readOpencodePackageJson(opencodeDir)
+	const existing = await readOpencodePackageJson(packageDir)
 	const updated = mergeDevDependencies(existing, parsedDeps)
-	await Bun.write(join(opencodeDir, "package.json"), `${JSON.stringify(updated, null, 2)}\n`)
+	await Bun.write(join(packageDir, "package.json"), `${JSON.stringify(updated, null, 2)}\n`)
 
-	// Ensure manifest files are tracked by git
-	await ensureManifestFilesAreTracked(opencodeDir)
+	// Ensure manifest files are tracked by git (only for local mode)
+	if (!options.isGlobal) {
+		await ensureManifestFilesAreTracked(packageDir)
+	}
 }
 
 /**

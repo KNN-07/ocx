@@ -11,10 +11,10 @@
 
 import { ProfileManager } from "../profile/manager.js"
 import { getProfileDir } from "../profile/paths.js"
-import type { OcxConfig, RegistryConfig } from "../schemas/config.js"
-import { readOcxConfig } from "../schemas/config.js"
+import { type OcxConfig, type RegistryConfig, readOcxConfig } from "../schemas/config.js"
 import type { GhostConfig } from "../schemas/ghost.js"
 import { ConfigError } from "../utils/errors.js"
+import { getGlobalConfigPath, globalDirectoryExists } from "../utils/paths.js"
 
 // =============================================================================
 // INTERFACE
@@ -129,5 +129,54 @@ export class GhostConfigProvider implements ConfigProvider {
 	/** Get the raw config for advanced use cases */
 	getConfig(): GhostConfig {
 		return this.config
+	}
+}
+
+// =============================================================================
+// GLOBAL CONFIG PROVIDER
+// =============================================================================
+
+/**
+ * Config provider for global OpenCode installations.
+ * Installs to ~/.config/opencode/ without .opencode prefix.
+ */
+export class GlobalConfigProvider implements ConfigProvider {
+	readonly cwd: string
+	private readonly config: OcxConfig | null
+
+	private constructor(basePath: string, config: OcxConfig | null) {
+		this.cwd = basePath
+		this.config = config
+	}
+
+	/**
+	 * Creates a GlobalConfigProvider after validating the global directory exists.
+	 * @throws ConfigError if OpenCode hasn't been initialized globally
+	 */
+	static async create(): Promise<GlobalConfigProvider> {
+		const basePath = getGlobalConfigPath()
+
+		// Guard: Global directory must exist (Law 1: Early Exit)
+		if (!(await globalDirectoryExists())) {
+			throw new ConfigError(
+				"Global config not found. Run 'opencode' once to initialize, then retry.",
+			)
+		}
+
+		// Load ocx.jsonc if it exists (returns null if not found)
+		const config = await readOcxConfig(basePath)
+
+		return new GlobalConfigProvider(basePath, config)
+	}
+
+	getRegistries(): Record<string, RegistryConfig> {
+		return this.config?.registries ?? {}
+	}
+
+	/**
+	 * Returns empty string - global installs have no .opencode prefix.
+	 */
+	getComponentPath(): string {
+		return ""
 	}
 }
