@@ -813,7 +813,7 @@ Local project configuration created by `ocx init`:
 
 ```jsonc
 {
-  "$schema": "https://ocx.dev/schemas/ocx.schema.json",
+  "$schema": "https://ocx.kdco.dev/schemas/ocx.json",
   "registries": {
     "kdco": {
       "url": "https://ocx.kdco.dev",

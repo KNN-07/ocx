@@ -4,12 +4,13 @@ import { logger } from "hono/logger"
 import { secureHeaders } from "hono/secure-headers"
 import { trimTrailingSlash } from "hono/trailing-slash"
 
-const VALID_SCHEMAS = ["ocx", "ghost", "lock", "registry"] as const
+const VALID_SCHEMAS = ["ocx", "profile", "local", "lock", "registry"] as const
 type SchemaName = (typeof VALID_SCHEMAS)[number]
 
 const SCHEMA_FILES: Record<SchemaName, string> = {
 	ocx: "docs/schemas/ocx.schema.json",
-	ghost: "docs/schemas/ghost.schema.json",
+	profile: "docs/schemas/profile.json",
+	local: "docs/schemas/local.json",
 	lock: "docs/schemas/lock.schema.json",
 	registry: "docs/schemas/registry.schema.json",
 }

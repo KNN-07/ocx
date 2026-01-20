@@ -40,7 +40,7 @@ Returns registry metadata and a list of available components. Must conform to [`
 
 ```json
 {
-  "$schema": "https://ocx.dev/schemas/registry.schema.json",
+  "$schema": "https://ocx.kdco.dev/schemas/registry.json",
   "name": "My Registry",
   "namespace": "myregistry",
   "version": "1.0.0",

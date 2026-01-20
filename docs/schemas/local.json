@@ -1,0 +1,45 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"$id": "https://ocx.kdco.dev/schemas/local.json",
+	"title": "OCX Local Configuration",
+	"description": "Configuration schema for local project OCX files stored at .opencode/ocx.jsonc",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"$schema": {
+			"type": "string",
+			"description": "Schema URL for IDE support"
+		},
+		"registries": {
+			"type": "object",
+			"description": "Registry configurations keyed by name",
+			"default": {},
+			"additionalProperties": {
+				"type": "object",
+				"required": ["url"],
+				"additionalProperties": false,
+				"properties": {
+					"url": {
+						"type": "string",
+						"format": "uri",
+						"description": "Registry URL"
+					},
+					"version": {
+						"type": "string",
+						"description": "Registry version"
+					},
+					"headers": {
+						"type": "object",
+						"additionalProperties": { "type": "string" },
+						"description": "Custom headers for registry requests"
+					}
+				}
+			}
+		},
+		"componentPath": {
+			"type": "string",
+			"pattern": "^(?!/)(?![A-Za-z]:)(?!\\\\\\\\)(?!.*\\.\\.)[^\\0]+$",
+			"description": "Relative path for component installation (no .. or absolute paths)"
+		}
+	}
+}

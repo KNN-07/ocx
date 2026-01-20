@@ -62,7 +62,7 @@ describe("terminal-title", () => {
 
 		it("does not throw with special characters in name", () => {
 			expect(() => {
-				setTerminalName("ghost: my-project@main")
+				setTerminalName("ocx[work]: my-project@main")
 			}).not.toThrow()
 		})
 
