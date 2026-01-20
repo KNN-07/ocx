@@ -288,7 +288,7 @@ The user-editable configuration file.
 
 ```jsonc
 {
-  "$schema": "https://ocx.kdco.dev/schema.json",
+  "$schema": "https://ocx.kdco.dev/schemas/ocx.json",
   "registries": {
     "kdco": {
       "url": "https://registry.kdco.dev"

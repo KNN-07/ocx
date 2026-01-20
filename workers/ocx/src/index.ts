@@ -41,10 +41,6 @@ app.get("/install.sh", async (c) => {
 	})
 })
 
-// Backward compatibility redirects
-app.get("/schema.json", (c) => c.redirect("/schemas/ocx.json", 301))
-app.get("/lock.schema.json", (c) => c.redirect("/schemas/lock.json", 301))
-
 // Unified schema route
 app.get("/schemas/:name{.+\\.json}", async (c) => {
 	const nameWithExt = c.req.param("name") // "registry.json"

@@ -1,5 +1,5 @@
 {
-	"$schema": "https://ocx.kdco.dev/schema.json",
+	"$schema": "https://ocx.kdco.dev/schemas/ocx.json",
 	"registries": {
 		"kdco": {
 			"url": "file:///Users/kenny/workspace/kdcokenny/ocx/workers/kdco-registry/dist"
