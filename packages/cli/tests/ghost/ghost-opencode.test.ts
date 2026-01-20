@@ -354,6 +354,162 @@ describe("ocx ghost opencode", () => {
 		expect(stderr).not.toContain("unknown option")
 		expect(stderr).not.toContain("--no-rename")
 	})
+
+	it("should use bin from ghost.jsonc config when set", async () => {
+		// Create a custom mock binary that identifies itself
+		const customBinDir = join(testDir, "custom-bin")
+		await mkdir(customBinDir, { recursive: true })
+		const customBinPath = join(customBinDir, "custom-opencode")
+		const script = `#!/bin/bash
+echo "CUSTOM_BIN=true"
+echo "CWD=$(pwd)"
+exit 0
+`
+		await Bun.write(customBinPath, script)
+		await Bun.spawn(["chmod", "+x", customBinPath]).exited
+
+		// Write ghost.jsonc with bin option set to profile directory
+		const profileGhostConfigPath = join(testDir, "opencode", "profiles", "default", "ghost.jsonc")
+		await Bun.write(profileGhostConfigPath, JSON.stringify({ registries: {}, bin: customBinPath }))
+
+		// Write opencode.jsonc
+		const profileOpencodeConfigPath = join(
+			testDir,
+			"opencode",
+			"profiles",
+			"default",
+			"opencode.jsonc",
+		)
+		await Bun.write(profileOpencodeConfigPath, '{"model": "test"}')
+
+		const { output } = await runGhostCLI(
+			["opencode"],
+			{
+				XDG_CONFIG_HOME: testDir,
+				// Don't add mockBinDir to PATH - we're testing the bin config
+			},
+			projectDir,
+		)
+
+		// The custom binary outputs CUSTOM_BIN=true
+		expect(output).toContain("CUSTOM_BIN=true")
+	})
+
+	it("should prefer bin config over OPENCODE_BIN env var", async () => {
+		// Create a custom mock binary that identifies itself
+		const customBinDir = join(testDir, "custom-bin")
+		await mkdir(customBinDir, { recursive: true })
+		const customBinPath = join(customBinDir, "custom-opencode")
+		const script = `#!/bin/bash
+echo "SOURCE=config"
+exit 0
+`
+		await Bun.write(customBinPath, script)
+		await Bun.spawn(["chmod", "+x", customBinPath]).exited
+
+		// Create an env binary that would be used if OPENCODE_BIN takes precedence
+		const envBinPath = join(mockBinDir, "env-opencode")
+		const envScript = `#!/bin/bash
+echo "SOURCE=env"
+exit 0
+`
+		await Bun.write(envBinPath, envScript)
+		await Bun.spawn(["chmod", "+x", envBinPath]).exited
+
+		// Write ghost.jsonc with bin option set to profile directory
+		const profileGhostConfigPath = join(testDir, "opencode", "profiles", "default", "ghost.jsonc")
+		await Bun.write(profileGhostConfigPath, JSON.stringify({ registries: {}, bin: customBinPath }))
+
+		// Write opencode.jsonc
+		const profileOpencodeConfigPath = join(
+			testDir,
+			"opencode",
+			"profiles",
+			"default",
+			"opencode.jsonc",
+		)
+		await Bun.write(profileOpencodeConfigPath, '{"model": "test"}')
+
+		const { output } = await runGhostCLI(
+			["opencode"],
+			{
+				XDG_CONFIG_HOME: testDir,
+				OPENCODE_BIN: envBinPath, // This should be overridden by config
+			},
+			projectDir,
+		)
+
+		// bin config takes precedence over OPENCODE_BIN env var
+		expect(output).toContain("SOURCE=config")
+		expect(output).not.toContain("SOURCE=env")
+	})
+
+	it("should fall back to OPENCODE_BIN env var when bin config is not set", async () => {
+		// Create an env binary
+		const envBinPath = join(mockBinDir, "env-opencode")
+		const envScript = `#!/bin/bash
+echo "SOURCE=env"
+exit 0
+`
+		await Bun.write(envBinPath, envScript)
+		await Bun.spawn(["chmod", "+x", envBinPath]).exited
+
+		// Write ghost.jsonc WITHOUT bin option to profile directory
+		const profileGhostConfigPath = join(testDir, "opencode", "profiles", "default", "ghost.jsonc")
+		await Bun.write(profileGhostConfigPath, JSON.stringify({ registries: {} }))
+
+		// Write opencode.jsonc
+		const profileOpencodeConfigPath = join(
+			testDir,
+			"opencode",
+			"profiles",
+			"default",
+			"opencode.jsonc",
+		)
+		await Bun.write(profileOpencodeConfigPath, '{"model": "test"}')
+
+		const { output } = await runGhostCLI(
+			["opencode"],
+			{
+				XDG_CONFIG_HOME: testDir,
+				OPENCODE_BIN: envBinPath,
+			},
+			projectDir,
+		)
+
+		// Should use OPENCODE_BIN since bin config is not set
+		expect(output).toContain("SOURCE=env")
+	})
+
+	it("should fall back to 'opencode' in PATH when neither bin nor OPENCODE_BIN is set", async () => {
+		// Write ghost.jsonc WITHOUT bin option to profile directory
+		const profileGhostConfigPath = join(testDir, "opencode", "profiles", "default", "ghost.jsonc")
+		await Bun.write(profileGhostConfigPath, JSON.stringify({ registries: {} }))
+
+		// Write opencode.jsonc
+		const profileOpencodeConfigPath = join(
+			testDir,
+			"opencode",
+			"profiles",
+			"default",
+			"opencode.jsonc",
+		)
+		await Bun.write(profileOpencodeConfigPath, '{"model": "test"}')
+
+		const { output } = await runGhostCLI(
+			["opencode"],
+			{
+				XDG_CONFIG_HOME: testDir,
+				PATH: `${mockBinDir}:${process.env.PATH}`,
+				// OPENCODE_BIN is not set
+			},
+			projectDir,
+		)
+
+		// The mock opencode in PATH should be used
+		// (it outputs OPENCODE_DISABLE_PROJECT_CONFIG from createMockOpencode)
+		expect(output).toContain("OPENCODE_DISABLE_PROJECT_CONFIG=true")
+	})
 })
 
 // =============================================================================

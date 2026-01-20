@@ -42,6 +42,9 @@ export const ghostConfigSchema = z.object({
 	/** Schema URL for IDE support */
 	$schema: z.string().optional(),
 
+	/** Path to OpenCode binary. Falls back to OPENCODE_BIN env var, then "opencode". */
+	bin: z.string().optional(),
+
 	/**
 	 * Configured registries for ghost mode
 	 * Same format as ocx.jsonc registries

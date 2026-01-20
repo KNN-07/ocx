@@ -328,6 +328,21 @@ Ghost mode discovers project instruction files and passes them to OpenCode. By d
 
 Files are discovered deepest-first and profile instructions come last (highest priority).
 
+### Custom OpenCode Binary
+
+To use a custom OpenCode binary (e.g., a development build), set the `bin` option in your profile's `ghost.jsonc`:
+
+```jsonc
+{
+  "bin": "/path/to/custom/opencode"
+}
+```
+
+**Resolution order:**
+1. `bin` in ghost.jsonc (profile-specific)
+2. `OPENCODE_BIN` environment variable
+3. `opencode` (system PATH)
+
 ### GhostConfigProvider vs ProfileManager
 
 - **`GhostConfigProvider`**: Reads config from the current profile, used at runtime by ghost commands
