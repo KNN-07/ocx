@@ -34,9 +34,9 @@ async function runProfileList(options: ProfileListOptions): Promise<void> {
 	// Guard: Check if profiles are initialized
 	if (!(await manager.isInitialized())) {
 		if (options.json) {
-			console.log(JSON.stringify({ profiles: [] }))
+			console.log(JSON.stringify({ profiles: [], initialized: false }))
 		} else {
-			console.log("No profiles found. Run 'ocx init --global' to create one.")
+			console.log("OCX not initialized. Run 'ocx init --global' first.")
 		}
 		return
 	}
@@ -44,13 +44,13 @@ async function runProfileList(options: ProfileListOptions): Promise<void> {
 	const profiles = await manager.list()
 
 	if (options.json) {
-		console.log(JSON.stringify({ profiles }, null, 2))
+		console.log(JSON.stringify({ profiles, initialized: true }, null, 2))
 		return
 	}
 
 	// Guard: Handle empty profiles list
 	if (profiles.length === 0) {
-		console.log("No profiles found.")
+		console.log("No profiles found. Run 'ocx profile add <name>' to create one.")
 		return
 	}
 

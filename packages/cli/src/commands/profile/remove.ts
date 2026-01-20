@@ -7,7 +7,7 @@
 
 import type { Command } from "commander"
 import { ProfileManager } from "../../profile/manager.js"
-import { ProfileNotFoundError } from "../../utils/errors.js"
+import { ConfigError, ProfileNotFoundError } from "../../utils/errors.js"
 import { handleError, logger } from "../../utils/index.js"
 
 export function registerProfileRemoveCommand(parent: Command): void {
@@ -26,6 +26,11 @@ export function registerProfileRemoveCommand(parent: Command): void {
 
 async function runProfileRemove(name: string): Promise<void> {
 	const manager = ProfileManager.create()
+
+	// Guard: Ensure OCX is initialized
+	if (!(await manager.isInitialized())) {
+		throw new ConfigError("OCX not initialized. Run 'ocx init --global' first.")
+	}
 
 	// Verify profile exists first (fail fast)
 	if (!(await manager.exists(name))) {

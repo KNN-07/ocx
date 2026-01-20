@@ -9,6 +9,7 @@ import type { Command } from "commander"
 import { atomicWrite } from "../../profile/atomic.js"
 import { ProfileManager } from "../../profile/manager.js"
 import { getProfileOcxConfig } from "../../profile/paths.js"
+import { ConfigError } from "../../utils/errors.js"
 import { handleError, logger } from "../../utils/index.js"
 
 interface ProfileAddOptions {
@@ -31,6 +32,11 @@ export function registerProfileAddCommand(parent: Command): void {
 
 async function runProfileAdd(name: string, options: ProfileAddOptions): Promise<void> {
 	const manager = ProfileManager.create()
+
+	// Guard: Ensure OCX is initialized
+	if (!(await manager.isInitialized())) {
+		throw new ConfigError("OCX not initialized. Run 'ocx init --global' first.")
+	}
 
 	if (options.from) {
 		// Clone from existing profile

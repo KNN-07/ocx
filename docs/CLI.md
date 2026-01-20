@@ -118,7 +118,7 @@ ocx init my-registry --registry --canary
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| `config.jsonc already exists` | Config file exists | Use `--force` to overwrite |
+| `ocx.jsonc already exists` | Config file exists | Use `--force` to overwrite |
 | `Invalid namespace format` | Namespace contains invalid characters | Use lowercase letters, numbers, and hyphens only |
 | `Directory is not empty` | Target directory has files | Use `--force` to proceed anyway |
 

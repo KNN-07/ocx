@@ -12,6 +12,7 @@ import {
 	getProfileOcxConfig,
 	getProfileOpencodeConfig,
 } from "../../profile/paths.js"
+import { ConfigError } from "../../utils/errors.js"
 import { handleError } from "../../utils/handle-error.js"
 import { sharedOptions } from "../../utils/shared-options.js"
 
@@ -38,6 +39,11 @@ async function runProfileShow(
 	options: ProfileShowOptions,
 ): Promise<void> {
 	const manager = ProfileManager.create()
+
+	// Guard: Ensure OCX is initialized
+	if (!(await manager.isInitialized())) {
+		throw new ConfigError("OCX not initialized. Run 'ocx init --global' first.")
+	}
 
 	// Use provided name or resolve profile (flag > env > default)
 	const profileName = name ?? (await manager.resolveProfile())
