@@ -15,7 +15,7 @@ ocx <command>
 
 ## Commands
 
-- [`ocx init`](#ocx-init) - Initialize OCX in your project
+- [`ocx init`](#ocx-init) - Initialize OCX configuration
 - [`ocx add`](#ocx-add) - Add components from a registry
 - [`ocx update`](#ocx-update) - Update installed components
 - [`ocx diff`](#ocx-diff) - Compare installed vs upstream
@@ -23,12 +23,15 @@ ocx <command>
 - [`ocx registry`](#ocx-registry) - Manage registries
 - [`ocx build`](#ocx-build) - Build a registry from source
 - [`ocx self update`](#ocx-self-update) - Update OCX to latest version
+- [`ocx profile`](#ocx-profile) - Manage global profiles
+- [`ocx config`](#ocx-config) - View and edit configuration
+- [`ocx opencode`](#ocx-opencode) - Launch OpenCode with resolved configuration
 
 ---
 
 ## ocx init
 
-Initialize OCX configuration in your project or scaffold a new registry.
+Initialize OCX configuration locally or globally with profile support.
 
 ### Usage
 
@@ -51,6 +54,7 @@ ocx init [directory] [options]
 | `-q, --quiet` | Suppress output |
 | `-v, --verbose` | Verbose output |
 | `--json` | Output as JSON |
+| `--global` | Initialize global configuration with default profile |
 | `--registry` | Scaffold a new OCX registry project |
 | `--namespace <name>` | Registry namespace (e.g., `my-org`) |
 | `--author <name>` | Author name for the registry |
@@ -60,8 +64,11 @@ ocx init [directory] [options]
 ### Examples
 
 ```bash
-# Initialize in current directory
+# Initialize local .opencode/ directory
 ocx init
+
+# Initialize global profiles
+ocx init --global
 
 # Initialize with defaults (no prompts)
 ocx init -f
@@ -88,18 +95,30 @@ ocx init my-registry --registry --canary
 
 ### Output Files
 
-After initialization, OCX creates:
+**Local initialization** creates:
 
 | File | Description |
 |------|-------------|
-| `ocx.jsonc` | Configuration file with registry settings |
+| `.opencode/config.jsonc` | Local project configuration |
 | `ocx.lock` | Lock file tracking installed components |
+
+**Global initialization** (`--global`) creates:
+
+```
+~/.config/opencode/
+├── config.jsonc              # Global base config
+└── profiles/
+    └── default/
+        ├── ocx.jsonc         # Profile OCX settings
+        ├── opencode.jsonc    # Profile OpenCode config
+        └── AGENTS.md         # Profile instructions
+```
 
 ### Errors
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| `ocx.jsonc already exists` | Config file exists | Use `--force` to overwrite |
+| `config.jsonc already exists` | Config file exists | Use `--force` to overwrite |
 | `Invalid namespace format` | Namespace contains invalid characters | Use lowercase letters, numbers, and hyphens only |
 | `Directory is not empty` | Target directory has files | Use `--force` to proceed anyway |
 
@@ -128,6 +147,7 @@ ocx add <components...> [options]
 | `-f, --force` | Overwrite existing components/plugins without prompting |
 | `--trust` | Skip plugin validation for npm packages (allows non-ESM packages) |
 | `--dry-run` | Show what would be installed without making changes |
+| `-p, --profile <name>` | Use specific global profile for registry resolution |
 | `--cwd <path>` | Working directory (default: current directory) |
 | `-q, --quiet` | Suppress output |
 | `-v, --verbose` | Verbose output |
@@ -155,6 +175,9 @@ ocx add kdco/agents kdco/skills kdco/plugins
 ```bash
 # Add a registry component
 ocx add kdco/background-agents
+
+# Add using a specific profile
+ocx add kdco/agents --profile work
 
 # Add an npm plugin directly
 ocx add npm:@franlol/opencode-md-table-formatter
@@ -229,6 +252,7 @@ ocx update [components...] [options]
 | `--all` | Update all installed components |
 | `--registry <name>` | Update all components from a specific registry |
 | `--dry-run` | Preview changes without applying |
+| `-p, --profile <name>` | Use specific global profile for registry resolution |
 | `--cwd <path>` | Working directory (default: current directory) |
 | `-q, --quiet` | Suppress output |
 | `-v, --verbose` | Verbose output |
@@ -334,6 +358,7 @@ ocx diff [component] [options]
 | Option | Description |
 |--------|-------------|
 | `--cwd <path>` | Working directory (default: current directory) |
+| `-p, --profile <name>` | Use specific global profile for registry resolution |
 | `--json` | Output as JSON |
 | `-q, --quiet` | Suppress output |
 
@@ -415,6 +440,7 @@ ocx list [query] [options]
 | Option | Description |
 |--------|-------------|
 | `--cwd <path>` | Working directory (default: current directory) |
+| `-p, --profile <name>` | Use specific global profile for registry resolution |
 | `--json` | Output as JSON |
 | `-q, --quiet` | Suppress output |
 | `-v, --verbose` | Verbose output |
@@ -501,6 +527,7 @@ ocx registry add <url> [options]
 |--------|-------------|
 | `--name <name>` | Registry alias (defaults to hostname) |
 | `--version <version>` | Pin to specific version |
+| `-p, --profile <name>` | Use specific global profile for registry resolution |
 | `--cwd <path>` | Working directory (default: current directory) |
 | `--json` | Output as JSON |
 | `-q, --quiet` | Suppress output |
@@ -551,6 +578,7 @@ ocx registry remove <name> [options]
 
 | Option | Description |
 |--------|-------------|
+| `-p, --profile <name>` | Use specific global profile for registry resolution |
 | `--cwd <path>` | Working directory (default: current directory) |
 | `--json` | Output as JSON |
 | `-q, --quiet` | Suppress output |
@@ -589,6 +617,7 @@ ocx registry list [options]
 
 | Option | Description |
 |--------|-------------|
+| `-p, --profile <name>` | Use specific global profile for registry resolution |
 | `--cwd <path>` | Working directory (default: current directory) |
 | `--json` | Output as JSON |
 | `-q, --quiet` | Suppress output |
@@ -776,9 +805,11 @@ These options are available on all commands:
 
 ## Configuration Files
 
-### ocx.jsonc
+### Local Configuration
 
-Main configuration file created by `ocx init`:
+#### .opencode/config.jsonc
+
+Local project configuration created by `ocx init`:
 
 ```jsonc
 {
@@ -792,6 +823,68 @@ Main configuration file created by `ocx init`:
   "lockRegistries": false  // prevent registry modification
 }
 ```
+
+#### .opencode/opencode.jsonc
+
+OpenCode-specific configuration (optional):
+
+```jsonc
+{
+  "name": "My Project",
+  "agents": ["coder", "researcher"]
+}
+```
+
+### Global Configuration
+
+#### ~/.config/opencode/config.jsonc
+
+Global base configuration applied to all projects:
+
+```jsonc
+{
+  "registries": {
+    "kdco": {
+      "url": "https://ocx.kdco.dev"
+    }
+  }
+}
+```
+
+### Profile Configuration
+
+#### ~/.config/opencode/profiles/\<name\>/ocx.jsonc
+
+Profile-specific OCX settings:
+
+```jsonc
+{
+  "registries": {
+    "kdco": {
+      "url": "https://ocx.kdco.dev"
+    }
+  },
+  "exclude": ["**/AGENTS.md", "**/CLAUDE.md", "**/CONTEXT.md"],
+  "include": [],
+  "bin": "/path/to/custom/opencode"  // optional
+}
+```
+
+#### ~/.config/opencode/profiles/\<name\>/opencode.jsonc
+
+Profile-specific OpenCode configuration:
+
+```jsonc
+{
+  "name": "Work Profile",
+  "agents": ["coder", "researcher"],
+  "maxTurns": 100
+}
+```
+
+#### ~/.config/opencode/profiles/\<name\>/AGENTS.md
+
+Profile-specific agent instructions (highest priority).
 
 ### ocx.lock
 
@@ -819,81 +912,428 @@ Lock file tracking installed components (managed automatically):
 
 | Variable | Description |
 |----------|-------------|
+| `OCX_PROFILE` | Set the active global profile for commands |
+| `OPENCODE_BIN` | Path to custom OpenCode binary |
 | `OCX_NO_COLOR` | Disable colored output |
 | `NO_COLOR` | Standard no-color flag |
 | `OCX_SELF_UPDATE` | Set to `off` to disable self-update functionality |
 | `OCX_NO_UPDATE_CHECK` | Set to `1` to disable update notifications on startup |
+| `EDITOR` | Text editor for `ocx config edit` and `ocx profile config` |
+| `VISUAL` | Fallback editor if `EDITOR` not set |
 
 ---
 
-## See Also
+## ocx profile
 
-- [Registry Protocol](./REGISTRY_PROTOCOL.md) - How registries work
-- [Contributing Guide](../CONTRIBUTING.md) - Development setup
+Manage global profiles for different OpenCode configurations.
+
+### Subcommands
+
+- [`ocx profile list`](#ocx-profile-list) - List all global profiles
+- [`ocx profile add`](#ocx-profile-add) - Create a new profile
+- [`ocx profile remove`](#ocx-profile-remove) - Delete a profile
+- [`ocx profile show`](#ocx-profile-show) - Display profile contents
+- [`ocx profile config`](#ocx-profile-config) - Edit profile's ocx.jsonc
+
+### Aliases
+
+```bash
+ocx p <subcommand>  # Short alias for profile commands
+```
 
 ---
 
-## Ghost Mode Commands
+### ocx profile list
 
-Ghost mode lets you work in repositories without modifying them.
+List all available global profiles.
 
-| Command | Description |
-|---------|-------------|
-| `ocx ghost init` | Initialize ghost mode (`~/.config/opencode/profiles/<profile-name>/ghost.jsonc`) |
-| `ocx ghost profile add <name>` | Create a new profile |
-| `ocx ghost profile remove <name>` | Delete a profile |
-| `ocx ghost profile list` | List available profiles |
-| `ocx ghost profile use <name>` | Switch to profile |
-| `ocx ghost profile show [name]` | Display profile configuration |
-| `ocx ghost profile config [name]` | Open profile config in $EDITOR |
-| `ocx ghost config` | Open current profile config in `$EDITOR` |
-| `ocx ghost registry list` | List configured registries |
-| `ocx ghost registry add <url> [--name <n>]` | Add a registry |
-| `ocx ghost registry remove <name>` | Remove a registry |
-| `ocx ghost add <component...>` | Add components using ghost config |
-| `ocx ghost search [query]` | Search ghost registries |
-| `ocx ghost opencode [args...]` | Run OpenCode with ghost config (isolated from project) |
+#### Usage
 
-### Ghost Config Reference
-
-Ghost mode uses multi-profile configuration with configuration files stored at `~/.config/opencode/profiles/`. Each profile has a `ghost.jsonc` file with the same schema.
-
-#### Profile Configuration Path
-
-```
-~/.config/opencode/profiles/
-├── default/          # Default profile directory
-│   └── ghost.jsonc   # Configuration file
-├── work/             # Additional profile example
-│   └── ghost.jsonc
-└── current@          # Symlink to active profile
+```bash
+ocx profile list [options]
+ocx p ls [options]  # alias
 ```
 
-#### Schema
+#### Options
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `registries` | `object` | `{}` | Registry name → URL mapping |
-| `componentPath` | `string` | `.opencode` | Where to install components |
-| `include` | `string[]` | `[]` | Glob patterns to include (overrides exclude) |
-| `exclude` | `string[]` | `["**/AGENTS.md", "**/CLAUDE.md", "**/CONTEXT.md", ...]` | Glob patterns to exclude |
-| `renameWindow` | `boolean` | `true` | Set terminal/tmux window name when launching OpenCode |
-| `bin` | `string?` | - | Path to OpenCode binary. Falls back to OPENCODE_BIN env, then "opencode". |
+| Option | Description |
+|--------|-------------|
+| `--json` | Output as JSON |
 
-#### Instruction File Discovery
+#### Examples
 
-Control which project instruction files OpenCode sees via `ghost.jsonc`:
+```bash
+# List all profiles
+ocx profile list
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `exclude` | `["**/AGENTS.md", "**/CLAUDE.md", "**/CONTEXT.md", ...]` | Glob patterns to exclude |
-| `include` | `[]` | Glob patterns to include (overrides exclude) |
+# List with JSON output
+ocx p ls --json
+```
 
-Files are discovered by walking UP from project directory to git root. Profile instructions come last (highest priority).
+#### Output
 
-#### Custom OpenCode Binary
+```bash
+$ ocx profile list
+Available profiles:
+  * default
+    work
+    client-x
 
-To use a custom OpenCode binary, set the `bin` option in your profile's `ghost.jsonc`:
+$ ocx profile list --json
+{
+  "profiles": ["default", "work", "client-x"],
+  "current": "default"
+}
+```
+
+---
+
+### ocx profile add
+
+Create a new global profile.
+
+#### Usage
+
+```bash
+ocx profile add <name> [options]
+ocx p add <name> [options]  # alias
+```
+
+#### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `name` | Profile name (required) |
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--from <profile>` | Clone configuration from existing profile |
+
+#### Examples
+
+```bash
+# Create new empty profile
+ocx profile add work
+
+# Clone from existing profile
+ocx profile add client-x --from work
+
+# Using alias
+ocx p add personal
+```
+
+#### Notes
+
+- Profile names must be valid filesystem names
+- Spaces are automatically converted to hyphens
+- Cannot create a profile that already exists
+
+---
+
+### ocx profile remove
+
+Delete a global profile.
+
+#### Usage
+
+```bash
+ocx profile remove <name> [options]
+ocx p rm <name> [options]  # alias
+```
+
+#### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `name` | Profile name to delete (required) |
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `-f, --force` | Skip confirmation prompt |
+
+#### Examples
+
+```bash
+# Remove profile (prompts for confirmation)
+ocx profile remove old-profile
+
+# Force remove without confirmation
+ocx p rm old-profile --force
+```
+
+#### Notes
+
+- Cannot delete the last remaining profile
+- Prompts for confirmation unless `--force` is used
+
+---
+
+### ocx profile show
+
+Display profile configuration and contents.
+
+#### Usage
+
+```bash
+ocx profile show <name> [options]
+ocx p show <name> [options]  # alias
+```
+
+#### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `name` | Profile name (required) |
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--json` | Output as JSON |
+
+#### Examples
+
+```bash
+# Show work profile config
+ocx profile show work
+
+# Get JSON output
+ocx p show work --json
+```
+
+#### Output
+
+```bash
+$ ocx profile show work
+Profile: work
+Path: /Users/username/.config/opencode/profiles/work/
+
+Files:
+  ocx.jsonc
+  opencode.jsonc
+  AGENTS.md
+
+Configuration:
+  Registries: kdco
+  Exclude patterns: **/AGENTS.md, **/CLAUDE.md
+  Include patterns: (none)
+```
+
+---
+
+### ocx profile config
+
+Edit a profile's ocx.jsonc configuration file in `$EDITOR`.
+
+#### Usage
+
+```bash
+ocx profile config <name>
+ocx p config <name>  # alias
+```
+
+#### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `name` | Profile name (required) |
+
+#### Environment
+
+- **`$EDITOR`**: Text editor to use (e.g., `vim`, `nano`, `code`)
+- **`$VISUAL`**: Fallback editor if `$EDITOR` not set
+
+#### Examples
+
+```bash
+# Edit work profile config
+ocx profile config work
+
+# Using alias
+ocx p config personal
+```
+
+#### Notes
+
+- Opens `ocx.jsonc` at `~/.config/opencode/profiles/<name>/ocx.jsonc`
+- Falls back to `vi` if neither `$EDITOR` nor `$VISUAL` are set
+
+---
+
+## ocx config
+
+View and edit OCX configuration files.
+
+### Subcommands
+
+- [`ocx config show`](#ocx-config-show) - Show merged configuration
+- [`ocx config edit`](#ocx-config-edit) - Edit configuration in $EDITOR
+
+---
+
+### ocx config show
+
+Show merged configuration for the current directory.
+
+#### Usage
+
+```bash
+ocx config show [options]
+```
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--origin` | Show source of each configuration setting |
+| `-p, --profile <name>` | Use specific profile for resolution |
+| `--json` | Output as JSON |
+
+#### Examples
+
+```bash
+# Show merged config
+ocx config show
+
+# Show config with sources
+ocx config show --origin
+
+# Show config using specific profile
+ocx config show -p work
+
+# Get JSON output
+ocx config show --json
+```
+
+#### Output
+
+```bash
+$ ocx config show
+Merged configuration:
+  Registries: kdco
+  Component path: .opencode
+
+$ ocx config show --origin
+Configuration sources:
+  registries:
+    kdco: global profile (work)
+  componentPath:
+    .opencode: local config
+```
+
+---
+
+### ocx config edit
+
+Edit configuration file in `$EDITOR`.
+
+#### Usage
+
+```bash
+ocx config edit [options]
+```
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--global` | Edit global config instead of local |
+| `-p, --profile <name>` | Edit specific profile's config (implies --global) |
+
+#### Environment
+
+- **`$EDITOR`**: Text editor to use (e.g., `vim`, `nano`, `code`)
+- **`$VISUAL`**: Fallback editor if `$EDITOR` not set
+
+#### Examples
+
+```bash
+# Edit local .opencode/config.jsonc
+ocx config edit
+
+# Edit global config.jsonc
+ocx config edit --global
+
+# Edit specific profile's ocx.jsonc
+ocx config edit -p work
+```
+
+#### Notes
+
+- Local config: `.opencode/config.jsonc`
+- Global config: `~/.config/opencode/config.jsonc`
+- Profile config: `~/.config/opencode/profiles/<name>/ocx.jsonc`
+- Falls back to `vi` if neither `$EDITOR` nor `$VISUAL` are set
+
+---
+
+## ocx opencode
+
+Launch OpenCode with resolved configuration and profile support.
+
+### Usage
+
+```bash
+ocx opencode [path] [options]
+ocx oc [path] [options]  # alias
+```
+
+### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `path` | Project path (optional, defaults to current directory) |
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `-p, --profile <name>` | Use specific global profile |
+
+### Profile Resolution Priority
+
+Profiles are resolved in this order (first match wins):
+
+1. **`--profile` / `-p` flag** - Explicit CLI specification
+2. **`OCX_PROFILE` environment variable** - Session-level profile
+3. **`default` profile** - If it exists
+4. **No profile** - Base configs only
+
+### Examples
+
+```bash
+# Launch with default profile
+ocx opencode
+
+# Launch with specific profile
+ocx opencode -p work
+
+# Launch in different directory
+ocx opencode /path/to/project
+
+# Using environment variable
+OCX_PROFILE=work ocx opencode
+
+# Using alias
+ocx oc -p personal
+```
+
+### How It Works
+
+1. **Profile Resolution**: Resolves profile using priority order
+2. **Config Merging**: Merges global config, profile configs, and local configs
+3. **Instruction Discovery**: Walks up from project directory to git root
+4. **Pattern Filtering**: Applies exclude/include patterns from profile's `ocx.jsonc`
+5. **Window Naming** (optional): Sets terminal/tmux window name
+6. **Launch OpenCode**: Spawns OpenCode with merged configuration
+
+### Custom OpenCode Binary
+
+To use a custom OpenCode binary (e.g., development build), set the `bin` option in your profile's `ocx.jsonc`:
 
 ```jsonc
 {
@@ -902,418 +1342,48 @@ To use a custom OpenCode binary, set the `bin` option in your profile's `ghost.j
 ```
 
 **Resolution order:**
-1. `bin` in ghost.jsonc (profile-specific)
+1. `bin` in profile's `ocx.jsonc`
 2. `OPENCODE_BIN` environment variable
 3. `opencode` (system PATH)
 
-Ghost mode runs OpenCode directly in your project directory with profile isolation enabled via environment variables.
+### Configuration Cascade
 
----
+Configurations are merged in this order (later sources override earlier ones):
 
-### Ghost Profile Commands
+1. Global `config.jsonc`
+2. Profile's `ocx.jsonc` and `opencode.jsonc`
+3. Apply exclude/include patterns
+4. Local `.opencode/config.jsonc` (if not excluded)
+5. Local `.opencode/opencode.jsonc` (if not excluded)
 
-Ghost profiles allow you to maintain multiple independent configurations for different contexts (work, personal, client projects, etc.).
+### Instruction File Discovery
 
-#### Profile Resolution Priority
+By default, all project instruction files are excluded so only profile files are used.
 
-Profiles are resolved in this order (first match wins):
+**Default exclude patterns:**
+- `**/AGENTS.md`
+- `**/CLAUDE.md`
+- `**/CONTEXT.md`
+- `**/.opencode/**`
+- `**/opencode.jsonc`
+- `**/opencode.json`
 
-1. **`--profile` flag** (highest priority): Direct CLI specification
-2. **`OCX_PROFILE` environment variable**: Set persistent profile for session
-3. **`current` symlink**: Points to active profile in `~/.config/opencode/profiles/`
-4. **`default` profile** (fallback): Used when no other selection exists
+**To include project files**, modify your profile's `ocx.jsonc`:
 
----
-
-#### ocx ghost profile list
-
-List all available profiles and show which one is currently active.
-
-##### Usage
-
-```bash
-ocx ghost profile list [options]
-```
-
-##### Options
-
-| Option | Description |
-|--------|-------------|
-| `--json` | Output as JSON |
-
-##### Examples
-
-```bash
-# List profiles
-ocx ghost profile list
-
-# List with JSON output
-ocx ghost profile list --json
-```
-
-##### Output
-
-```bash
-$ ocx ghost profile list
-Available profiles:
-  * default
-    work
-    client-acme
-
-$ ocx ghost profile list --json
+```jsonc
 {
-  "profiles": ["default", "work", "client-acme"],
-  "current": "default"
+  // Include all project AGENTS.md files
+  "exclude": ["**/CLAUDE.md", "**/CONTEXT.md"],
+  
+  // Or exclude all but include specific ones
+  "exclude": ["**/AGENTS.md"],
+  "include": ["./docs/AGENTS.md"]
 }
 ```
 
 ---
 
-#### ocx ghost profile add
+## See Also
 
-Create a new profile with optional copying from an existing profile.
-
-##### Usage
-
-```bash
-ocx ghost profile add <name> [options]
-```
-
-##### Arguments
-
-| Argument | Description |
-|----------|-------------|
-| `name` | Profile name (required) |
-
-##### Options
-
-| Option | Description |
-|--------|-------------|
-| `--from <profile>` | Clone configuration from existing profile |
-
-##### Examples
-
-```bash
-# Create new empty profile
-ocx ghost profile add work
-
-# Create profile cloned from default
-ocx ghost profile add work --from default
-
-# Create profile with spaces in name (auto-converted)
-ocx ghost profile add "Client ACME"
-```
-
-##### Notes
-
-- Profile names must be valid filesystem names
-- Spaces are automatically converted to hyphens
-- Invalid characters trigger an error
-- Cannot create a profile that already exists
-
----
-
-#### ocx ghost profile use
-
-Switch to a different profile by updating the `current` symlink.
-
-##### Usage
-
-```bash
-ocx ghost profile use <name>
-```
-
-##### Arguments
-
-| Argument | Description |
-|----------|-------------|
-| `name` | Profile name to activate (required) |
-
-##### Examples
-
-```bash
-# Switch to work profile
-ocx ghost profile use work
-
-# Use with --profile flag (immediately use profile)
-ocx ghost profile add new-project && ocx ghost profile use new-project
-```
-
----
-
-#### ocx ghost profile remove
-
-Delete a profile permanently. Cannot delete the last remaining profile.
-
-##### Usage
-
-```bash
-ocx ghost profile remove <name> [options]
-```
-
-##### Arguments
-
-| Argument | Description |
-|----------|-------------|
-| `name` | Profile name to delete (required) |
-
-##### Options
-
-| Option | Description |
-|--------|-------------|
-| `-f, --force` | Skip confirmation and allow deleting current profile |
-
-##### Examples
-
-```bash
-# Remove profile (prompts for confirmation)
-ocx ghost profile remove old-project
-
-# Force remove without confirmation
-ocx ghost profile remove old-project --force
-
-# Remove current profile and switch to another
-ocx ghost profile remove current --force && ocx ghost profile use default
-```
-
-##### Notes
-
-- Adding `--force` skips the confirmation prompt
-- Using `--force` on the current profile automatically switches to `default` after deletion
-- Cannot delete the last remaining profile (use `--force` to override)
-
----
-
-#### ocx ghost profile show
-
-Display configuration for a profile (defaults to current).
-
-##### Usage
-
-```bash
-ocx ghost profile show [name] [options]
-```
-
-##### Arguments
-
-| Argument | Description |
-|----------|-------------|
-| `name` | Profile name (optional, defaults to current) |
-
-##### Options
-
-| Option | Description |
-|--------|-------------|
-| `--json` | Output as JSON |
-| `--cwd <path>` | Working directory (default: current directory) |
-| `-q, --quiet` | Suppress output |
-
-##### Examples
-
-```bash
-# Show current profile config
-ocx ghost profile show
-
-# Show work profile config
-ocx ghost profile show work
-
-# Get JSON output
-ocx ghost profile show --json
-```
-
-##### Output
-
-```bash
-$ ocx ghost profile show
-Profile: default
-Config file: /Users/username/.config/opencode/profiles/default/ghost.jsonc
-
-Registries:
-  kdco: https://registry.kdco.dev
-
-Component path: .opencode
-Include patterns:
-  (none)
-Exclude patterns:
-  (none)
-```
-
----
-
-#### ocx ghost profile config
-
-Open profile configuration in your `$EDITOR`.
-
-##### Usage
-
-```bash
-ocx ghost profile config [name]
-```
-
-##### Arguments
-
-| Argument | Description |
-|----------|-------------|
-| `name` | Profile name (optional, defaults to current) |
-
-##### Environment
-
-- **`$EDITOR`**: Text editor to use (e.g., `vim`, `nano`, `code`)
-- **`$VISUAL`**: Fallback editor if `$EDITOR` not set
-
-##### Examples
-
-```bash
-# Edit current profile config
-ocx ghost profile config
-
-# Edit work profile config
-ocx ghost profile config work
-```
-
-##### Notes
-
-- Opens `ghost.jsonc` at `~/.config/opencode/profiles/<name>/ghost.jsonc`
-- Falls back to `vi` if neither `$EDITOR` nor `$VISUAL` are set
-
----
-
-### Ghost Config (Current Profile)
-
-Open current profile configuration in your `$EDITOR`.
-
-#### Usage
-
-```bash
-ocx ghost config [options]
-```
-
-#### Options
-
-| Option | Description |
-|--------|-------------|
-| `--profile, -p <name>` | Specify profile (overrides resolution priority) |
-
-#### Examples
-
-```bash
-# Edit current profile
-ocx ghost config
-
-# Edit specific profile
-ocx ghost config --profile work
-```
-
----
-
-### Ghost Init
-
-Initialize ghost mode with a default profile at `~/.config/opencode/profiles/default/`.
-
-#### Usage
-
-```bash
-ocx ghost init [options]
-```
-
-#### Options
-
-| Option | Description |
-|--------|-------------|
-| `--profile, -p <name>` | Initialize with specific profile name (default: "default") |
-| `--cwd <path>` | Working directory (default: current directory) |
-
-#### Examples
-
-```bash
-# Initialize ghost mode
-ocx ghost init
-
-# Initialize with work profile
-ocx ghost init --profile work
-```
-
-#### Output Files
-
-```
-~/.config/opencode/profiles/
-└── default/
-    └── ghost.jsonc
-```
-
----
-
-### Ghost Opencode
-
-Run OpenCode with ghost configuration isolated from project files.
-
-#### Usage
-
-```bash
-ocx ghost opencode [args...] [options]
-```
-
-#### Arguments
-
-| Argument | Description |
-|----------|-------------|
-| `args` | Arguments to pass to OpenCode |
-
-#### Options
-
-| Option | Description |
-|--------|-------------|
-| `--profile, -p <name>` | Specify ghost profile to use |
-| `--no-rename` | Disable terminal/tmux window renaming |
-
-#### Examples
-
-```bash
-# Run OpenCode with current ghost config
-ocx ghost opencode
-
-# Run OpenCode with specific profile
-ocx ghost opencode --profile work
-
-# Pass arguments to OpenCode
-ocx ghost opencode -- /path/to/file.md
-```
-
-#### How It Works
-
-1. **Profile Resolution**: Resolves current profile using priority: `--profile` flag > `OCX_PROFILE` env > current symlink > default
-2. **Terminal Naming**: Sets terminal/tmux window name (if `renameWindow` enabled in ghost.jsonc)
-3. **Instruction Discovery**: Walks UP from project directory to git root, finding AGENTS.md, CLAUDE.md, CONTEXT.md files at each level
-4. **Pattern Filtering**: Applies `exclude` patterns (default: exclude all instruction files), then `include` patterns (overrides exclude)
-5. **OpenCode Spawn**: Runs OpenCode directly in project directory with:
-   - `OPENCODE_DISABLE_PROJECT_CONFIG=true` - prevents loading project configs
-   - `OPENCODE_CONFIG_DIR` - points to profile directory
-   - `OPENCODE_CONFIG_CONTENT` - serialized config with discovered instructions
-   - `OCX_PROFILE` - current profile name
-
----
-
-### Ghost Commands Error Codes
-
-| Error | Exit Code | Description |
-|-------|-----------|-------------|
-| `ProfileNotFoundError` | 66 | Profile does not exist |
-| `ProfileExistsError` | 1 | Profile already exists (use `ghost profile use` to switch) |
-| `InvalidProfileNameError` | 1 | Invalid characters in profile name |
-| `NoProfilesRemainingError` | 1 | Cannot delete last remaining profile |
-
----
-
-### Ghost Commands JSON Output Schemas
-
-#### Profile List Schema
-
-```json
-{
-  "profiles": ["default", "work", "client-acme"],
-  "current": "default"
-}
-```
-
-- `profiles`: Array of all available profile names
-- `current`: Name of the currently active profile
+- [Registry Protocol](./REGISTRY_PROTOCOL.md) - How registries work
+- [Contributing Guide](../CONTRIBUTING.md) - Development setup

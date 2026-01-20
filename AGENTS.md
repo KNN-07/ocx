@@ -218,8 +218,14 @@ packages/cli/          # Main CLI tool (@ocx/cli)
     commands/          # CLI command implementations
       profile/         # Profile management commands
       config/          # Config commands (show, edit)
-      opencode/        # OpenCode launcher commands
-      init/            # Init commands (local/global)
+      add.ts           # Add components
+      search.ts        # Search registries
+      opencode.ts      # Launch OpenCode
+      init.ts          # Initialize configs
+      registry.ts      # Registry management
+      update.ts        # Update components
+      build.ts         # Build components
+      diff.ts          # Component diff
     config/            # Config providers and merging
     profile/           # Profile management (manager, paths)
     registry/          # Registry fetching/resolution
@@ -232,7 +238,7 @@ registry/              # Component registry source files
 
 workers/               # Cloudflare Workers
   ocx/                 # Main OCX worker
-  registry/            # Registry API worker
+  kdco-registry/       # KDCO registry API worker
 ```
 
 ## Profile System Architecture
