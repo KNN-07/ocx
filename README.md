@@ -1,5 +1,7 @@
 # OCX
 
+[![CI](https://github.com/kdcokenny/ocx/actions/workflows/ci.yml/badge.svg)](https://github.com/kdcokenny/ocx/actions/workflows/ci.yml)
+
 The missing package manager for OpenCode extensions.
 
 ## Why OCX?
