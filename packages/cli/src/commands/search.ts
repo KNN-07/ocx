@@ -101,7 +101,7 @@ export function registerSearchCommand(program: Command): void {
 					getComponentPath: () => resolver.getComponentPath(),
 				}
 			} else {
-				provider = await LocalConfigProvider.create(options.cwd)
+				provider = await LocalConfigProvider.requireInitialized(options.cwd)
 			}
 
 			await runSearchCore(query, options, provider)

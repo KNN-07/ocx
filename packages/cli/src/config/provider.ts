@@ -51,10 +51,13 @@ export class LocalConfigProvider implements ConfigProvider {
 	}
 
 	/**
-	 * Static factory - parses config at boundary, throws on invalid.
+	 * Require an initialized local config, throwing if not found.
+	 * Use this in commands that require a local ocx.jsonc to exist.
+	 *
 	 * @throws ConfigError if ocx.jsonc doesn't exist or is invalid
+	 * @returns LocalConfigProvider instance guaranteed to have valid config
 	 */
-	static async create(cwd: string): Promise<LocalConfigProvider> {
+	static async requireInitialized(cwd: string): Promise<LocalConfigProvider> {
 		const config = await readOcxConfig(cwd)
 
 		// Guard: No config file (Law 1: Early Exit)
@@ -98,10 +101,13 @@ export class GlobalConfigProvider implements ConfigProvider {
 	}
 
 	/**
-	 * Creates a GlobalConfigProvider after validating the global directory exists.
+	 * Require an initialized global config, throwing if not found.
+	 * Use this in commands that require global OpenCode config to exist.
+	 *
 	 * @throws ConfigError if OpenCode hasn't been initialized globally
+	 * @returns GlobalConfigProvider instance guaranteed to have valid config
 	 */
-	static async create(): Promise<GlobalConfigProvider> {
+	static async requireInitialized(): Promise<GlobalConfigProvider> {
 		const basePath = getGlobalConfigPath()
 
 		// Guard: Global directory must exist (Law 1: Early Exit)

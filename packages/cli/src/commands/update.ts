@@ -79,7 +79,7 @@ export function registerUpdateCommand(program: Command): void {
 
 async function runUpdate(componentNames: string[], options: UpdateOptions): Promise<void> {
 	const cwd = options.cwd ?? process.cwd()
-	const provider = await LocalConfigProvider.create(cwd)
+	const provider = await LocalConfigProvider.requireInitialized(cwd)
 	await runUpdateCore(componentNames, options, provider)
 }
 

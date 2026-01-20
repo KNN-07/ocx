@@ -146,9 +146,9 @@ export function registerAddCommand(program: Command): void {
 					getComponentPath: () => resolver.getComponentPath(),
 				}
 			} else if (options.global) {
-				provider = await GlobalConfigProvider.create()
+				provider = await GlobalConfigProvider.requireInitialized()
 			} else {
-				provider = await LocalConfigProvider.create(options.cwd ?? process.cwd())
+				provider = await LocalConfigProvider.requireInitialized(options.cwd ?? process.cwd())
 			}
 
 			await runAddCore(components, options, provider)
