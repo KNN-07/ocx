@@ -878,6 +878,7 @@ Ghost mode uses multi-profile configuration with configuration files stored at `
 | `include` | `string[]` | `[]` | Glob patterns to include (overrides exclude) |
 | `exclude` | `string[]` | `["**/AGENTS.md", "**/CLAUDE.md", "**/CONTEXT.md", ...]` | Glob patterns to exclude |
 | `renameWindow` | `boolean` | `true` | Set terminal/tmux window name when launching OpenCode |
+| `bin` | `string?` | - | Path to OpenCode binary. Falls back to OPENCODE_BIN env, then "opencode". |
 
 #### Instruction File Discovery
 
@@ -892,11 +893,18 @@ Files are discovered by walking UP from project directory to git root. Profile i
 
 #### Custom OpenCode Binary
 
-Use a custom OpenCode binary with the `OPENCODE_BIN` environment variable:
+To use a custom OpenCode binary, set the `bin` option in your profile's `ghost.jsonc`:
 
-```bash
-OPENCODE_BIN="/path/to/opencode/bin/opencode" ocx ghost opencode
+```jsonc
+{
+  "bin": "/path/to/custom/opencode"
+}
 ```
+
+**Resolution order:**
+1. `bin` in ghost.jsonc (profile-specific)
+2. `OPENCODE_BIN` environment variable
+3. `opencode` (system PATH)
 
 Ghost mode runs OpenCode directly in your project directory with profile isolation enabled via environment variables.
 

@@ -209,8 +209,8 @@ By default, ghost mode hides all OpenCode project files (AGENTS.md, .opencode/, 
     "kdco": "https://registry.kdco.dev"
   },
   
-  // Safety limit for symlink farm creation (0 = unlimited)
-  "maxFiles": 10000,
+  // Custom OpenCode binary (optional)
+  "bin": "/path/to/opencode",
   
   // Include specific OpenCode files in ghost sessions
   "include": [
@@ -297,7 +297,7 @@ OCX supports the full range of OpenCode configuration options:
 | Variable | Description |
 |----------|-------------|
 | `OCX_PROFILE` | Override the current profile |
-| `OPENCODE_BIN` | Use a custom OpenCode binary (for forks or testing) |
+| `OPENCODE_BIN` | Path to OpenCode binary (overridden by `bin` in ghost.jsonc) |
 
 ## What's Shipped
 

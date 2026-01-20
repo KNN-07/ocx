@@ -145,11 +145,18 @@ This prevents accidental modifications to the repository and provides clean isol
 
 #### Using a Custom OpenCode Binary
 
-If you have your own fork of OpenCode or want to test with a specific version, use the `OPENCODE_BIN` environment variable:
+The recommended way is to set `bin` in your profile's `ghost.jsonc`:
+
+```jsonc
+{
+  "bin": "./path/to/local/opencode"
+}
+```
+
+Alternatively, use the environment variable:
 
 ```bash
-OPENCODE_BIN="/path/to/your/opencode/dist/opencode-darwin-arm64/bin/opencode" \
-ocx ghost opencode
+OPENCODE_BIN=./path/to/opencode ocx ghost opencode
 ```
 
 This is useful for:
