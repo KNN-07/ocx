@@ -1278,7 +1278,7 @@ ocx ghost opencode -- /path/to/file.md
 3. **Instruction Discovery**: Walks UP from project directory to git root, finding AGENTS.md, CLAUDE.md, CONTEXT.md files at each level
 4. **Pattern Filtering**: Applies `exclude` patterns (default: exclude all instruction files), then `include` patterns (overrides exclude)
 5. **OpenCode Spawn**: Runs OpenCode directly in project directory with:
-   - `OPENCODE_DISABLE_PROJECT_DISCOVERY=true` - prevents loading project configs
+   - `OPENCODE_DISABLE_PROJECT_CONFIG=true` - prevents loading project configs
    - `OPENCODE_CONFIG_DIR` - points to profile directory
    - `OPENCODE_CONFIG_CONTENT` - serialized config with discovered instructions
    - `OCX_PROFILE` - current profile name

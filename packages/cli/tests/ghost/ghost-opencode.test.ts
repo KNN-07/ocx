@@ -2,7 +2,7 @@
  * Ghost OpenCode Passthrough Tests
  *
  * Tests for the `ocx ghost opencode` command:
- * - Sets OPENCODE_DISABLE_PROJECT_DISCOVERY=true env var
+ * - Sets OPENCODE_DISABLE_PROJECT_CONFIG=true env var
  * - Sets OPENCODE_CONFIG_DIR to profile directory
  * - Sets OPENCODE_CONFIG_CONTENT env var correctly
  * - Sets OCX_PROFILE env var
@@ -83,7 +83,7 @@ async function createMockOpencode(dir: string): Promise<string> {
 	const scriptPath = join(dir, "opencode")
 	const script = `#!/bin/bash
 # Output key environment variables for verification
-echo "OPENCODE_DISABLE_PROJECT_DISCOVERY=$OPENCODE_DISABLE_PROJECT_DISCOVERY"
+echo "OPENCODE_DISABLE_PROJECT_CONFIG=$OPENCODE_DISABLE_PROJECT_CONFIG"
 echo "OPENCODE_CONFIG_DIR=$OPENCODE_CONFIG_DIR"
 echo "OPENCODE_CONFIG_CONTENT=$OPENCODE_CONFIG_CONTENT"
 echo "OCX_PROFILE=$OCX_PROFILE"
@@ -159,7 +159,7 @@ describe("ocx ghost opencode", () => {
 		expect(output).toContain("opencode.jsonc")
 	})
 
-	it("should set OPENCODE_DISABLE_PROJECT_DISCOVERY env var", async () => {
+	it("should set OPENCODE_DISABLE_PROJECT_CONFIG env var", async () => {
 		// Write ghost.jsonc (required for ghost mode to be initialized)
 		const configPath = getGhostConfigPath()
 		await Bun.write(configPath, '{"registries": {}}')
@@ -177,8 +177,8 @@ describe("ocx ghost opencode", () => {
 			projectDir,
 		)
 
-		// The mock script outputs OPENCODE_DISABLE_PROJECT_DISCOVERY
-		expect(output).toContain("OPENCODE_DISABLE_PROJECT_DISCOVERY=true")
+		// The mock script outputs OPENCODE_DISABLE_PROJECT_CONFIG
+		expect(output).toContain("OPENCODE_DISABLE_PROJECT_CONFIG=true")
 	})
 
 	it("should set OPENCODE_CONFIG_DIR to profile directory", async () => {

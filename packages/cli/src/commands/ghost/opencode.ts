@@ -386,7 +386,7 @@ async function runGhostOpenCode(args: string[], options: GhostOpenCodeOptions): 
 		cwd: projectDir,
 		env: {
 			...process.env,
-			OPENCODE_DISABLE_PROJECT_DISCOVERY: "true",
+			OPENCODE_DISABLE_PROJECT_CONFIG: "true",
 			OPENCODE_CONFIG_DIR: profileDir,
 			...(configToPass && { OPENCODE_CONFIG_CONTENT: JSON.stringify(configToPass) }),
 			OCX_PROFILE: profileName,

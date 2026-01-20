@@ -166,7 +166,7 @@ Or use the `OCX_PROFILE` environment variable to temporarily switch profiles.
 | `ocx ghost opencode [path] [args...]` | `ocx g opencode` | Run OpenCode with ghost config (optional project path) |
 
 > **How it works:** Ghost mode runs OpenCode with profile isolation:
-> - Uses `OPENCODE_DISABLE_PROJECT_DISCOVERY` to prevent loading project configs
+> - Uses `OPENCODE_DISABLE_PROJECT_CONFIG` to prevent loading project configs
 > - Applies `exclude`/`include` patterns to control which project instruction files are visible
 > - Profile instructions take priority over project files
 

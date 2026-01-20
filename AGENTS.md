@@ -281,13 +281,13 @@ Ghost mode enables working in repositories without modifying them:
    - Filters by `exclude`/`include` patterns from ghost.jsonc
    - Include patterns override exclude patterns (TypeScript/Vite style)
 4. Spawns OpenCode with environment variables:
-   - `OPENCODE_DISABLE_PROJECT_DISCOVERY=true` - prevents loading project configs
+   - `OPENCODE_DISABLE_PROJECT_CONFIG=true` - prevents loading project configs
    - `OPENCODE_CONFIG_DIR` - points to profile directory
    - `OPENCODE_CONFIG_CONTENT` - serialized config with discovered instructions
    - `OCX_PROFILE` - current profile name
 5. OpenCode runs directly in the project directory
 
-**Note:** This requires OpenCode with PR #8093 support for `OPENCODE_DISABLE_PROJECT_DISCOVERY`.
+**Note:** This requires OpenCode with PR #8093 support for `OPENCODE_DISABLE_PROJECT_CONFIG`.
 
 #### Migration Note
 
