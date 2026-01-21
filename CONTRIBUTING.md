@@ -276,6 +276,31 @@ OCX follows the **5 Laws of Elegant Defense**:
 4. **Fail Fast, Fail Loud**: Throw clear errors immediately.
 5. **Intentional Naming**: Logic should read like a sentence.
 
+## Changelog Preview (Optional)
+
+To preview changelog locally, install git-cliff:
+
+```bash
+# macOS
+brew install git-cliff
+
+# Cargo
+cargo install git-cliff
+
+# Other: https://git-cliff.org/docs/installation
+```
+
+Then run:
+```bash
+# Preview unreleased changes
+git cliff --unreleased --strip all
+
+# Preview what the next release notes would look like (replace vX.Y.Z with your version)
+git cliff --tag vX.Y.Z --strip all
+```
+
+Note: git-cliff is not required for development. It runs automatically in CI when creating releases.
+
 ## Questions?
 
 Open an issue or start a discussion!
