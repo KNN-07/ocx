@@ -11,6 +11,7 @@ import { registerAddCommand } from "./commands/add.js"
 import { registerBuildCommand } from "./commands/build.js"
 import { registerConfigCommand } from "./commands/config/index.js"
 import { registerDiffCommand } from "./commands/diff.js"
+import { registerGhostCommand } from "./commands/ghost/index.js"
 import { registerInitCommand } from "./commands/init.js"
 import { registerOpencodeCommand } from "./commands/opencode.js"
 import { registerProfileCommand } from "./commands/profile/index.js"
@@ -45,6 +46,9 @@ async function main() {
 	registerProfileCommand(program)
 	registerConfigCommand(program)
 	registerOpencodeCommand(program)
+
+	// Migration command (temporary - remove in next minor version)
+	registerGhostCommand(program)
 
 	// Register update check hook (runs after each command)
 	registerUpdateCheckHook(program)
