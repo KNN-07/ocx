@@ -201,7 +201,7 @@ Key test scenarios:
 - `@version` syntax pins to specific version
 - Error cases (conflicts, missing components)
 
-> **Note:** For quick manual testing or AI-driven testing, prefer Ghost Mode Testing above.
+> **Note:** For quick manual testing or AI-driven testing, prefer Profile Mode Testing above.
 > The section below is for comprehensive integration testing of the full CLI flow.
 
 ### Local Testing (End-to-End)
