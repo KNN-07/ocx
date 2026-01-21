@@ -86,19 +86,18 @@ cd packages/cli
 bun test
 ```
 
-### Ghost Mode Testing (Preferred for Manual/AI Testing)
+### Profile Mode Testing (Preferred for Manual/AI Testing)
 
-Ghost mode provides isolated testing without affecting your local files or configuration.
+Profile mode provides isolated testing without affecting your local files or configuration.
 Use the `ocx-dev` profile to keep testing completely separate.
 
 #### Setup ocx-dev Profile (One-time)
 
 ```bash
 # Create the ocx-dev profile
-./packages/cli/dist/index.js ghost profile add ocx-dev
+./packages/cli/dist/index.js profile add ocx-dev
 
-# Switch to ocx-dev profile
-./packages/cli/dist/index.js ghost profile use ocx-dev
+# Profile is automatically available for use
 ```
 
 #### Quick Feature Testing
@@ -107,22 +106,22 @@ Use the `ocx-dev` profile to keep testing completely separate.
 # Build CLI first
 cd packages/cli && bun run build && cd ../..
 
-# Test with ghost opencode run
-./packages/cli/dist/index.js ghost opencode run "Your instruction here"
+# Test with opencode run using the profile
+./packages/cli/dist/index.js opencode -p ocx-dev
 ```
 
 #### Verification Tests
 
-Use these quick checks to verify ghost mode is working correctly:
+Use these quick checks to verify profile mode is working correctly:
 
 | Test | Command | Expected |
 |------|---------|----------|
-| **AGENTS.md excluded** | `ghost opencode run "What does the AGENTS.md say?"` | Should see profile's AGENTS.md, not project's |
-| **AGENTS.md included** | `ghost opencode run "What does the AGENTS.md say?"` (with `include: ["AGENTS.md"]` in ghost.jsonc) | Should see project's AGENTS.md |
-| **Plugins visible** | `ghost opencode run "What plugins are available?"` | Should list profile's configured plugins |
-| **Skills visible** | `ghost opencode run "What skills do you have?"` | Should list profile's skills |
-| **MCP servers** | `ghost opencode run "What MCP servers are configured?"` | Should list profile's MCP servers |
-| **Gitignore respected** | `ghost opencode run "Create debug.log"` (if *.log gitignored) | File should NOT appear in project |
+| **AGENTS.md excluded** | `opencode -p ocx-dev` then ask "What does the AGENTS.md say?" | Should see profile's AGENTS.md, not project's |
+| **AGENTS.md included** | `opencode -p ocx-dev` (with `include: ["AGENTS.md"]` in ocx.jsonc) | Should see project's AGENTS.md |
+| **Plugins visible** | `opencode -p ocx-dev` then ask "What plugins are available?" | Should list profile's configured plugins |
+| **Skills visible** | `opencode -p ocx-dev` then ask "What skills do you have?" | Should list profile's skills |
+| **MCP servers** | `opencode -p ocx-dev` then ask "What MCP servers are configured?" | Should list profile's MCP servers |
+| **Gitignore respected** | `opencode -p ocx-dev` then ask "Create debug.log" (if *.log gitignored) | File should NOT appear in project |
 
 #### Troubleshooting
 
@@ -131,21 +130,21 @@ Use these quick checks to verify ghost mode is working correctly:
 | AI sees project's AGENTS.md instead of profile's | `include` pattern is overriding exclusion |
 | AI doesn't see expected plugins | Profile's `opencode.jsonc` not configured |
 | New files not appearing in project | File matches `.gitignore` pattern |
-| AI sees files that should be hidden | Check `exclude` patterns in `ghost.jsonc` |
+| AI sees files that should be hidden | Check `exclude` patterns in `ocx.jsonc` |
 
-#### Why Ghost Mode for Testing?
+#### Why Profile Mode for Testing?
 
 - **Isolated**: Uses `ocx-dev` profile, separate from your default config
 - **Safe**: Won't affect your working files or git state
 
 #### For AI Agents
 
-When testing OCX features, **always use ghost mode** with the `ocx-dev` profile.
+When testing OCX features, **always use profile mode** with the `ocx-dev` profile.
 This prevents accidental modifications to the repository and provides clean isolation.
 
 #### Using a Custom OpenCode Binary
 
-The recommended way is to set `bin` in your profile's `ghost.jsonc`:
+The recommended way is to set `bin` in your profile's `ocx.jsonc`:
 
 ```jsonc
 {
@@ -156,7 +155,7 @@ The recommended way is to set `bin` in your profile's `ghost.jsonc`:
 Alternatively, use the environment variable:
 
 ```bash
-OPENCODE_BIN=./path/to/opencode ocx ghost opencode
+OPENCODE_BIN=./path/to/opencode ocx opencode -p ocx-dev
 ```
 
 This is useful for:
@@ -166,7 +165,7 @@ This is useful for:
 
 #### Global Config Awareness
 
-When testing Ghost Mode, be aware of the global OpenCode config at `~/.config/opencode/opencode.jsonc`.
+When testing Profile Mode, be aware of the global OpenCode config at `~/.config/opencode/opencode.jsonc`.
 This config applies to ALL profiles and may include:
 - Model/provider settings
 - Agent model assignments  
@@ -202,7 +201,7 @@ Key test scenarios:
 - `@version` syntax pins to specific version
 - Error cases (conflicts, missing components)
 
-> **Note:** For quick manual testing or AI-driven testing, prefer Ghost Mode Testing above.
+> **Note:** For quick manual testing or AI-driven testing, prefer Profile Mode Testing above.
 > The section below is for comprehensive integration testing of the full CLI flow.
 
 ### Local Testing (End-to-End)
@@ -215,7 +214,6 @@ Before pushing changes, test the full CLI flow using local registry sources.
 
 ```bash
 # 1. Clean slate - wipe generated files
-rm -f opencode.jsonc ocx.lock ocx.jsonc
 rm -rf .opencode
 
 # 2. Rebuild the CLI
@@ -239,7 +237,7 @@ cat opencode.jsonc
 
 #### Expected Output
 
-After installation, `opencode.jsonc` should contain the component's `opencode` block merged in:
+After installation, `.opencode/opencode.jsonc` should contain the component's `opencode` block merged in:
 - `mcp` section with MCP server definitions
 - `plugin` array with npm packages
 - `tools` section with tool configurations
@@ -255,19 +253,18 @@ Example structure:
 }
 ```
 
-**Note:** OCX follows the ShadCN model - component config is deep-merged directly into your `opencode.jsonc`. You own the file, use git to review changes.
+**Note:** OCX follows the ShadCN model - component config is deep-merged directly into your `.opencode/opencode.jsonc`. You own the file, use git to review changes.
 
 #### Quick Reset Script
 
 For repeated testing (assumes registry is already built):
 
 ```bash
-rm -f opencode.jsonc ocx.lock ocx.jsonc && \
 rm -rf .opencode && \
 ./packages/cli/dist/index.js init && \
 ./packages/cli/dist/index.js registry add "file://$(pwd)/workers/kdco-registry/dist" --name kdco && \
 ./packages/cli/dist/index.js add kdco/workspace --force && \
-cat opencode.jsonc
+cat .opencode/opencode.jsonc
 ```
 
 ## Code Philosophy

@@ -11,8 +11,7 @@ import { dirname, join } from "node:path"
 import type { Command } from "commander"
 import { type ConfigProvider, LocalConfigProvider } from "../config/provider.js"
 import { fetchComponentVersion, fetchFileContent } from "../registry/fetcher.js"
-import type { OcxLock } from "../schemas/config.js"
-import { readOcxLock } from "../schemas/config.js"
+import { findOcxLock, type OcxLock, readOcxLock, writeOcxLock } from "../schemas/config.js"
 import {
 	type ComponentFileObject,
 	normalizeComponentManifest,
@@ -79,12 +78,12 @@ export function registerUpdateCommand(program: Command): void {
 
 async function runUpdate(componentNames: string[], options: UpdateOptions): Promise<void> {
 	const cwd = options.cwd ?? process.cwd()
-	const provider = await LocalConfigProvider.create(cwd)
+	const provider = await LocalConfigProvider.requireInitialized(cwd)
 	await runUpdateCore(componentNames, options, provider)
 }
 
 /**
- * Core update logic shared between local and ghost modes.
+ * Core update logic shared between local and profile modes.
  * Accepts a ConfigProvider to abstract config source.
  */
 export async function runUpdateCore(
@@ -92,7 +91,7 @@ export async function runUpdateCore(
 	options: UpdateOptions,
 	provider: ConfigProvider,
 ): Promise<void> {
-	const lockPath = join(provider.cwd, "ocx.lock")
+	const { path: lockPath } = findOcxLock(provider.cwd)
 	const registries = provider.getRegistries()
 
 	// -------------------------------------------------------------------------
@@ -327,7 +326,7 @@ export async function runUpdateCore(
 		installSpin?.succeed(`Updated ${updates.length} component(s)`)
 
 		// Save lock file
-		await writeFile(lockPath, JSON.stringify(lock, null, 2), "utf-8")
+		await writeOcxLock(provider.cwd, lock, lockPath)
 
 		// -------------------------------------------------------------------------
 		// Output results

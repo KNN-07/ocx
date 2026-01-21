@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test"
 import { existsSync } from "node:fs"
-import { readFile } from "node:fs/promises"
+import { mkdir, readFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import { cleanupTempDir, createTempDir, parseJsonc, runCLI } from "./helpers"
 
@@ -24,7 +24,7 @@ describe("ocx init", () => {
 		// Success message from logger.info
 		expect(output).toContain("Created")
 
-		const configPath = join(testDir, "ocx.jsonc")
+		const configPath = join(testDir, ".opencode", "ocx.jsonc")
 		expect(existsSync(configPath)).toBe(true)
 
 		const content = await readFile(configPath, "utf-8")
@@ -35,7 +35,9 @@ describe("ocx init", () => {
 
 	it("should error if ocx.jsonc already exists", async () => {
 		testDir = await createTempDir("init-exists")
-		const configPath = join(testDir, "ocx.jsonc")
+		const configDir = join(testDir, ".opencode")
+		await mkdir(configDir, { recursive: true })
+		const configPath = join(configDir, "ocx.jsonc")
 		await Bun.write(configPath, "{}")
 
 		const { exitCode, output } = await runCLI(["init"], testDir)

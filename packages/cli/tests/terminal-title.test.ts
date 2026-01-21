@@ -62,7 +62,7 @@ describe("terminal-title", () => {
 
 		it("does not throw with special characters in name", () => {
 			expect(() => {
-				setTerminalName("ghost: my-project@main")
+				setTerminalName("ocx[work]: my-project@main")
 			}).not.toThrow()
 		})
 
@@ -131,13 +131,13 @@ describe("terminal-title", () => {
 				cwd: "/path/to/project",
 				profile: "default",
 				git: { repoName: "ocx", branch: "main" },
-				expected: "ghost[default]:ocx/main",
+				expected: "ocx[default]:ocx/main",
 			},
 			{
 				cwd: "/path/to/project",
 				profile: "work",
 				git: { repoName: "app", branch: "feature/auth" },
-				expected: "ghost[work]:app/feature/auth",
+				expected: "ocx[work]:app/feature/auth",
 			},
 
 			// Fallback to dirname when no repo
@@ -145,7 +145,7 @@ describe("terminal-title", () => {
 				cwd: "/path/to/my-project",
 				profile: "default",
 				git: { repoName: null, branch: null },
-				expected: "ghost[default]:my-project",
+				expected: "ocx[default]:my-project",
 			},
 
 			// Branch omitted when null
@@ -153,7 +153,7 @@ describe("terminal-title", () => {
 				cwd: "/path/to/ocx",
 				profile: "default",
 				git: { repoName: "ocx", branch: null },
-				expected: "ghost[default]:ocx",
+				expected: "ocx[default]:ocx",
 			},
 
 			// Truncation boundary tests
@@ -161,13 +161,13 @@ describe("terminal-title", () => {
 				cwd: "/x",
 				profile: "p",
 				git: { repoName: "r", branch: "12345678901234567890" },
-				expected: "ghost[p]:r/12345678901234567890",
+				expected: "ocx[p]:r/12345678901234567890",
 			}, // exactly 20 - no truncate
 			{
 				cwd: "/x",
 				profile: "p",
 				git: { repoName: "r", branch: "123456789012345678901" },
-				expected: "ghost[p]:r/12345678901234567...",
+				expected: "ocx[p]:r/12345678901234567...",
 			}, // 21 chars - truncate
 
 			// Edge cases
@@ -175,7 +175,7 @@ describe("terminal-title", () => {
 				cwd: "/path/to/repo",
 				profile: "test",
 				git: { repoName: "repo", branch: "feat/add-🚀-emoji" },
-				expected: "ghost[test]:repo/feat/add-🚀-emoji",
+				expected: "ocx[test]:repo/feat/add-🚀-emoji",
 			}, // unicode
 		]
 

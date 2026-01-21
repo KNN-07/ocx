@@ -30,7 +30,7 @@ describe("ocx update", () => {
 		const dir = await createTempDir(name)
 		await runCLI(["init", "--force"], dir)
 
-		const configPath = join(dir, "ocx.jsonc")
+		const configPath = join(dir, ".opencode", "ocx.jsonc")
 		const config = parseJsonc(await readFile(configPath, "utf-8")) as Record<string, unknown>
 		config.registries = {
 			kdco: { url: registry.url },
@@ -80,7 +80,7 @@ describe("ocx update", () => {
 		expect(updatedContent).toBe(newContent)
 
 		// Verify lock file was updated
-		const lockPath = join(testDir, "ocx.lock")
+		const lockPath = join(testDir, ".opencode/ocx.lock")
 		const lock = parseJsonc(await readFile(lockPath, "utf-8")) as Record<string, unknown>
 		const installed = lock.installed as Record<string, { updatedAt?: string }>
 		expect(installed["kdco/test-plugin"].updatedAt).toBeDefined()
@@ -172,7 +172,7 @@ describe("ocx update", () => {
 		// Record original content
 		const filePath = join(testDir, ".opencode/plugin/test-plugin.ts")
 		const originalContent = await readFile(filePath, "utf-8")
-		const lockPath = join(testDir, "ocx.lock")
+		const lockPath = join(testDir, ".opencode/ocx.lock")
 		const originalLock = await readFile(lockPath, "utf-8")
 
 		// Change registry content
@@ -245,7 +245,7 @@ describe("ocx update", () => {
 		expect(updatedContent).toBe("// Version pinned content")
 
 		// Verify lock has the specified version
-		const lockPath = join(testDir, "ocx.lock")
+		const lockPath = join(testDir, ".opencode/ocx.lock")
 		const lock = parseJsonc(await readFile(lockPath, "utf-8")) as Record<string, unknown>
 		const installed = lock.installed as Record<string, { version: string }>
 		expect(installed["kdco/test-plugin"].version).toBe("1.0.0")
@@ -272,7 +272,7 @@ describe("ocx update", () => {
 		expect(output).toContain("Updated")
 
 		// Verify lock has the specified versions
-		const lockPath = join(testDir, "ocx.lock")
+		const lockPath = join(testDir, ".opencode/ocx.lock")
 		const lock = parseJsonc(await readFile(lockPath, "utf-8")) as Record<string, unknown>
 		const installed = lock.installed as Record<string, { version: string }>
 		expect(installed["kdco/test-plugin"].version).toBe("1.0.0")

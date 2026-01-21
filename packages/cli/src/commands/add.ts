@@ -11,11 +11,12 @@ import { dirname, join } from "node:path"
 import type { Command } from "commander"
 import type { ConfigProvider } from "../config/provider.js"
 import { GlobalConfigProvider, LocalConfigProvider } from "../config/provider.js"
+import { ConfigResolver } from "../config/resolver.js"
 import { CLI_VERSION, GITHUB_REPO } from "../constants.js"
 import { fetchFileContent, fetchRegistryIndex } from "../registry/fetcher.js"
 import type { ResolvedComponent } from "../registry/resolver.js"
 import { type ResolvedDependencies, resolveDependencies } from "../registry/resolver.js"
-import { type OcxLock, readOcxLock } from "../schemas/config.js"
+import { findOcxLock, type OcxLock, readOcxLock, writeOcxLock } from "../schemas/config.js"
 import type { ComponentFileObject, RegistryIndex } from "../schemas/registry.js"
 import { parseQualifiedComponent } from "../schemas/registry.js"
 import {
@@ -104,6 +105,7 @@ export interface AddOptions {
 	skipCompatCheck?: boolean
 	trust?: boolean
 	global?: boolean
+	profile?: string
 }
 
 export function registerAddCommand(program: Command): void {
@@ -121,6 +123,7 @@ export function registerAddCommand(program: Command): void {
 		.option("--dry-run", "Show what would be installed without making changes")
 		.option("--skip-compat-check", "Skip version compatibility checks")
 		.option("--trust", "Skip npm plugin validation (for packages that don't follow conventions)")
+		.option("-p, --profile <name>", "Use specific profile")
 
 	addCommonOptions(cmd)
 	addForceOption(cmd)
@@ -129,10 +132,25 @@ export function registerAddCommand(program: Command): void {
 
 	cmd.action(async (components: string[], options: AddOptions) => {
 		try {
-			// Create appropriate provider based on --global flag
-			const provider = options.global
-				? await GlobalConfigProvider.create()
-				: await LocalConfigProvider.create(options.cwd ?? process.cwd())
+			// Create appropriate provider based on flags
+			let provider: ConfigProvider
+
+			if (options.profile) {
+				// Use ConfigResolver with profile
+				const resolver = await ConfigResolver.create(options.cwd ?? process.cwd(), {
+					profile: options.profile,
+				})
+				provider = {
+					cwd: resolver.getCwd(),
+					getRegistries: () => resolver.getRegistries(),
+					getComponentPath: () => resolver.getComponentPath(),
+				}
+			} else if (options.global) {
+				provider = await GlobalConfigProvider.requireInitialized()
+			} else {
+				provider = await LocalConfigProvider.requireInitialized(options.cwd ?? process.cwd())
+			}
+
 			await runAddCore(components, options, provider)
 		} catch (error) {
 			handleError(error, { json: options.json })
@@ -142,7 +160,7 @@ export function registerAddCommand(program: Command): void {
 
 /**
  * Core add logic that accepts a ConfigProvider.
- * This enables reuse across both standard and ghost modes.
+ * This enables reuse across both standard and profile modes.
  *
  * Routes inputs to appropriate handlers:
  * - npm: specifiers -> handleNpmPlugins
@@ -325,7 +343,7 @@ async function runRegistryAddCore(
 	provider: ConfigProvider,
 ): Promise<void> {
 	const cwd = provider.cwd
-	const lockPath = join(cwd, "ocx.lock")
+	const { path: lockPath } = findOcxLock(cwd)
 	const registries = provider.getRegistries()
 
 	// Load or create lock
@@ -535,9 +553,9 @@ async function runRegistryAddCore(
 
 			if (!options.quiet && result.changed) {
 				if (result.created) {
-					logger.info(`Created ${join(cwd, "opencode.jsonc")}`)
+					logger.info(`Created ${result.path}`)
 				} else {
-					logger.info(`Updated ${join(cwd, "opencode.jsonc")}`)
+					logger.info(`Updated ${result.path}`)
 				}
 			}
 		}
@@ -573,7 +591,7 @@ async function runRegistryAddCore(
 		}
 
 		// Save lock file
-		await writeFile(lockPath, JSON.stringify(lock, null, 2), "utf-8")
+		await writeOcxLock(cwd, lock, lockPath)
 
 		if (options.json) {
 			console.log(

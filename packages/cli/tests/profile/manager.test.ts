@@ -4,15 +4,15 @@
  * Tests for the ProfileManager class covering:
  * - Initialization checks
  * - Profile CRUD operations
- * - Current profile management
+ * - Profile resolution (resolveProfile)
  * - Environment variable overrides
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "bun:test"
-import { mkdir, readlink, rm, stat } from "node:fs/promises"
+import { mkdir, rm, stat } from "node:fs/promises"
 import { join } from "node:path"
 import { ProfileManager } from "../../src/profile/manager.js"
-import { getCurrentSymlink, getProfileDir, getProfilesDir } from "../../src/profile/paths.js"
+import { getProfileDir, getProfilesDir } from "../../src/profile/paths.js"
 import {
 	InvalidProfileNameError,
 	ProfileExistsError,
@@ -116,34 +116,15 @@ describe("ProfileManager.initialize", () => {
 		expect(exists).toBe(true)
 	})
 
-	it("should set default profile as current", async () => {
-		const manager = ProfileManager.create()
-
-		await manager.initialize()
-
-		const current = await manager.getCurrent()
-		expect(current).toBe("default")
-	})
-
-	it("should create current symlink", async () => {
-		const manager = ProfileManager.create()
-
-		await manager.initialize()
-
-		const symlinkPath = getCurrentSymlink()
-		const target = await readlink(symlinkPath)
-		expect(target).toBe("default")
-	})
-
-	it("should create ghost.jsonc with default content", async () => {
+	it("should create ocx.jsonc with default content", async () => {
 		const manager = ProfileManager.create()
 
 		await manager.initialize()
 
 		const profile = await manager.get("default")
-		expect(profile.ghost).toBeDefined()
-		expect(profile.ghost.registries).toBeDefined()
-		expect(profile.ghost.$schema).toBeDefined()
+		expect(profile.ocx).toBeDefined()
+		expect(profile.ocx.registries).toBeDefined()
+		expect(profile.ocx.$schema).toBeDefined()
 	})
 })
 
@@ -279,8 +260,8 @@ describe("ProfileManager.get", () => {
 		const profile = await manager.get("default")
 
 		expect(profile.name).toBe("default")
-		expect(profile.ghost).toBeDefined()
-		expect(profile.ghost.registries).toBeDefined()
+		expect(profile.ocx).toBeDefined()
+		expect(profile.ocx.registries).toBeDefined()
 	})
 
 	it("should throw ProfileNotFoundError for missing profiles", async () => {
@@ -360,15 +341,15 @@ describe("ProfileManager.add", () => {
 		expect(stats.isDirectory()).toBe(true)
 	})
 
-	it("should create ghost.jsonc in new profile", async () => {
+	it("should create ocx.jsonc in new profile", async () => {
 		const manager = ProfileManager.create()
 		await manager.initialize()
 
 		await manager.add("myprofile")
 
 		const profile = await manager.get("myprofile")
-		expect(profile.ghost).toBeDefined()
-		expect(profile.ghost.$schema).toBeDefined()
+		expect(profile.ocx).toBeDefined()
+		expect(profile.ocx.$schema).toBeDefined()
 	})
 
 	it("should throw ProfileExistsError for duplicate names", async () => {
@@ -461,115 +442,38 @@ describe("ProfileManager.remove", () => {
 		expect(manager.remove("nonexistent")).rejects.toThrow(ProfileNotFoundError)
 	})
 
-	it("should prevent deleting current profile without --force", async () => {
-		const manager = ProfileManager.create()
-		await manager.initialize()
-		await manager.add("backup") // Need at least 2 profiles
-
-		// Default is current, try to delete it
-		expect(manager.remove("default")).rejects.toThrow(/Cannot delete current profile/)
-	})
-
-	it("should allow deleting current profile with force=true", async () => {
-		const manager = ProfileManager.create()
-		await manager.initialize()
-		await manager.add("backup")
-
-		await manager.remove("default", true)
-
-		const exists = await manager.exists("default")
-		expect(exists).toBe(false)
-	})
-
 	it("should prevent deleting the last profile", async () => {
 		const manager = ProfileManager.create()
 		await manager.initialize()
 
 		// Only default exists, can't delete it
-		expect(manager.remove("default", true)).rejects.toThrow(/Cannot delete the last profile/)
+		expect(manager.remove("default")).rejects.toThrow(/Cannot delete the last profile/)
 	})
 
-	it("should switch to another profile after force-deleting current", async () => {
+	it("should allow deleting when multiple profiles exist", async () => {
 		const manager = ProfileManager.create()
 		await manager.initialize()
 		await manager.add("other")
-		await manager.setCurrent("other")
 
-		await manager.remove("other", true) // force delete current
+		// Now we can delete default since "other" exists
+		await manager.remove("default")
 
-		const newCurrent = await manager.getCurrent()
-		expect(newCurrent).toBe("default")
+		const exists = await manager.exists("default")
+		expect(exists).toBe(false)
 	})
 })
 
 // =============================================================================
-// SET CURRENT TESTS
+// RESOLVE PROFILE TESTS
 // =============================================================================
 
-describe("ProfileManager.setCurrent", () => {
-	let testDir: string
-	const originalXdgConfigHome = process.env.XDG_CONFIG_HOME
-
-	beforeEach(async () => {
-		testDir = await createTempConfigDir("profile-set-current")
-		process.env.XDG_CONFIG_HOME = testDir
-	})
-
-	afterEach(async () => {
-		if (originalXdgConfigHome === undefined) {
-			delete process.env.XDG_CONFIG_HOME
-		} else {
-			process.env.XDG_CONFIG_HOME = originalXdgConfigHome
-		}
-		await cleanupTempDir(testDir)
-	})
-
-	it("should update symlink to new profile", async () => {
-		const manager = ProfileManager.create()
-		await manager.initialize()
-		await manager.add("newcurrent")
-
-		await manager.setCurrent("newcurrent")
-
-		const symlinkPath = getCurrentSymlink()
-		const target = await readlink(symlinkPath)
-		expect(target).toBe("newcurrent")
-	})
-
-	it("should atomically swap symlink", async () => {
-		const manager = ProfileManager.create()
-		await manager.initialize()
-		await manager.add("profile1")
-		await manager.add("profile2")
-
-		// Switch multiple times to test atomic behavior
-		await manager.setCurrent("profile1")
-		await manager.setCurrent("profile2")
-		await manager.setCurrent("profile1")
-
-		const current = await manager.getCurrent()
-		expect(current).toBe("profile1")
-	})
-
-	it("should throw ProfileNotFoundError for non-existing profile", async () => {
-		const manager = ProfileManager.create()
-		await manager.initialize()
-
-		expect(manager.setCurrent("nonexistent")).rejects.toThrow(ProfileNotFoundError)
-	})
-})
-
-// =============================================================================
-// GET CURRENT TESTS
-// =============================================================================
-
-describe("ProfileManager.getCurrent", () => {
+describe("ProfileManager.resolveProfile", () => {
 	let testDir: string
 	const originalXdgConfigHome = process.env.XDG_CONFIG_HOME
 	const originalOcxProfile = process.env.OCX_PROFILE
 
 	beforeEach(async () => {
-		testDir = await createTempConfigDir("profile-get-current")
+		testDir = await createTempConfigDir("profile-resolve")
 		process.env.XDG_CONFIG_HOME = testDir
 		delete process.env.OCX_PROFILE
 	})
@@ -588,13 +492,13 @@ describe("ProfileManager.getCurrent", () => {
 		await cleanupTempDir(testDir)
 	})
 
-	it("should read symlink target", async () => {
+	it("should return 'default' when no override or env var", async () => {
 		const manager = ProfileManager.create()
 		await manager.initialize()
 
-		const current = await manager.getCurrent()
+		const profile = await manager.resolveProfile()
 
-		expect(current).toBe("default")
+		expect(profile).toBe("default")
 	})
 
 	it("should respect OCX_PROFILE env var", async () => {
@@ -604,9 +508,9 @@ describe("ProfileManager.getCurrent", () => {
 
 		process.env.OCX_PROFILE = "envprofile"
 
-		const current = await manager.getCurrent()
+		const profile = await manager.resolveProfile()
 
-		expect(current).toBe("envprofile")
+		expect(profile).toBe("envprofile")
 	})
 
 	it("should throw ProfileNotFoundError if OCX_PROFILE refers to non-existing profile", async () => {
@@ -615,7 +519,7 @@ describe("ProfileManager.getCurrent", () => {
 
 		process.env.OCX_PROFILE = "nonexistent"
 
-		expect(manager.getCurrent()).rejects.toThrow(ProfileNotFoundError)
+		expect(manager.resolveProfile()).rejects.toThrow(ProfileNotFoundError)
 	})
 
 	it("should use override parameter over env var", async () => {
@@ -626,15 +530,25 @@ describe("ProfileManager.getCurrent", () => {
 
 		process.env.OCX_PROFILE = "envval"
 
-		const current = await manager.getCurrent("override")
+		const profile = await manager.resolveProfile("override")
 
-		expect(current).toBe("override")
+		expect(profile).toBe("override")
 	})
 
 	it("should throw ProfileNotFoundError if override refers to non-existing profile", async () => {
 		const manager = ProfileManager.create()
 		await manager.initialize()
 
-		expect(manager.getCurrent("nonexistent")).rejects.toThrow(ProfileNotFoundError)
+		expect(manager.resolveProfile("nonexistent")).rejects.toThrow(ProfileNotFoundError)
+	})
+
+	it("should use override over default when no env var set", async () => {
+		const manager = ProfileManager.create()
+		await manager.initialize()
+		await manager.add("myprofile")
+
+		const profile = await manager.resolveProfile("myprofile")
+
+		expect(profile).toBe("myprofile")
 	})
 })

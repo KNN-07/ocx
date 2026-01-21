@@ -216,9 +216,19 @@ describe("add command", () => {
 packages/cli/          # Main CLI tool (@ocx/cli)
   src/
     commands/          # CLI command implementations
-      ghost/           # Ghost mode commands (init, config, add, opencode, etc.)
-    config/            # Config providers (Local, Ghost)
-    ghost/             # Ghost mode configuration utilities
+      profile/         # Profile management commands
+      config/          # Config commands (show, edit)
+      add.ts           # Add components
+      search.ts        # Search registries
+      opencode.ts      # Launch OpenCode
+      init.ts          # Initialize configs
+      registry.ts      # Registry management
+      update.ts        # Update components
+      build.ts         # Build components
+      diff.ts          # Component diff
+      ghost/           # [TEMPORARY] Ghost mode migration
+    config/            # Config providers and merging
+    profile/           # Profile management (manager, paths)
     registry/          # Registry fetching/resolution
     schemas/           # Zod schemas and config parsing
     utils/             # Shared utilities, errors, logging
@@ -229,12 +239,12 @@ registry/              # Component registry source files
 
 workers/               # Cloudflare Workers
   ocx/                 # Main OCX worker
-  registry/            # Registry API worker
+  kdco-registry/       # KDCO registry API worker
 ```
 
-## Ghost Mode Architecture
+## Profile System Architecture
 
-Ghost mode enables working in repositories without modifying them:
+OCX provides a global profile system for managing multiple OpenCode configurations. Profiles enable you to maintain separate configurations for different contexts (work, personal, clients) without modifying project directories.
 
 ### Key Components
 
@@ -242,68 +252,70 @@ Ghost mode enables working in repositories without modifying them:
 |-----------|----------|---------|
 | `ProfileManager` | `src/profile/manager.ts` | Static factory for profile CRUD operations |
 | `profile/paths.ts` | `src/profile/paths.ts` | Path constants and helpers for profile directories |
-
-| `GhostConfigProvider` | `src/config/provider.ts` | Provides config from current profile |
-| Ghost commands | `src/commands/ghost/` | init, config, registry, add, search, opencode |
-| Profile commands | `src/commands/ghost/profile/` | list, add, remove, use, show, config |
+| `ConfigProvider` | `src/config/provider.ts` | Merges configs from multiple sources |
+| Profile commands | `src/commands/profile/` | list, add, remove, show, config |
+| Config commands | `src/commands/config/` | show, edit |
+| OpenCode commands | `src/commands/opencode/` | Launch OpenCode with merged config |
+| Init commands | `src/commands/init/` | Initialize global/local configs |
+| Ghost commands | `src/commands/ghost/` | [TEMPORARY] Migration utilities |
 
 ### Directory Structure
 
 ```
-~/.config/opencode/profiles/
-├── current -> default       # Symlink to active profile
-├── default/
-│   ├── ghost.jsonc          # Ghost mode settings
-│   ├── opencode.jsonc       # OpenCode config (optional)
-│   └── AGENTS.md            # Agent instructions (optional)
-└── work/
-    ├── ghost.jsonc
-    ├── opencode.jsonc
-    └── AGENTS.md
+~/.config/opencode/
+├── ocx.jsonc                 # Global base config
+└── profiles/
+    ├── default/
+    │   ├── ocx.jsonc         # Profile OCX settings
+    │   ├── opencode.jsonc    # Profile OpenCode config
+    │   └── AGENTS.md         # Profile instructions
+    └── work/
+        ├── ocx.jsonc
+        ├── opencode.jsonc
+        └── AGENTS.md
+
+.opencode/                    # Local config (no profiles)
+├── ocx.jsonc
+└── opencode.jsonc
 ```
 
 ### Profile Resolution Priority
 
-`ProfileManager.getCurrent()` resolves the active profile in this order:
+Profiles are resolved in this order:
 
-1. `--profile <name>` flag (explicit override)
+1. `--profile <name>` / `-p <name>` flag (explicit override)
 2. `OCX_PROFILE` environment variable
-3. `current` symlink in `~/.config/opencode/profiles/`
-4. `default` profile (fallback)
+3. `default` profile (if it exists)
+4. No profile (base configs only)
 
-### How `ghost opencode` Works
+### Configuration Cascade
 
-1. Resolves current profile using priority: `--profile` flag > `OCX_PROFILE` env > `current` symlink > `default`
-2. Sets terminal/tmux window name to `ghost[profile]:repo/branch` for session identification (if `renameWindow` enabled)
-3. **Discovers project instruction files:**
+Configurations are merged in this order (later sources override earlier ones):
+
+1. **Global ocx.jsonc** - Always applied if it exists
+2. **Global profile configs** - If a profile is resolved:
+   - Profile's `ocx.jsonc` settings
+   - Profile's `opencode.jsonc` configuration
+3. **Apply exclude/include patterns** - Filter which local configs to load
+4. **Local .opencode/ocx.jsonc** - Project-specific config (if not excluded)
+5. **Local .opencode/opencode.jsonc** - Project OpenCode config (if not excluded)
+
+### How `ocx opencode` Works
+
+1. **Profile resolution**: Uses priority order (flag > env var > default > none)
+2. **Config merging**: Follows the cascade above to build final configuration
+3. **Instruction file discovery**:
    - Walks UP from project directory to git root
    - Finds AGENTS.md, CLAUDE.md, CONTEXT.md at each level
-   - Filters by `exclude`/`include` patterns from ghost.jsonc
+   - Filters by `exclude`/`include` patterns from profile's `ocx.jsonc`
    - Include patterns override exclude patterns (TypeScript/Vite style)
-4. Spawns OpenCode with environment variables:
-   - `OPENCODE_DISABLE_PROJECT_CONFIG=true` - prevents loading project configs
-   - `OPENCODE_CONFIG_DIR` - points to profile directory
-   - `OPENCODE_CONFIG_CONTENT` - serialized config with discovered instructions
-   - `OCX_PROFILE` - current profile name
-5. OpenCode runs directly in the project directory
-
-**Note:** This requires OpenCode with PR #8093 support for `OPENCODE_DISABLE_PROJECT_CONFIG`.
-
-#### Migration Note
-
-For profiles that previously had `AGENTS.md`, `CLAUDE.md`, or `CONTEXT.md` files in the profile directory that should be included, add them to the `opencode.jsonc` configuration:
-
-```jsonc
-{
-  "instructions": ["./AGENTS.md"]  // and/or CLAUDE.md, CONTEXT.md
-}
-```
-
-This ensures these files are loaded as instruction files when OpenCode starts.
+4. **Window naming** (optional): Sets terminal/tmux window name to `[profile]:repo/branch` for session identification
+5. **Spawn OpenCode**: Launches OpenCode with merged configuration and discovered instructions
+6. **Working directory**: OpenCode runs directly in the project directory
 
 ### Instruction File Discovery
 
-Ghost mode discovers project instruction files and passes them to OpenCode. By default, all project instruction files are excluded so only your profile's files are used.
+By default, all project instruction files are excluded so only your profile's files are used.
 
 **Default exclude patterns:**
 - `**/AGENTS.md`
@@ -313,7 +325,7 @@ Ghost mode discovers project instruction files and passes them to OpenCode. By d
 - `**/opencode.jsonc`
 - `**/opencode.json`
 
-**To include project files**, modify your profile's `ghost.jsonc`:
+**To include project files**, modify your profile's `ocx.jsonc`:
 
 ```jsonc
 {
@@ -330,7 +342,7 @@ Files are discovered deepest-first and profile instructions come last (highest p
 
 ### Custom OpenCode Binary
 
-To use a custom OpenCode binary (e.g., a development build), set the `bin` option in your profile's `ghost.jsonc`:
+To use a custom OpenCode binary (e.g., a development build), set the `bin` option in your profile's `ocx.jsonc`:
 
 ```jsonc
 {
@@ -339,48 +351,82 @@ To use a custom OpenCode binary (e.g., a development build), set the `bin` optio
 ```
 
 **Resolution order:**
-1. `bin` in ghost.jsonc (profile-specific)
+1. `bin` in profile's `ocx.jsonc`
 2. `OPENCODE_BIN` environment variable
 3. `opencode` (system PATH)
 
-### GhostConfigProvider vs ProfileManager
+### Profile Management
 
-- **`GhostConfigProvider`**: Reads config from the current profile, used at runtime by ghost commands
-- **`ProfileManager`**: Manages profile lifecycle (create, delete, switch, list)
-
-### Ghost Mode Profiles
-
-Profile commands for managing multiple ghost configurations:
+Use profile commands to manage multiple configurations:
 
 #### Profile Commands
 
 | Command | Alias | Description |
 |---------|-------|-------------|
-| `ocx ghost profile list` | `ocx g p ls` | List all profiles (* = current) |
-| `ocx ghost profile add <name>` | `ocx g p add` | Create new profile |
-| `ocx ghost profile remove <name>` | `ocx g p rm` | Delete profile |
-| `ocx ghost profile use <name>` | `ocx g p use` | Set current profile |
-| `ocx ghost profile show [name]` | `ocx g p show` | Display profile contents |
-| `ocx ghost profile config [name]` | `ocx g p config` | Edit ghost.jsonc in $EDITOR |
+| `ocx profile list` | `ocx p ls` | List all global profiles |
+| `ocx profile add <name>` | `ocx p add` | Create new profile |
+| `ocx profile remove <name>` | `ocx p rm` | Delete profile |
+| `ocx profile show <name>` | `ocx p show` | Display profile contents |
+| `ocx profile config <name>` | `ocx p config` | Edit profile's ocx.jsonc |
 
-#### Profile Command Examples
+#### Config Commands
+
+| Command | Alias | Description |
+|---------|-------|-------------|
+| `ocx config show` | - | Show merged config |
+| `ocx config show --origin` | - | Show config with sources |
+| `ocx config edit` | - | Edit local config |
+| `ocx config edit --global` | - | Edit global config |
+
+#### OpenCode Commands
+
+| Command | Alias | Description |
+|---------|-------|-------------|
+| `ocx opencode [path]` | `ocx oc` | Launch OpenCode with config |
+| `ocx opencode -p <name>` | `ocx oc -p` | Launch with specific profile |
+
+#### Init Commands
+
+| Command | Alias | Description |
+|---------|-------|-------------|
+| `ocx init` | - | Initialize local .opencode/ |
+| `ocx init --global` | - | Initialize global profiles |
+
+#### Ghost Commands (TEMPORARY)
+
+| Command | Alias | Description |
+|---------|-------|-------------|
+| `ocx ghost migrate` | - | Migrate ghost.jsonc to ocx.jsonc in profiles |
+| `ocx ghost migrate --dry-run` | - | Preview migration without making changes |
+
+**Note:** The ghost command group is temporary and will be removed in the next minor version. It helps users migrate from the legacy "ghost mode" configuration format (`ghost.jsonc`) to the unified profile system (`ocx.jsonc`).
+
+#### Command Examples
 
 ```bash
-# Create and switch to a work profile
-ocx ghost profile add work
-ocx ghost profile use work
+# Initialize global profiles
+ocx init --global
 
-# Run OpenCode with a specific profile
-ocx ghost opencode --profile work
+# Create and use a work profile
+ocx profile add work
+ocx profile config work  # Edit settings
+
+# Launch OpenCode with a specific profile
+ocx opencode -p work
 
 # Or use environment variable
-OCX_PROFILE=work ocx ghost opencode
+OCX_PROFILE=work ocx opencode
 
 # Clone settings from existing profile
-ocx ghost profile add client-x --from work
+ocx profile add client-x --from work
 
-# List all profiles
-ocx ghost profile list
+# View merged configuration
+ocx config show
+ocx config show --origin  # See where each setting comes from
+
+# Initialize local config in project
+ocx init
+ocx config edit  # Edit local config
 ```
 
 ## Quick Reference

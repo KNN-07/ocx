@@ -88,40 +88,10 @@ export class SelfUpdateError extends OCXError {
 	}
 }
 
-// =============================================================================
-// GHOST MODE ERRORS
-// =============================================================================
-
-export class GhostNotInitializedError extends OCXError {
-	constructor() {
-		super(
-			"Ghost mode not initialized. Run `ocx ghost init` first.",
-			"CONFIG_ERROR",
-			EXIT_CODES.CONFIG,
-		)
-		this.name = "GhostNotInitializedError"
-	}
-}
-
-export class GhostAlreadyInitializedError extends OCXError {
-	constructor(configPath?: string) {
-		const path = configPath ?? "~/.config/ocx/ghost.jsonc"
-		super(
-			`Ghost mode already initialized.\n` +
-				`Config: ${path}\n\n` +
-				`To reset, delete the config and run init again:\n` +
-				`  rm ${path} && ocx ghost init`,
-			"CONFLICT",
-			EXIT_CODES.GENERAL,
-		)
-		this.name = "GhostAlreadyInitializedError"
-	}
-}
-
-export class GhostConfigError extends OCXError {
+export class OcxConfigError extends OCXError {
 	constructor(message: string) {
 		super(message, "CONFIG_ERROR", EXIT_CODES.CONFIG)
-		this.name = "GhostConfigError"
+		this.name = "OcxConfigError"
 	}
 }
 
@@ -153,7 +123,7 @@ export class InvalidProfileNameError extends OCXError {
 export class ProfilesNotInitializedError extends OCXError {
 	constructor() {
 		super(
-			"Ghost profiles not initialized. Run 'ocx ghost init' first.",
+			"Profiles not initialized. Run 'ocx profile add default' first.",
 			"NOT_FOUND",
 			EXIT_CODES.NOT_FOUND,
 		)

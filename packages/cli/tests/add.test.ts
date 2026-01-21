@@ -37,7 +37,7 @@ describe("ocx add", () => {
 		await runCLI(["init", "--force"], testDir)
 
 		// Manually add registry to config since 'ocx registry add' might be flaky in parallel tests
-		const configPath = join(testDir, "ocx.jsonc")
+		const configPath = join(testDir, ".opencode", "ocx.jsonc")
 		const config = parseJsonc(await readFile(configPath, "utf-8"))
 		config.registries = {
 			kdco: { url: registry.url },
@@ -58,7 +58,7 @@ describe("ocx add", () => {
 		expect(existsSync(join(testDir, ".opencode/plugin/test-plugin.ts"))).toBe(true)
 
 		// Verify lock file
-		const lockPath = join(testDir, "ocx.lock")
+		const lockPath = join(testDir, ".opencode/ocx.lock")
 		expect(existsSync(lockPath)).toBe(true)
 		const lock = parseJsonc(await readFile(lockPath, "utf-8"))
 		expect(lock.installed["kdco/test-agent"]).toBeDefined()
@@ -66,7 +66,7 @@ describe("ocx add", () => {
 		expect(lock.installed["kdco/test-plugin"]).toBeDefined()
 
 		// Verify opencode.jsonc patching (new files default to .jsonc)
-		const opencodePath = join(testDir, "opencode.jsonc")
+		const opencodePath = join(testDir, ".opencode", "opencode.jsonc")
 		expect(existsSync(opencodePath)).toBe(true)
 		const opencode = parseJsonc(await readFile(opencodePath, "utf-8"))
 		expect(opencode.mcp["test-mcp"]).toBeDefined()
@@ -79,7 +79,7 @@ describe("ocx add", () => {
 		// Init and add registry
 		await runCLI(["init", "--force"], testDir)
 
-		const configPath = join(testDir, "ocx.jsonc")
+		const configPath = join(testDir, ".opencode", "ocx.jsonc")
 		const config = parseJsonc(await readFile(configPath, "utf-8"))
 		config.registries = {
 			kdco: { url: registry.url },
@@ -106,7 +106,7 @@ describe("ocx add", () => {
 		// Init and add registry
 		await runCLI(["init", "--force"], testDir)
 
-		const configPath = join(testDir, "ocx.jsonc")
+		const configPath = join(testDir, ".opencode", "ocx.jsonc")
 		const config = parseJsonc(await readFile(configPath, "utf-8"))
 		config.registries = {
 			kdco: { url: registry.url },
@@ -133,7 +133,7 @@ describe("ocx add", () => {
 		// Init and add registry
 		await runCLI(["init", "--force"], testDir)
 
-		const configPath = join(testDir, "ocx.jsonc")
+		const configPath = join(testDir, ".opencode", "ocx.jsonc")
 		const config = parseJsonc(await readFile(configPath, "utf-8"))
 		config.registries = {
 			kdco: { url: registry.url },
@@ -162,7 +162,7 @@ describe("ocx add", () => {
 		// Init and add registry
 		await runCLI(["init", "--force"], testDir)
 
-		const configPath = join(testDir, "ocx.jsonc")
+		const configPath = join(testDir, ".opencode", "ocx.jsonc")
 		const config = parseJsonc(await readFile(configPath, "utf-8"))
 		config.registries = {
 			kdco: { url: registry.url },
@@ -180,7 +180,7 @@ describe("ocx add", () => {
 		expect(exitCode).toBe(0)
 
 		// Verify opencode.jsonc has MCP from dependency
-		const opencodePath = join(testDir, "opencode.jsonc")
+		const opencodePath = join(testDir, ".opencode", "opencode.jsonc")
 		expect(existsSync(opencodePath)).toBe(true)
 		const opencode = parseJsonc(await readFile(opencodePath, "utf-8"))
 
@@ -200,7 +200,7 @@ describe("ocx add", () => {
 		// Init and add registry
 		await runCLI(["init", "--force"], testDir)
 
-		const configPath = join(testDir, "ocx.jsonc")
+		const configPath = join(testDir, ".opencode", "ocx.jsonc")
 		const config = parseJsonc(await readFile(configPath, "utf-8"))
 		config.registries = {
 			kdco: { url: registry.url },
@@ -217,7 +217,7 @@ describe("ocx add", () => {
 		expect(exitCode).toBe(0)
 
 		// Verify opencode.jsonc has plugins from both components
-		const opencodePath = join(testDir, "opencode.jsonc")
+		const opencodePath = join(testDir, ".opencode", "opencode.jsonc")
 		const opencode = parseJsonc(await readFile(opencodePath, "utf-8"))
 
 		expect(opencode.plugin).toBeDefined()
@@ -231,7 +231,7 @@ describe("ocx add", () => {
 		// Init and add registry
 		await runCLI(["init", "--force"], testDir)
 
-		const configPath = join(testDir, "ocx.jsonc")
+		const configPath = join(testDir, ".opencode", "ocx.jsonc")
 		const config = parseJsonc(await readFile(configPath, "utf-8"))
 		config.registries = {
 			kdco: { url: registry.url },

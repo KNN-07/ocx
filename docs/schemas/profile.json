@@ -1,13 +1,18 @@
 {
 	"$schema": "http://json-schema.org/draft-07/schema#",
-	"$id": "https://ocx.kdco.dev/schemas/ghost.json",
-	"title": "Ghost Configuration Schema",
+	"$id": "https://ocx.kdco.dev/schemas/profile.json",
+	"title": "OCX Profile Configuration",
+	"description": "Configuration schema for OCX profile files stored at ~/.config/opencode/profiles/<name>/ocx.jsonc",
 	"type": "object",
 	"additionalProperties": false,
 	"properties": {
 		"$schema": {
 			"type": "string",
 			"description": "Schema URL for IDE support"
+		},
+		"bin": {
+			"type": "string",
+			"description": "Path to OpenCode binary. Falls back to OPENCODE_BIN env var, then 'opencode'."
 		},
 		"registries": {
 			"type": "object",
@@ -40,26 +45,29 @@
 			"pattern": "^(?!/)(?![A-Za-z]:)(?!\\\\\\\\)(?!.*\\.\\.)[^\\0]+$",
 			"description": "Relative path for component installation (no .. or absolute paths)"
 		},
-		"include": {
-			"type": "array",
-			"items": { "type": "string", "minLength": 1 },
-			"description": "Glob patterns for OpenCode files to include"
-		},
 		"exclude": {
 			"type": "array",
 			"items": { "type": "string", "minLength": 1 },
-			"description": "Glob patterns to exclude from include results"
+			"default": [
+				"**/AGENTS.md",
+				"**/CLAUDE.md",
+				"**/CONTEXT.md",
+				"**/.opencode/**",
+				"**/opencode.jsonc",
+				"**/opencode.json"
+			],
+			"description": "Glob patterns for project files to exclude from OpenCode discovery"
+		},
+		"include": {
+			"type": "array",
+			"items": { "type": "string", "minLength": 1 },
+			"default": [],
+			"description": "Glob patterns for project files to include (overrides exclude)"
 		},
 		"renameWindow": {
 			"type": "boolean",
 			"default": true,
-			"description": "Set terminal/tmux window name when launching OpenCode. Set to false to preserve your existing terminal title."
-		},
-		"maxFiles": {
-			"type": "integer",
-			"minimum": 0,
-			"default": 10000,
-			"description": "Maximum number of files to process when creating the symlink farm. Acts as a safety check against accidentally running in massive directories. Set to 0 to disable the limit."
+			"description": "Set terminal/tmux window name when launching OpenCode"
 		}
 	}
 }

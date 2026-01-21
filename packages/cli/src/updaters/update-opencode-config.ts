@@ -10,9 +10,13 @@
  * - No "smart" merging - component wins, git is your safety net
  */
 
+import { existsSync } from "node:fs"
+import { mkdir } from "node:fs/promises"
 import path from "node:path"
 import { applyEdits, type ModificationOptions, modify, parse as parseJsonc } from "jsonc-parser"
 import type { OpencodeConfig } from "../schemas/registry.js"
+
+const LOCAL_CONFIG_DIR = ".opencode"
 
 // =============================================================================
 // TYPES
@@ -66,6 +70,38 @@ const OPENCODE_CONFIG_TEMPLATE = `{
 `
 
 /**
+ * Find opencode config file path.
+ * Checks .opencode/ first, then root. Returns first found or default to .opencode/
+ * @returns Object with path and whether it exists
+ */
+export function findOpencodeConfig(cwd: string): { path: string; exists: boolean } {
+	// Check .opencode/ first (preferred location)
+	const dotOpencodeJsonc = path.join(cwd, LOCAL_CONFIG_DIR, "opencode.jsonc")
+	const dotOpencodeJson = path.join(cwd, LOCAL_CONFIG_DIR, "opencode.json")
+
+	if (existsSync(dotOpencodeJsonc)) {
+		return { path: dotOpencodeJsonc, exists: true }
+	}
+	if (existsSync(dotOpencodeJson)) {
+		return { path: dotOpencodeJson, exists: true }
+	}
+
+	// Check root (legacy location)
+	const rootJsonc = path.join(cwd, "opencode.jsonc")
+	const rootJson = path.join(cwd, "opencode.json")
+
+	if (existsSync(rootJsonc)) {
+		return { path: rootJsonc, exists: true }
+	}
+	if (existsSync(rootJson)) {
+		return { path: rootJson, exists: true }
+	}
+
+	// Neither exists - default to .opencode/ for new files
+	return { path: dotOpencodeJsonc, exists: false }
+}
+
+/**
  * Ensure opencode.jsonc exists, creating a minimal template if not.
  * This is an upsert operation - does nothing if file already exists.
  * @param cwd - Directory to create the config in
@@ -74,23 +110,19 @@ const OPENCODE_CONFIG_TEMPLATE = `{
 export async function ensureOpencodeConfig(
 	cwd: string,
 ): Promise<{ path: string; created: boolean }> {
-	const jsoncPath = path.join(cwd, "opencode.jsonc")
-	const jsonPath = path.join(cwd, "opencode.json")
+	const { path: configPath, exists } = findOpencodeConfig(cwd)
 
-	// Early exit: config already exists (Law 1)
-	const jsoncFile = Bun.file(jsoncPath)
-	if (await jsoncFile.exists()) {
-		return { path: jsoncPath, created: false }
+	// Early exit: config already exists
+	if (exists) {
+		return { path: configPath, created: false }
 	}
 
-	const jsonFile = Bun.file(jsonPath)
-	if (await jsonFile.exists()) {
-		return { path: jsonPath, created: false }
-	}
+	// Ensure directory exists
+	await mkdir(path.dirname(configPath), { recursive: true })
 
 	// Create minimal template
-	await Bun.write(jsoncPath, OPENCODE_CONFIG_TEMPLATE)
-	return { path: jsoncPath, created: true }
+	await Bun.write(configPath, OPENCODE_CONFIG_TEMPLATE)
+	return { path: configPath, created: true }
 }
 
 /**
@@ -102,22 +134,19 @@ export async function readOpencodeJsonConfig(cwd: string): Promise<{
 	content: string
 	path: string
 } | null> {
-	const jsonPath = path.join(cwd, "opencode.json")
-	const jsoncPath = path.join(cwd, "opencode.jsonc")
+	const { path: configPath, exists } = findOpencodeConfig(cwd)
 
-	for (const configPath of [jsoncPath, jsonPath]) {
-		const file = Bun.file(configPath)
-		if (await file.exists()) {
-			const content = await file.text()
-			return {
-				config: parseJsonc(content, [], { allowTrailingComma: true }) as OpencodeJsonConfig,
-				content,
-				path: configPath,
-			}
-		}
+	if (!exists) {
+		return null
 	}
 
-	return null
+	const file = Bun.file(configPath)
+	const content = await file.text()
+	return {
+		config: parseJsonc(content, [], { allowTrailingComma: true }) as OpencodeJsonConfig,
+		content,
+		path: configPath,
+	}
 }
 
 /**
@@ -216,7 +245,9 @@ export async function updateOpencodeJsonConfig(
 		// Create new config with schema
 		const config: OpencodeJsonConfig = { $schema: "https://opencode.ai/config.json" }
 		content = JSON.stringify(config, null, "\t")
-		configPath = path.join(cwd, "opencode.jsonc")
+		configPath = path.join(cwd, LOCAL_CONFIG_DIR, "opencode.jsonc")
+		// Ensure directory exists for new files
+		await mkdir(path.dirname(configPath), { recursive: true })
 		created = true
 	}
 

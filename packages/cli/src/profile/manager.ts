@@ -1,20 +1,19 @@
-import { mkdir, readdir, readlink, rm, stat } from "node:fs/promises"
+import { mkdir, readdir, rm, stat } from "node:fs/promises"
 import { parse } from "jsonc-parser"
-import type { GhostConfig } from "../schemas/ghost.js"
-import { ghostConfigSchema } from "../schemas/ghost.js"
+import type { ProfileOcxConfig } from "../schemas/ocx.js"
+import { profileOcxConfigSchema } from "../schemas/ocx.js"
 import {
-	GhostConfigError,
 	InvalidProfileNameError,
+	OcxConfigError,
 	ProfileExistsError,
 	ProfileNotFoundError,
 	ProfilesNotInitializedError,
 } from "../utils/errors.js"
-import { atomicSymlink, atomicWrite } from "./atomic.js"
+import { atomicWrite } from "./atomic.js"
 import {
-	getCurrentSymlink,
 	getProfileAgents,
 	getProfileDir,
-	getProfileGhostConfig,
+	getProfileOcxConfig,
 	getProfileOpencodeConfig,
 	getProfilesDir,
 } from "./paths.js"
@@ -22,10 +21,10 @@ import type { Profile } from "./schema.js"
 import { profileNameSchema } from "./schema.js"
 
 /**
- * Default ghost.jsonc template for new profiles.
+ * Default ocx.jsonc template for new profiles.
  */
-const DEFAULT_GHOST_CONFIG: GhostConfig = {
-	$schema: "https://ocx.kdco.dev/schemas/ghost.json",
+const DEFAULT_OCX_CONFIG: ProfileOcxConfig = {
+	$schema: "https://ocx.kdco.dev/schemas/ocx.json",
 	registries: {},
 	renameWindow: true,
 	exclude: [
@@ -40,8 +39,8 @@ const DEFAULT_GHOST_CONFIG: GhostConfig = {
 }
 
 /**
- * Manages ghost mode profiles.
- * Uses static factory pattern matching GhostConfigProvider.
+ * Manages OCX profiles.
+ * Uses static factory pattern for consistent construction.
  */
 export class ProfileManager {
 	private constructor(private readonly profilesDir: string) {}
@@ -52,6 +51,21 @@ export class ProfileManager {
 	 */
 	static create(): ProfileManager {
 		return new ProfileManager(getProfilesDir())
+	}
+
+	/**
+	 * Get a ProfileManager instance, throwing if OCX is not initialized.
+	 * Use this in commands that require profiles to exist.
+	 *
+	 * @throws ProfilesNotInitializedError if OCX is not initialized
+	 * @returns ProfileManager instance guaranteed to be initialized
+	 */
+	static async requireInitialized(): Promise<ProfileManager> {
+		const manager = ProfileManager.create()
+		if (!(await manager.isInitialized())) {
+			throw new ProfilesNotInitializedError()
+		}
+		return manager
 	}
 
 	/**
@@ -83,7 +97,7 @@ export class ProfileManager {
 		await this.ensureInitialized()
 		const entries = await readdir(this.profilesDir, { withFileTypes: true })
 		return entries
-			.filter((e) => e.isDirectory() && !e.name.startsWith(".") && e.name !== "current")
+			.filter((e) => e.isDirectory() && !e.name.startsWith("."))
 			.map((e) => e.name)
 			.sort()
 	}
@@ -112,19 +126,17 @@ export class ProfileManager {
 			throw new ProfileNotFoundError(name)
 		}
 
-		// Check ghost.jsonc exists with descriptive error
-		const ghostPath = getProfileGhostConfig(name)
-		const ghostFile = Bun.file(ghostPath)
+		// Check ocx.jsonc exists with descriptive error
+		const ocxPath = getProfileOcxConfig(name)
+		const ocxFile = Bun.file(ocxPath)
 
-		if (!(await ghostFile.exists())) {
-			throw new GhostConfigError(
-				`Profile "${name}" is missing ghost.jsonc. Expected at: ${ghostPath}`,
-			)
+		if (!(await ocxFile.exists())) {
+			throw new OcxConfigError(`Profile "${name}" is missing ocx.jsonc. Expected at: ${ocxPath}`)
 		}
 
-		const ghostContent = await ghostFile.text()
-		const ghostRaw = parse(ghostContent)
-		const ghost = ghostConfigSchema.parse(ghostRaw)
+		const ocxContent = await ocxFile.text()
+		const ocxRaw = parse(ocxContent)
+		const ocx = profileOcxConfigSchema.parse(ocxRaw)
 
 		// Load opencode.jsonc (optional)
 		const opencodePath = getProfileOpencodeConfig(name)
@@ -142,7 +154,7 @@ export class ProfileManager {
 
 		return {
 			name,
-			ghost,
+			ocx,
 			opencode,
 			hasAgents,
 		}
@@ -168,60 +180,48 @@ export class ProfileManager {
 		const dir = getProfileDir(name)
 		await mkdir(dir, { recursive: true, mode: 0o700 })
 
-		// Create ghost.jsonc with default template
-		const ghostPath = getProfileGhostConfig(name)
-		await atomicWrite(ghostPath, DEFAULT_GHOST_CONFIG)
+		// Create ocx.jsonc with default template
+		const ocxPath = getProfileOcxConfig(name)
+		await atomicWrite(ocxPath, DEFAULT_OCX_CONFIG)
 	}
 
 	/**
 	 * Remove a profile.
 	 * @param name - Profile name
-	 * @param force - Allow deleting current profile
 	 */
-	async remove(name: string, force = false): Promise<void> {
+	async remove(name: string): Promise<void> {
 		if (!(await this.exists(name))) {
 			throw new ProfileNotFoundError(name)
 		}
 
-		const current = await this.getCurrent()
-		const isCurrentProfile = current === name
 		const profiles = await this.list()
-
-		if (isCurrentProfile && !force) {
-			throw new Error(`Cannot delete current profile "${name}". Use --force to override.`)
-		}
 
 		if (profiles.length <= 1) {
 			throw new Error("Cannot delete the last profile. At least one profile must exist.")
 		}
 
-		// Compute remaining BEFORE deletion for atomicity
-		const remaining = profiles.filter((p) => p !== name)
-
 		const dir = getProfileDir(name)
 		await rm(dir, { recursive: true })
-
-		// Auto-switch symlink if we deleted current profile
-		if (isCurrentProfile && remaining.length > 0) {
-			await this.setCurrent(remaining[0] as string)
-		}
 	}
 
 	/**
-	 * Get the current profile name.
-	 * Respects OCX_PROFILE environment variable.
-	 * @param override - Optional override (e.g., from --profile flag)
+	 * Resolve the profile name to use.
+	 * Priority: override (from -p flag) > OCX_PROFILE env > "default"
+	 *
+	 * @param override - Optional override from --profile flag
+	 * @returns Resolved profile name (validated to exist)
+	 * @throws ProfileNotFoundError if resolved profile doesn't exist
 	 */
-	async getCurrent(override?: string): Promise<string> {
-		// Priority: override > env > symlink
+	async resolveProfile(override?: string): Promise<string> {
+		// Priority 1: Explicit override from -p/--profile flag
 		if (override) {
-			// Validate the override exists
 			if (!(await this.exists(override))) {
 				throw new ProfileNotFoundError(override)
 			}
 			return override
 		}
 
+		// Priority 2: OCX_PROFILE environment variable
 		const envProfile = process.env.OCX_PROFILE
 		if (envProfile) {
 			if (!(await this.exists(envProfile))) {
@@ -230,41 +230,17 @@ export class ProfileManager {
 			return envProfile
 		}
 
-		// Read symlink
-		await this.ensureInitialized()
-		const linkPath = getCurrentSymlink()
-		try {
-			const target = await readlink(linkPath)
-			// Target is relative directory name (e.g., "default")
-			return target
-		} catch {
-			// No symlink, fallback to first profile
-			const profiles = await this.list()
-			const firstProfile = profiles[0]
-			if (!firstProfile) {
-				throw new ProfilesNotInitializedError()
-			}
-			return firstProfile
+		// Priority 3: Fall back to "default" profile
+		const defaultProfile = "default"
+		if (!(await this.exists(defaultProfile))) {
+			throw new ProfileNotFoundError(defaultProfile)
 		}
-	}
-
-	/**
-	 * Set the current profile.
-	 * @param name - Profile name to set as current
-	 */
-	async setCurrent(name: string): Promise<void> {
-		if (!(await this.exists(name))) {
-			throw new ProfileNotFoundError(name)
-		}
-
-		const linkPath = getCurrentSymlink()
-		// Use relative target so symlink works if profiles dir moves
-		await atomicSymlink(name, linkPath)
+		return defaultProfile
 	}
 
 	/**
 	 * Initialize profiles with a default profile.
-	 * Called by `ocx ghost init`.
+	 * Called by `ocx profile add default`.
 	 */
 	async initialize(): Promise<void> {
 		// Create profiles directory
@@ -272,8 +248,5 @@ export class ProfileManager {
 
 		// Create default profile
 		await this.add("default")
-
-		// Set as current
-		await this.setCurrent("default")
 	}
 }

@@ -7,7 +7,7 @@
 import type { Command } from "commander"
 import kleur from "kleur"
 import type { RegistryConfig } from "../schemas/config.js"
-import { readOcxConfig, writeOcxConfig } from "../schemas/config.js"
+import { findOcxConfig, readOcxConfig, writeOcxConfig } from "../schemas/config.js"
 import { handleError, logger, outputJson } from "../utils/index.js"
 import { addCommonOptions } from "../utils/shared-options.js"
 
@@ -23,7 +23,7 @@ export interface RegistryAddOptions extends RegistryOptions {
 }
 
 // =============================================================================
-// CORE FUNCTIONS (used by both standard and ghost commands)
+// CORE FUNCTIONS (used by both standard and profile commands)
 // =============================================================================
 
 /**
@@ -127,6 +127,7 @@ export function registerRegistryCommand(program: Command): void {
 	addCmd.action(async (url: string, options: RegistryAddOptions) => {
 		try {
 			const cwd = options.cwd ?? process.cwd()
+			const { path: configPath } = findOcxConfig(cwd)
 			const config = await readOcxConfig(cwd)
 			if (!config) {
 				logger.error("No ocx.jsonc found. Run 'ocx init' first.")
@@ -138,7 +139,7 @@ export function registerRegistryCommand(program: Command): void {
 				isLocked: () => config.lockRegistries ?? false,
 				setRegistry: async (name, regConfig) => {
 					config.registries[name] = regConfig
-					await writeOcxConfig(cwd, config)
+					await writeOcxConfig(cwd, config, configPath)
 				},
 			})
 
@@ -167,6 +168,7 @@ export function registerRegistryCommand(program: Command): void {
 	removeCmd.action(async (name: string, options: RegistryOptions) => {
 		try {
 			const cwd = options.cwd ?? process.cwd()
+			const { path: configPath } = findOcxConfig(cwd)
 			const config = await readOcxConfig(cwd)
 			if (!config) {
 				logger.error("No ocx.jsonc found. Run 'ocx init' first.")
@@ -178,7 +180,7 @@ export function registerRegistryCommand(program: Command): void {
 				isLocked: () => config.lockRegistries ?? false,
 				removeRegistry: async (regName) => {
 					delete config.registries[regName]
-					await writeOcxConfig(cwd, config)
+					await writeOcxConfig(cwd, config, configPath)
 				},
 			})
 
