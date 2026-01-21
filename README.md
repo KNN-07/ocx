@@ -116,6 +116,8 @@ Like **Cargo**, OCX resolves dependencies, pins versions, and verifies integrity
 
 The profile system lets you work in repositories without modifying them, using your own portable configuration and profile isolation. Perfect for drive-by contributions to open source projects—or keeping work and personal configs completely separate.
 
+> ⚠️ **Version Requirements:** The profile system (OCX v1.4.0+) requires OpenCode v1.1.29 or higher. If you're using an older version of OpenCode, downgrade to OCX v1.3.3.
+
 #### Quick Start
 
 ```bash
