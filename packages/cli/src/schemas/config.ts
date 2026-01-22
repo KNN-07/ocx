@@ -138,12 +138,26 @@ export function findOcxConfig(cwd: string): { path: string; exists: boolean } {
 /**
  * Find ocx.lock lockfile path.
  * Checks .opencode/ first, then root.
+ * @param cwd - Working directory
+ * @param options - Optional settings for path resolution
  * @returns Object with path and whether it exists
  */
-export function findOcxLock(cwd: string): { path: string; exists: boolean } {
+export function findOcxLock(
+	cwd: string,
+	options?: { isFlattened?: boolean },
+): { path: string; exists: boolean } {
 	const dotOpencodePath = path.join(cwd, LOCAL_CONFIG_DIR, LOCK_FILE)
 	const rootPath = path.join(cwd, LOCK_FILE)
 
+	if (options?.isFlattened) {
+		// Flattened mode (global/profile): prefer root, ignore .opencode/
+		if (existsSync(rootPath)) {
+			return { path: rootPath, exists: true }
+		}
+		return { path: rootPath, exists: false }
+	}
+
+	// Local mode: prefer .opencode/, fallback to root
 	if (existsSync(dotOpencodePath)) {
 		return { path: dotOpencodePath, exists: true }
 	}
@@ -152,7 +166,6 @@ export function findOcxLock(cwd: string): { path: string; exists: boolean } {
 		return { path: rootPath, exists: true }
 	}
 
-	// Neither exists - default to .opencode/ for new files
 	return { path: dotOpencodePath, exists: false }
 }
 
@@ -200,8 +213,11 @@ export async function writeOcxConfig(
 /**
  * Read ocx.lock lockfile
  */
-export async function readOcxLock(cwd: string): Promise<OcxLock | null> {
-	const { path: lockPath, exists } = findOcxLock(cwd)
+export async function readOcxLock(
+	cwd: string,
+	options?: { isFlattened?: boolean },
+): Promise<OcxLock | null> {
+	const { path: lockPath, exists } = findOcxLock(cwd, options)
 
 	if (!exists) {
 		return null
