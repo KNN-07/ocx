@@ -45,7 +45,8 @@ That's it. Plugin added to your `opencode.jsonc`.
 Registries bundle related components with automatic dependency resolution:
 
 ```bash
-ocx registry add https://registry.kdco.dev --name kdco
+ocx registry add https://registry.kdco.dev --name kdco  # Add to local config
+# Or: ocx registry add https://registry.kdco.dev --name kdco --global
 ocx add kdco/workspace
 ```
 
@@ -108,7 +109,7 @@ Like **Cargo**, OCX resolves dependencies, pins versions, and verifies integrity
 | `ocx add <components...>` | Add components (`namespace/component`) or npm plugins (`npm:<package>`) |
 | `ocx update [component]` | Update to latest version |
 | `ocx diff [component]` | Show upstream changes |
-| `ocx registry add <url>` | Add a registry |
+| `ocx registry add <url>` | Add a component registry (use `--global` for global config) |
 
 [Full CLI Reference →](./docs/CLI.md)
 

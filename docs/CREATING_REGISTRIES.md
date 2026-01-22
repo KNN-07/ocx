@@ -238,6 +238,11 @@ Users can add your registry using:
 ocx registry add https://example.com/registry --name my
 ```
 
+> **Tip:** Use `--global` to add the registry to your global config (`~/.config/opencode/ocx.jsonc`) so it's available across all projects:
+> ```bash
+> ocx registry add https://example.com --name my --global
+> ```
+
 After adding the registry, users install components with:
 ```bash
 ocx add my/cool-plugin

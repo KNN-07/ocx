@@ -528,6 +528,7 @@ ocx registry add <url> [options]
 |--------|-------------|
 | `--name <name>` | Registry alias (defaults to hostname) |
 | `--version <version>` | Pin to specific version |
+| `-g, --global` | Add to global config (~/.config/opencode) instead of local project |
 | `-p, --profile <name>` | Use specific global profile for registry resolution |
 | `--cwd <path>` | Working directory (default: current directory) |
 | `--json` | Output as JSON |
@@ -548,6 +549,16 @@ ocx registry add https://registry.example.com --name myregistry --version 1.0.0
 # Get machine-readable output
 ocx registry add https://registry.example.com --json
 ```
+
+#### Global Registry
+
+Add a registry to your global config (available to all projects):
+
+```bash
+ocx registry add https://registry.example.com --name myregistry --global
+```
+
+**Note:** `--global` and `--cwd` are mutually exclusive.
 
 #### Errors
 
@@ -579,6 +590,7 @@ ocx registry remove <name> [options]
 
 | Option | Description |
 |--------|-------------|
+| `-g, --global` | Remove from global config instead of local project |
 | `-p, --profile <name>` | Use specific global profile for registry resolution |
 | `--cwd <path>` | Working directory (default: current directory) |
 | `--json` | Output as JSON |
@@ -589,6 +601,9 @@ ocx registry remove <name> [options]
 ```bash
 # Remove a registry
 ocx registry remove myregistry
+
+# Remove from global config
+ocx registry remove myregistry --global
 
 # Get machine-readable output
 ocx registry remove myregistry --json
@@ -618,6 +633,7 @@ ocx registry list [options]
 
 | Option | Description |
 |--------|-------------|
+| `-g, --global` | List registries from global config only |
 | `-p, --profile <name>` | Use specific global profile for registry resolution |
 | `--cwd <path>` | Working directory (default: current directory) |
 | `--json` | Output as JSON |
@@ -628,6 +644,9 @@ ocx registry list [options]
 ```bash
 # List registries
 ocx registry list
+
+# List global registries
+ocx registry list --global
 
 # Get machine-readable output
 ocx registry list --json

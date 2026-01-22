@@ -10,6 +10,8 @@ ocx registry add https://registry.kdco.dev --name kdco
 ocx add kdco/workspace
 ```
 
+> **Tip:** Use `--global` to add the registry to your global config for all projects.
+
 Browse available components with `ocx search kdco/`.
 
 ## Bundles

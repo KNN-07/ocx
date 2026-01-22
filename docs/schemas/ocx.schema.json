@@ -1,7 +1,8 @@
 {
 	"$schema": "http://json-schema.org/draft-07/schema#",
 	"$id": "https://ocx.kdco.dev/ocx.schema.json",
-	"title": "OCX Configuration Schema",
+	"title": "OCX Global Configuration Schema",
+	"description": "Schema for the global OCX configuration file at ~/.config/opencode/ocx.jsonc. This config is modified by commands using the --global flag and applies as the base configuration for all projects.",
 	"type": "object",
 	"properties": {
 		"$schema": {

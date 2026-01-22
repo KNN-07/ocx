@@ -17,6 +17,8 @@ In team environments, you may want to prevent developers from adding unapproved 
 
 When `lockRegistries` is `true`, `ocx registry add` and `ocx registry remove` will fail. This configuration should be checked into your version control system.
 
+> **Note:** The `lockRegistries` setting applies to the config file where it's defined. If set in your global config (`~/.config/opencode/ocx.jsonc`), it prevents `ocx registry add --global` and `ocx registry remove --global` from modifying global registries. If set in a local project config, it only affects local registry operations.
+
 ## Version Pinning
 
 You can pin a registry to a specific version to ensure reproducible environments:
