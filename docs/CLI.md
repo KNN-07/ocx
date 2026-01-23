@@ -527,6 +527,7 @@ ocx registry add <url> [options]
 |--------|-------------|
 | `--name <name>` | Registry alias (defaults to hostname) |
 | `--version <version>` | Pin to specific version |
+| `-f, --force`          | Overwrite existing registry            |
 | `-g, --global` | Add to global config (~/.config/opencode) instead of local project |
 | `-p, --profile <name>` | Use specific global profile for registry resolution |
 | `--cwd <path>` | Working directory (default: current directory) |
@@ -547,6 +548,9 @@ ocx registry add https://registry.example.com --name myregistry --version 1.0.0
 
 # Get machine-readable output
 ocx registry add https://registry.example.com --json
+
+# Update existing registry (requires --force)
+ocx registry add https://new-url.example.com --name myregistry --force
 ```
 
 #### Global Registry
@@ -565,7 +569,7 @@ ocx registry add https://registry.example.com --name myregistry --global
 |-------|-------|----------|
 | `No ocx.jsonc found` | Not initialized | Run `ocx init` first |
 | `Registries are locked` | `lockRegistries: true` in config | Remove lock or edit config manually |
-| `Registry 'name' already exists` | Duplicate name | Use a different `--name` |
+| `Registry 'name' already exists` | Duplicate name | Use `--force` to overwrite, or choose a different `--name` |
 
 ---
 
@@ -809,16 +813,14 @@ These options are available on all commands:
 
 ## Exit Codes
 
-| Code | Meaning |
-|------|---------|
-| `0` | Success |
-| `1` | General error |
-| `2` | Validation error |
-| `3` | Not found |
-| `4` | Network error |
-| `5` | Configuration error |
-| `6` | Conflict error |
-| `7` | Integrity error |
+| Code | Name       | Description                    |
+|------|------------|--------------------------------|
+| 0    | Success    | Command completed successfully |
+| 1    | General    | Unspecified error              |
+| 6    | Conflict   | Resource already exists        |
+| 66   | Not Found  | Resource not found             |
+| 69   | Network    | Network/connectivity error     |
+| 78   | Config     | Configuration error            |
 
 ---
 

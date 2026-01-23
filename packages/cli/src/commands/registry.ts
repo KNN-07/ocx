@@ -12,7 +12,12 @@ import { ProfileManager } from "../profile/manager"
 import { getProfileOcxConfig } from "../profile/paths"
 import type { RegistryConfig } from "../schemas/config"
 import { findOcxConfig, readOcxConfig, writeOcxConfig } from "../schemas/config"
-import { OcxConfigError, ProfileNotFoundError, ValidationError } from "../utils/errors"
+import {
+	OcxConfigError,
+	ProfileNotFoundError,
+	RegistryExistsError,
+	ValidationError,
+} from "../utils/errors"
 import { handleError, logger, outputJson } from "../utils/index"
 import { getGlobalConfigPath } from "../utils/paths"
 import {
@@ -33,6 +38,7 @@ export interface RegistryOptions {
 export interface RegistryAddOptions extends RegistryOptions {
 	name?: string
 	version?: string
+	force?: boolean
 }
 
 // =============================================================================
@@ -59,18 +65,37 @@ export async function runRegistryAddCore(
 		throw new Error("Registries are locked. Cannot add.")
 	}
 
-	// Derive name from URL if not provided
-	const name = options.name || new URL(url).hostname.replace(/\./g, "-")
+	// Validate and parse URL
+	const trimmedUrl = url.trim()
+	if (!trimmedUrl) {
+		throw new ValidationError("Registry URL is required")
+	}
+	let derivedName: string
+	try {
+		const parsed = new URL(trimmedUrl)
+		if (!["http:", "https:"].includes(parsed.protocol)) {
+			throw new ValidationError(`Invalid registry URL: ${trimmedUrl} (must use http or https)`)
+		}
+		derivedName = options.name || parsed.hostname.replace(/\./g, "-")
+	} catch (error) {
+		if (error instanceof ValidationError) throw error
+		throw new ValidationError(`Invalid registry URL: ${trimmedUrl}`)
+	}
 
+	const name = derivedName
 	const registries = callbacks.getRegistries()
+	const existingRegistry = registries[name]
+	if (existingRegistry && !options.force) {
+		throw new RegistryExistsError(name, existingRegistry.url, trimmedUrl)
+	}
 	const isUpdate = name in registries
 
 	await callbacks.setRegistry(name, {
-		url,
+		url: trimmedUrl,
 		version: options.version,
 	})
 
-	return { name, url, updated: isUpdate }
+	return { name, url: trimmedUrl, updated: isUpdate }
 }
 
 /**
@@ -212,18 +237,21 @@ export function registerRegistryCommand(program: Command): void {
 		.argument("<url>", "Registry URL")
 		.option("--name <name>", "Registry alias (defaults to hostname)")
 		.option("--version <version>", "Pin to specific version")
+		.option("-f, --force", "Overwrite existing registry")
 
 	addGlobalOption(addCmd)
 	addProfileOption(addCmd)
 	addCommonOptions(addCmd)
 
 	addCmd.action(async (url: string, options: RegistryAddOptions, command: Command) => {
+		let target: RegistryTarget | undefined
 		try {
 			const cwd = options.cwd ?? process.cwd()
-			const target = await resolveRegistryTarget(options, command, cwd)
+			target = await resolveRegistryTarget(options, command, cwd)
+			const { configDir, configPath } = target
 
 			// Read config from resolved path
-			const config = await readOcxConfig(target.configDir)
+			const config = await readOcxConfig(configDir)
 			if (!config) {
 				const initHint =
 					target.scope === "global"
@@ -240,7 +268,7 @@ export function registerRegistryCommand(program: Command): void {
 				isLocked: () => config.lockRegistries ?? false,
 				setRegistry: async (name, regConfig) => {
 					config.registries[name] = regConfig
-					await writeOcxConfig(target.configDir, config, target.configPath)
+					await writeOcxConfig(configDir, config, configPath)
 				},
 			})
 
@@ -256,6 +284,15 @@ export function registerRegistryCommand(program: Command): void {
 				}
 			}
 		} catch (error) {
+			if (error instanceof RegistryExistsError && !error.targetLabel) {
+				const enrichedError = new RegistryExistsError(
+					error.registryName,
+					error.existingUrl,
+					error.newUrl,
+					target?.targetLabel ?? "config",
+				)
+				handleError(enrichedError, { json: options.json })
+			}
 			handleError(error, { json: options.json })
 		}
 	})
