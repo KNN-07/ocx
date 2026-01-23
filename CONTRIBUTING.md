@@ -171,7 +171,7 @@ This config applies to ALL profiles and may include:
 - Agent model assignments  
 - MCP servers that apply globally
 
-**For AI Agents**: Always check this file if you see unexpected behavior or settings that don't match your profile config. The global config merges with profile-specific configs.
+**For AI Agents**: Always check this file if you see unexpected behavior. Note that OpenCode's global config is separate from OCX's profile system — OpenCode merges its own global config automatically, while OCX's profile registries are isolated per scope.
 
 ### Registry Tests
 
