@@ -5,49 +5,73 @@ describe("resolveOpenCodeBinary", () => {
 	// Table-driven with DIFFERENT values to prove precedence
 	const cases = [
 		{
-			name: "uses configBin when set (highest priority)",
-			configBin: "/custom/opencode",
+			name: "uses bin string when set (highest priority)",
+			bin: "/custom/opencode",
 			envBin: "/env/opencode",
-			expected: "/custom/opencode",
+			expected: ["/custom/opencode"],
 		},
 		{
-			name: "uses envBin when configBin not set",
-			configBin: undefined,
+			name: "uses envBin when bin not set",
+			bin: undefined,
 			envBin: "/env/opencode",
-			expected: "/env/opencode",
+			expected: ["/env/opencode"],
 		},
 		{
 			name: "falls back to 'opencode' when neither set",
-			configBin: undefined,
+			bin: undefined,
 			envBin: undefined,
-			expected: "opencode",
+			expected: ["opencode"],
 		},
 		{
 			name: "does NOT trim whitespace (preserves as-is)",
-			configBin: undefined,
+			bin: undefined,
 			envBin: "   ",
-			expected: "   ", // Whitespace preserved - will cause spawn error
+			expected: ["   "], // Whitespace preserved - will cause spawn error
+		},
+		{
+			name: "handles bin as array with executable and args",
+			bin: ["node", "serve", "--hostname", "0.0.0.0"],
+			envBin: "/env/opencode",
+			expected: ["node", "serve", "--hostname", "0.0.0.0"],
+		},
+		{
+			name: "handles bin as array with single executable",
+			bin: ["shuvcode"],
+			envBin: "/env/opencode",
+			expected: ["shuvcode"],
+		},
+		{
+			name: "empty array bin falls back to envBin",
+			bin: [],
+			envBin: "/env/opencode",
+			expected: ["/env/opencode"],
+		},
+		{
+			name: "empty array bin with no envBin falls back to default",
+			bin: [],
+			envBin: undefined,
+			expected: ["opencode"],
 		},
 	]
 
-	for (const { name, configBin, envBin, expected } of cases) {
+	for (const { name, bin, envBin, expected } of cases) {
 		it(name, () => {
-			const result = resolveOpenCodeBinary({ configBin, envBin })
-			expect(result).toBe(expected)
+			const result = resolveOpenCodeBinary({ bin, envBin })
+			expect(result).toEqual(expected)
 		})
 	}
 
 	it("empty string envBin is PRESERVED (nullish coalescing behavior)", () => {
 		// Empty string is NOT nullish, so it's preserved (will cause spawn error, but that's intentional)
 		// This matches the original ?? semantics: only undefined/null fall through
-		const result = resolveOpenCodeBinary({ configBin: undefined, envBin: "" })
-		expect(result).toBe("")
+		const result = resolveOpenCodeBinary({ bin: undefined, envBin: "" })
+		expect(result).toEqual([""])
 	})
 
-	it("empty string configBin is PRESERVED over envBin", () => {
-		// Empty string configBin takes precedence (nullish coalescing)
-		const result = resolveOpenCodeBinary({ configBin: "", envBin: "/env/opencode" })
-		expect(result).toBe("")
+	it("empty string bin is PRESERVED over envBin", () => {
+		// Empty string bin takes precedence (nullish coalescing)
+		const result = resolveOpenCodeBinary({ bin: "", envBin: "/env/opencode" })
+		expect(result).toEqual([""])
 	})
 })
 

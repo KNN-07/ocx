@@ -42,8 +42,13 @@ export const profileOcxConfigSchema = z.object({
 	/** Schema URL for IDE support */
 	$schema: z.string().optional(),
 
-	/** Path to OpenCode binary. Falls back to OPENCODE_BIN env var, then "opencode". */
-	bin: z.string().optional(),
+	/**
+	 * Path to OpenCode binary. Can be either:
+	 * - A string: "shuvcode" (simple executable path)
+	 * - An array: ["node", "serve", "--hostname", "0.0.0.0"] (executable with arguments)
+	 * Falls back to OPENCODE_BIN env var, then "opencode".
+	 */
+	bin: z.union([z.string(), z.array(z.string())]).optional(),
 
 	/**
 	 * Configured registries for OCX profiles

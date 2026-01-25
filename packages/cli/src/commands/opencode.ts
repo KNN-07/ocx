@@ -32,14 +32,30 @@ interface OpencodeOptions {
 
 /**
  * Resolves which opencode binary to use.
- * Priority: configBin > envBin > "opencode"
+ * The bin can be either a string or an array of strings (executable with arguments).
+ * Priority: bin > OPENCODE_BIN env var > "opencode"
  *
  * Uses nullish coalescing (??) to preserve original behavior:
  * - Empty string "" is passed through (will cause spawn error, but that's intentional)
  * - Only undefined/null falls through to the next option
+ *
+ * When bin is a string array, it's returned directly (first element is executable, rest are args).
+ * When bin is a string, it's returned as a single-element array.
  */
-export function resolveOpenCodeBinary(opts: { configBin?: string; envBin?: string }): string {
-	return opts.configBin ?? opts.envBin ?? "opencode"
+export function resolveOpenCodeBinary(opts: {
+	bin?: string | string[]
+	envBin?: string
+}): string[] {
+	// If bin is a non-empty array, return it with bin args
+	if (Array.isArray(opts.bin) && opts.bin.length > 0) {
+		return opts.bin
+	}
+	// If bin is a string, return it as a single-element array
+	if (typeof opts.bin === "string") {
+		return [opts.bin]
+	}
+	// If bin is undefined/null/empty array, fall back to env var or default
+	return [opts.envBin ?? "opencode"]
 }
 
 /**
@@ -168,13 +184,13 @@ async function runOpencode(
 
 	// Determine OpenCode binary
 	const bin = resolveOpenCodeBinary({
-		configBin: ocxConfig?.bin,
+		bin: ocxConfig?.bin,
 		envBin: process.env.OPENCODE_BIN,
 	})
 
 	// Spawn OpenCode directly in the project directory with config via environment
 	proc = Bun.spawn({
-		cmd: [bin, ...args],
+		cmd: [...bin, ...args],
 		cwd: projectDir,
 		env: buildOpenCodeEnv({
 			baseEnv: process.env as Record<string, string | undefined>,
